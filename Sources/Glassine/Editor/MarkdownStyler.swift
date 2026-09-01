@@ -60,6 +60,7 @@ final class MarkdownStyler {
     private static let link = rx("(!?\\[)([^\\]\\n]*)(\\]\\()([^)\\s]*)((?:\\s+\"[^\"]*\")?\\))")
     private static let bareURL = rx("(?<![\\(\\w])https?://[^\\s<>()\\]]+")
     private static let tag = rx("(?<![\\w#/&])#([A-Za-z_][\\w\\-/]*)")
+    private static let dateToken = rx(DateToken.pattern)
     private static let hexLike = rx("^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$")
 
     // MARK: - Public
@@ -250,6 +251,14 @@ final class MarkdownStyler {
             let name = textNS.substring(with: m.range(at: 1))
             if MarkdownStyler.hexLike.firstMatch(in: name, options: [], range: NSRange(location: 0, length: (name as NSString).length)) != nil { continue }
             storage.addAttribute(.foregroundColor, value: theme.accent.withAlpha(0.9), range: absRange(m.range))
+        }
+        for m in MarkdownStyler.dateToken.matches(in: text, options: [], range: full) where !inCode(m.range) {
+            let r = absRange(m.range)
+            storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: r)
+            storage.addAttribute(.backgroundColor, value: theme.accent.withAlpha(theme.isDark ? 0.18 : 0.14), range: r)
+            storage.addAttribute(DateToken.attributeKey, value: true, range: r)
+            // The "@" stays in the file but steps back visually.
+            storage.addAttribute(.foregroundColor, value: theme.accent.withAlpha(0.55), range: NSRange(location: r.location, length: 1))
         }
     }
 }

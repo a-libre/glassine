@@ -56,7 +56,7 @@ final class GlassineTextView: NSTextView {
         self.styler = MarkdownStyler(config: config)
 
         let storage = NSTextStorage()
-        let layoutManager = NSLayoutManager()
+        let layoutManager = GlassineLayoutManager()
         ownedStorage = storage
         ownedLayoutManager = layoutManager
         layoutManager.allowsNonContiguousLayout = false
@@ -346,8 +346,42 @@ final class GlassineTextView: NSTextView {
     }
 
     override func insertNewline(_ sender: Any?) {
+        expandDateShortcutIfNeeded()
         if config.continueLists, continueListIfNeeded() { return }
         super.insertNewline(sender)
+    }
+
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        // A finished "@today" / "@yesterday" / "@tomorrow" becomes a date when the next
+        // space or punctuation mark arrives.
+        if let s = string as? String, s.count == 1, let ch = s.first,
+           ch == " " || ch == "\t" || ",.;:!?)]".contains(ch) {
+            expandDateShortcutIfNeeded()
+        }
+        super.insertText(string, replacementRange: replacementRange)
+    }
+
+    /// Replaces a shortcut word right before the caret with the actual date. Returns true if it did.
+    @discardableResult
+    private func expandDateShortcutIfNeeded() -> Bool {
+        guard let storage = textStorage else { return false }
+        let sel = selectedRange()
+        guard sel.length == 0, sel.location > 0 else { return false }
+        let ns = storage.string as NSString
+        let paragraphStart = ns.paragraphRange(for: sel).location
+        let start = max(paragraphStart, sel.location - 12)
+        let lookback = NSRange(location: start, length: sel.location - start)
+        let tail = ns.substring(with: lookback)
+        let tailNS = tail as NSString
+        guard let m = DateToken.shortcutRegex.firstMatch(in: tail, options: [], range: NSRange(location: 0, length: tailNS.length)),
+              let date = DateToken.date(for: tailNS.substring(with: m.range(at: 1))) else { return false }
+        let token = "@" + DateToken.format(date)
+        let range = NSRange(location: lookback.location + m.range.location, length: m.range.length)
+        guard shouldChangeText(in: range, replacementString: token) else { return false }
+        storage.replaceCharacters(in: range, with: token)
+        didChangeText()
+        setSelectedRange(NSRange(location: range.location + token.nsLength, length: 0))
+        return true
     }
 
     /// Markdown list continuation: Return on "- item" starts "- ", Return on an

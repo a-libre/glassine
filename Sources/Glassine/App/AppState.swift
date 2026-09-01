@@ -465,6 +465,7 @@ enum WelcomeDocument {
     - Try ⌃⌘T for typewriter scrolling and ⌃⌘F for focus mode.
     - Themes live under **View → Theme**. Duplicate one in Settings to make it yours.
     - The file's name follows the first line of the document. Change this heading and watch the sidebar.
+    - Type @today, @yesterday or @tomorrow and a space. Handy for daily notes.
 
     ## Markdown, lightly styled
 

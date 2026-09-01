@@ -236,6 +236,8 @@ enum ReviewHTML {
     th, td { padding: 0.5em 0.8em; text-align: left; vertical-align: top; }
     th { font-weight: 600; }
     .tag { color: var(--accent); }
+    .date { display: inline-block; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); \
+    border-radius: 999px; padding: 0 0.55em; font-size: 0.92em; line-height: 1.5; white-space: nowrap; }
     ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
     """
 
