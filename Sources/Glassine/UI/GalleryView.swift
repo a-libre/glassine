@@ -496,10 +496,12 @@ struct GalleryCard: View {
                     }
                 }
                 if lines.isEmpty {
-                    Text("Empty")
-                        .font(.system(size: 11))
-                        .italic()
-                        .opacity(0.35)
+                    if doc.contentLoaded {
+                        Text("Empty")
+                            .font(.system(size: 11))
+                            .italic()
+                            .opacity(0.35)
+                    }
                 } else {
                     VStack(alignment: .leading, spacing: 3) {
                         ForEach(lines) { line in
@@ -614,6 +616,7 @@ enum MarkdownPreview {
     private static let rule = try! NSRegularExpression(pattern: "^[ \\t]*(?:(?:-[ \\t]*){3,}|(?:\\*[ \\t]*){3,}|(?:_[ \\t]*){3,})$")
 
     static func lines(for doc: DocumentRef, limit: Int = 26) -> [PreviewLine] {
+        guard doc.contentLoaded else { return [] }
         let key = "\(doc.id)|\(doc.modified.timeIntervalSince1970)|\(doc.size)"
         if let hit = cache[key] { return hit }
         let result = parse(doc.preview, title: doc.title, limit: limit)

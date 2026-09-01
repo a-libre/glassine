@@ -13,6 +13,8 @@ struct DocumentRef: Identifiable, Hashable {
     var tags: [String]
     /// The first ~2000 characters, used for gallery cards.
     var preview: String = ""
+    /// False until the file has been read (the launch listing skips reading).
+    var contentLoaded: Bool = true
 }
 
 struct LibraryFolder: Identifiable, Hashable {
@@ -56,6 +58,10 @@ final class LibraryStore: ObservableObject {
 
     private let scanQueue = DispatchQueue(label: "glassine.library.scan", qos: .userInitiated)
     private var lastSignature: Int = 0
+    /// False after a listing that skipped file contents; the next full scan always applies.
+    private var contentsComplete = true
+    /// Bumped whenever the document list changes; cheap to compare in caches.
+    private(set) var generation = 0
     private var tagCache: [String: CachedMeta] = [:]
 
     struct CachedMeta {
@@ -149,8 +155,10 @@ final class LibraryStore: ObservableObject {
     // MARK: - Scanning
 
     /// Scans synchronously (used at launch so the first frame has content).
-    func scanNow() {
-        let result = LibraryStore.scan(rootURL: rootURL, tagCache: &tagCache)
+    /// Synchronous scan. With `readingContents: false` it only lists files (no reads),
+    /// which is what launch wants: the window comes up at once and a full scan follows.
+    func scanNow(readingContents: Bool = true) {
+        let result = LibraryStore.scan(rootURL: rootURL, tagCache: &tagCache, readContents: readingContents)
         apply(result)
     }
 
@@ -171,8 +179,10 @@ final class LibraryStore: ObservableObject {
     }
 
     private func apply(_ result: ScanResult) {
-        if result.signature == lastSignature && lastError == nil { return }
+        if result.signature == lastSignature && contentsComplete && lastError == nil { return }
         lastSignature = result.signature
+        contentsComplete = result.complete
+        generation += 1
         root = result.root
         allDocuments = result.root.allDocuments
         var counts: [String: Int] = [:]
@@ -184,9 +194,11 @@ final class LibraryStore: ObservableObject {
     private struct ScanResult {
         var root: LibraryFolder
         var signature: Int
+        /// Every readable file's contents were read (or came from the cache).
+        var complete: Bool
     }
 
-    private static func scan(rootURL: URL, tagCache: inout [String: CachedMeta]) -> ScanResult {
+    private static func scan(rootURL: URL, tagCache: inout [String: CachedMeta], readContents: Bool = true) -> ScanResult {
         let fm = FileManager.default
         let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey, .creationDateKey, .fileSizeKey, .fileAllocatedSizeKey, .nameKey]
         var hasher = Hasher()
@@ -213,9 +225,12 @@ final class LibraryStore: ObservableObject {
 
                     var tags: [String] = []
                     var preview = ""
+                    var loaded = true
                     if let cached = tagCache[childRel], cached.modified == modified {
                         tags = cached.tags
                         preview = cached.preview
+                    } else if !readContents {
+                        loaded = false
                     } else if size > 0 && allocated == 0 {
                         // Dataless iCloud file (not downloaded yet): ask for it, don't block on it.
                         try? fm.startDownloadingUbiquitousItem(at: item)
@@ -232,7 +247,7 @@ final class LibraryStore: ObservableObject {
                         id: childRel, url: item,
                         title: item.deletingPathExtension().lastPathComponent,
                         modified: modified, created: created, size: size,
-                        folder: rel, tags: tags, preview: preview
+                        folder: rel, tags: tags, preview: preview, contentLoaded: loaded
                     ))
                 }
             }
@@ -243,7 +258,7 @@ final class LibraryStore: ObservableObject {
 
         let root = buildFolder(at: rootURL, rel: "")
         for f in root.allFolders { hasher.combine("dir:" + f.id) }
-        return ScanResult(root: root, signature: hasher.finalize())
+        return ScanResult(root: root, signature: hasher.finalize(), complete: readContents)
     }
 
     // MARK: - File operations

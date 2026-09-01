@@ -32,7 +32,7 @@ final class DocumentModel: ObservableObject, Identifiable {
     private unowned let library: LibraryStore
     private let settings: AppSettings
 
-    private var editGeneration = 0
+    private(set) var editGeneration = 0
     private var savedGeneration = 0
     private var knownModificationDate: Date?
     private var lastSavedText: String
@@ -48,6 +48,7 @@ final class DocumentModel: ObservableObject, Identifiable {
     private var savedIndicatorWork: DispatchWorkItem?
 
     private static let saveQueue = DispatchQueue(label: "glassine.document.save", qos: .userInitiated)
+    private static let statsQueue = DispatchQueue(label: "glassine.document.stats", qos: .utility)
 
     init(url: URL, library: LibraryStore, settings: AppSettings) {
         self.url = url
@@ -116,7 +117,7 @@ final class DocumentModel: ObservableObject, Identifiable {
         editGeneration += 1
         if case .saving = saveState {} else { saveState = .dirty }
         scheduleAutosave()
-        statsDebouncer.call { [weak self] in self?.recomputeStats() }
+        statsDebouncer.call { [weak self] in self?.recomputeStatsInBackground() }
 
         if settings.data.nameFilesFromFirstLine {
             let firstLine = newText.derivedMarkdownTitle
@@ -306,13 +307,34 @@ final class DocumentModel: ObservableObject, Identifiable {
     // MARK: - Stats
 
     private func recomputeStats() {
+        let (chars, words) = DocumentModel.stats(of: text)
+        characterCount = chars
+        wordCount = words
+        readingMinutes = Double(words) / 225.0
+    }
+
+    /// Counting words walks the whole text; while typing that happens off the main
+    /// thread so long documents never make a keystroke wait.
+    private func recomputeStatsInBackground() {
+        let snapshot = text
+        let generation = editGeneration
+        DocumentModel.statsQueue.async { [weak self] in
+            let (chars, words) = DocumentModel.stats(of: snapshot)
+            DispatchQueue.main.async {
+                guard let self, self.editGeneration == generation else { return }
+                self.characterCount = chars
+                self.wordCount = words
+                self.readingMinutes = Double(words) / 225.0
+            }
+        }
+    }
+
+    private static func stats(of text: String) -> (characters: Int, words: Int) {
         let ns = text as NSString
-        characterCount = ns.length
         var words = 0
         ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byWords, .substringNotRequired]) { _, _, _, _ in
             words += 1
         }
-        wordCount = words
-        readingMinutes = Double(words) / 225.0
+        return (ns.length, words)
     }
 }

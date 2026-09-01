@@ -85,7 +85,10 @@ final class AppState: ObservableObject {
         if library.isEmptyOnDisk {
             _ = try? library.createDocument(in: "", stem: "Welcome to Glassine", contents: WelcomeDocument.text)
         }
-        library.scanNow()
+        // A listing is enough to open the last document and show the window; reading every
+        // file for previews, tags and search happens right after, off the main thread.
+        library.scanNow(readingContents: false)
+        library.rescan()
         if let last = settings.data.lastOpenedDocument, let ref = library.document(withID: last) {
             open(ref)
         } else {
@@ -128,13 +131,31 @@ final class AppState: ObservableObject {
     /// Documents matching the search box and/or the tag filter, or nil when neither is set.
     /// Every word of the query has to appear somewhere in the title, tags or text
     /// (case- and accent-insensitive). Title matches come first, then the rest in the usual order.
+    private struct SearchMemo {
+        let query: String, tag: String?, sort: SortMode, generation: Int, liveID: String?, liveEdit: Int
+        let result: [DocumentRef]
+    }
+    private var searchMemo: SearchMemo?
+
     var filteredDocuments: [DocumentRef]? {
         let q = searchText.trimmingCharacters(in: .whitespaces)
+        guard tagFilter != nil || !q.isEmpty else { return nil }
+        if let memo = searchMemo, memo.query == q, memo.tag == tagFilter, memo.sort == settings.data.sortDocumentsBy,
+           memo.generation == library.generation, memo.liveID == document?.relativePath,
+           memo.liveEdit == (document?.editGeneration ?? -1) {
+            return memo.result
+        }
+        let result = computeFilteredDocuments(query: q)
+        searchMemo = SearchMemo(query: q, tag: tagFilter, sort: settings.data.sortDocumentsBy, generation: library.generation,
+                                liveID: document?.relativePath, liveEdit: document?.editGeneration ?? -1, result: result)
+        return result
+    }
+
+    private func computeFilteredDocuments(query q: String) -> [DocumentRef] {
         let base: [DocumentRef]
         if let tag = tagFilter {
             base = library.allDocuments.filter { $0.tags.contains(tag) }
         } else {
-            guard !q.isEmpty else { return nil }
             base = library.allDocuments
         }
         guard !q.isEmpty else { return sorted(base) }

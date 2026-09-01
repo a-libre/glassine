@@ -256,7 +256,22 @@ struct ReviewWebView: NSViewRepresentable {
 // MARK: - HTML + CSS
 
 enum ReviewHTML {
+    private struct RenderKey: Equatable {
+        let markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double
+    }
+    private static var lastRender: (key: RenderKey, html: String)?
+
+    /// The page for a document. SwiftUI asks for this on every state change while Review
+    /// is up, so the last result is kept; comparing the inputs is far cheaper than rendering.
     static func document(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double) -> String {
+        let key = RenderKey(markdown: markdown, title: title, style: style, theme: theme, scale: scale)
+        if let last = lastRender, last.key == key { return last.html }
+        let html = build(markdown: markdown, title: title, style: style, theme: theme, scale: scale)
+        lastRender = (key, html)
+        return html
+    }
+
+    private static func build(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double) -> String {
         let body = MarkdownHTML.render(markdown)
         let vars = """
         :root { --scale: \(scale); --accent: \(theme.accent.hex); --text: \(theme.text.hex); --tint: \(theme.tint.hex); \
