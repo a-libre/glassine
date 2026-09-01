@@ -1,0 +1,21 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Assembled app and logs from build.sh
+build/
+build.log
+install.log
+
+# Generated from Resources/AppIcon.iconset by build.sh
+Resources/AppIcon.icns
+
+# Xcode
+xcuserdata/
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+
+# macOS
+.DS_Store
