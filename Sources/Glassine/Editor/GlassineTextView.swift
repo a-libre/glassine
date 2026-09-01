@@ -196,7 +196,7 @@ final class GlassineTextView: NSTextView {
         storage.setAttributedString(NSAttributedString(string: text, attributes: config.baseAttributes))
         storage.endEditing()
         styler.restyle(storage, range: NSRange(location: 0, length: storage.length))
-        let loc = min(max(0, position ?? 0), storage.length)
+        let loc = min(max(0, position ?? storage.length), storage.length)
         setSelectedRange(NSRange(location: loc, length: 0))
         lastFocusRange = NSRange(location: NSNotFound, length: 0)
         updateFocusDimming(force: true)

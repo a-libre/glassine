@@ -8,6 +8,7 @@ struct SidebarView: View {
     @State private var recentsExpanded = true
     @State private var starredExpanded = true
     @State private var tagsExpanded = true
+    @State private var documentsExpanded = true
 
     private var theme: Theme { state.theme }
 
@@ -50,7 +51,7 @@ struct SidebarView: View {
                                 }
                             }
                         }
-                        SectionHeader(title: "Documents", expanded: .constant(true), trailing: {
+                        SectionHeader(title: "Documents", expanded: $documentsExpanded, trailing: {
                             AnyView(HStack(spacing: 2) {
                                 SidebarIconButton(systemName: "folder.badge.plus", help: "New Folder (⌘⇧N)") {
                                     state.promptNewFolder(in: "")
@@ -59,7 +60,9 @@ struct SidebarView: View {
                             })
                         })
                         .padding(.top, 10)
-                        FolderContents(folder: state.library.root, depth: 0)
+                        if documentsExpanded {
+                            FolderContents(folder: state.library.root, depth: 0)
+                        }
                         if !state.library.tags.isEmpty {
                             SectionHeader(title: "Tags", expanded: $tagsExpanded)
                                 .padding(.top, 10)
@@ -178,7 +181,7 @@ struct SidebarView: View {
                 Text("Today")
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text("⌘⇧D")
+                Text("⌘D")
                     .font(.system(size: 11))
                     .opacity(0.35)
             }

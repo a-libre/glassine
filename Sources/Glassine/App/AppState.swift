@@ -319,8 +319,10 @@ final class AppState: ObservableObject {
         settings.data.caretPositions[doc.relativePath] = position
     }
 
+    /// Documents open with the caret at the end — where the writing continues.
+    /// (Positions are still recorded, in case restoring them becomes an option.)
     func savedCaret(for relPath: String) -> Int? {
-        settings.data.caretPositions[relPath]
+        nil
     }
 
     // MARK: - Creating
@@ -355,7 +357,6 @@ final class AppState: ObservableObject {
             }
             let contents = "# \(title)\n\n"
             let ref = try library.createDocument(in: folder, stem: title.sanitizedFileStem, contents: contents)
-            settings.data.caretPositions[ref.id] = contents.nsLength
             open(ref)
             reviewMode = false
             settings.setExpanded(folder, true)

@@ -53,6 +53,9 @@ codesign --force --deep --sign - --identifier com.alexlibre.glassine "$APP" >/de
 echo "▸ Built $APP"
 
 if [[ $INSTALL -eq 1 ]]; then
+  # A running copy would keep executing the old code (and fight the copy); ask it to quit.
+  osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+  sleep 1
   rm -rf "/Applications/$APP_NAME.app"
   cp -R "$APP" "/Applications/$APP_NAME.app"
   echo "▸ Installed /Applications/$APP_NAME.app"
