@@ -4,7 +4,7 @@ A quiet Markdown writing app for macOS. A translucent glass window, a caret that
 
 Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift package and a build script. MIT licensed.
 
-*Glassine is the thin, translucent paper used to protect prints. The project was briefly called Pyrus; that name belongs to someone else on the App Store, and the app renames its settings and iCloud folder on first launch if it finds the old ones.*
+*Glassine is the thin, translucent paper used to protect prints.*
 
 ## Install
 
