@@ -464,6 +464,12 @@ struct GalleryCard: View {
         lines.reduce(CGFloat(0)) { $0 + $1.estimatedHeight } > GalleryCard.previewCap
     }
 
+    private var shadowColor: Color {
+        if isSelected { return theme.accent.color.opacity(0.25) }
+        if hovering { return Color.black.opacity(theme.isDark ? 0.22 : 0.08) }
+        return .clear
+    }
+
     private var borderColor: Color {
         if isSelected { return theme.accent.color.opacity(0.95) }
         if isCurrent { return theme.accent.color.opacity(0.45) }
@@ -525,7 +531,8 @@ struct GalleryCard: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(borderColor, lineWidth: isSelected ? 2 : (isCurrent ? 1.5 : 1))
             )
-            .shadow(color: isSelected ? theme.accent.color.opacity(0.25) : .clear, radius: 12, y: 2)
+            .shadow(color: shadowColor, radius: isSelected ? 12 : 10, y: isSelected ? 2 : 4)
+            .offset(y: hovering && !isSelected ? -1 : 0)
             .overlay(alignment: .bottomTrailing) {
                 if hovering || isSelected {
                     Text(caption)

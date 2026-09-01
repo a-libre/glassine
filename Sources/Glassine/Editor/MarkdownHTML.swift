@@ -361,6 +361,12 @@ enum MarkdownHTML {
                 inner.removeSubrange(close)
                 inner.removeFirst(3)
             }
+            if !taskPrefix.isEmpty, item.tight {
+                // The item's own text (not a nested list) gets a span the stylesheet can strike.
+                let nested = inner.range(of: "\n<ul>") ?? inner.range(of: "\n<ol")
+                let end = nested?.lowerBound ?? inner.endIndex
+                inner = "<span class=\"task-text\">" + inner[..<end] + "</span>" + inner[end...]
+            }
             out += "<li\(liClass)>" + taskPrefix + inner + "</li>\n"
         }
         out += ordered ? "</ol>\n" : "</ul>\n"

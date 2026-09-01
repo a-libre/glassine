@@ -22,12 +22,26 @@ struct EditorContainerView: View {
                 )
                 .id(doc.id)
                 .ignoresSafeArea()
+                .mask(edgeFade(bottom: state.settings.data.showCounter ? 34 : 16))
                 if state.settings.data.showCounter {
                     FooterBar(document: doc)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeOut(duration: 0.18), value: state.showingGallery)
+        .animation(.easeOut(duration: 0.18), value: state.reviewMode)
+        .animation(.easeOut(duration: 0.18), value: state.document?.relativePath)
+    }
+
+    /// Text slips out under the top edge and the footer instead of being cut off.
+    private func edgeFade(bottom: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 26)
+            Rectangle().fill(.black)
+            LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: bottom)
+        }
+        .ignoresSafeArea()
     }
 }
 

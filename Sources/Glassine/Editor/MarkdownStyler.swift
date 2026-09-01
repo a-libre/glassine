@@ -6,6 +6,9 @@ import AppKit
 /// GlassineTextView.mouseDown); the attribute value is whether it is checked.
 enum TaskBox {
     static let attributeKey = NSAttributedString.Key("glassine.taskBox")
+    /// On the text of a finished task. The value is `[start, end]` colours for the
+    /// strikethrough, which GlassineLayoutManager draws as a gradient.
+    static let doneKey = NSAttributedString.Key("glassine.taskDone")
 }
 
 final class MarkdownStyler {
@@ -199,6 +202,7 @@ final class MarkdownStyler {
                     storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(rest))
                     storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: absRange(rest))
                     storage.addAttribute(.strikethroughColor, value: syntaxColor, range: absRange(rest))
+                    storage.addAttribute(TaskBox.doneKey, value: [theme.accent.withAlpha(0.9), syntaxColor.withAlphaComponent(0.4)], range: absRange(rest))
                 }
             }
         } else if MarkdownStyler.indentedCode.firstMatch(in: text, options: [], range: full) != nil {

@@ -197,6 +197,12 @@ struct ReviewWebView: NSViewRepresentable {
         func load(_ html: String, into web: WKWebView, baseURL: URL) {
             lastHTML = html
             lastHTMLWithoutScale = ReviewHTML.stripScale(html)
+            // Dip out before a reload and back in once it has rendered: a style switch
+            // reads as a crossfade instead of a blink.
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.1
+                web.animator().alphaValue = 0
+            }
             web.loadHTMLString(html, baseURL: baseURL)
         }
 
@@ -205,6 +211,18 @@ struct ReviewWebView: NSViewRepresentable {
                 pendingScrollFraction = nil
                 let js = "window.scrollTo(0, \(f) * Math.max(0, document.documentElement.scrollHeight - window.innerHeight));"
                 webView.evaluateJavaScript(js, completionHandler: nil)
+            }
+            reveal(webView)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { reveal(webView) }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { reveal(webView) }
+
+        private func reveal(_ webView: WKWebView) {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.22
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                webView.animator().alphaValue = 1
             }
         }
 
@@ -290,21 +308,27 @@ enum ReviewHTML {
     ul, ol { padding-left: 1.5em; }
     li.task { list-style: none; margin-left: -1.5em; }
     li.task input { margin: 0 0.5em 0 0; vertical-align: -1px; cursor: pointer; accent-color: var(--accent); }
-    li.task.done { opacity: 0.6; text-decoration: line-through; }
+    li.task.done { opacity: 0.6; }
+    li.task.done:not(:has(.task-text)) { text-decoration: line-through; }
+    li.task.done .task-text { background-image: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 30%, var(--syntax))); \
+    background-repeat: no-repeat; background-size: 100% 1.5px; background-position: 0 57%; \
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; }
     a { color: var(--link); text-decoration: none; } a:hover { text-decoration: underline; }
     img { max-width: 100%; height: auto; border-radius: 6px; }
     code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.86em; padding: 0.12em 0.35em; border-radius: 4px; }
     pre { padding: 1em 1.1em; border-radius: 10px; overflow-x: auto; line-height: 1.5; }
     pre code { padding: 0; font-size: 0.82em; background: none; }
-    blockquote { padding: 0.1em 0 0.1em 1.1em; border-left: 3px solid var(--accent); font-style: italic; }
+    blockquote { padding: 0.1em 0 0.1em 1.1em; border-left: 3px solid var(--accent); font-style: italic; \
+    border-image: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)) 1; }
     blockquote p:last-child { margin-bottom: 0; }
     hr { border: 0; height: 1px; margin: 2.2em auto; width: 40%; }
     table { border-collapse: collapse; width: 100%; font-size: 0.92em; }
     th, td { padding: 0.5em 0.8em; text-align: left; vertical-align: top; }
     th { font-weight: 600; }
     .tag { color: var(--accent); }
-    .date { display: inline-block; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); \
-    border-radius: 999px; padding: 0 0.55em; font-size: 0.92em; line-height: 1.5; white-space: nowrap; }
+    .date { display: inline-block; color: var(--accent); border-radius: 999px; padding: 0 0.55em; font-size: 0.92em; line-height: 1.5; white-space: nowrap; \
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 24%, transparent), color-mix(in srgb, var(--accent) 12%, transparent)); \
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); }
     ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
     """
 
@@ -316,7 +340,7 @@ enum ReviewHTML {
             h1, h2, h3, h4, h5, h6 { color: var(--heading); }
             code { background: color-mix(in srgb, var(--text) 10%, transparent); }
             pre { background: color-mix(in srgb, var(--text) 8%, transparent); }
-            hr { background: color-mix(in srgb, var(--text) 22%, transparent); }
+            hr { background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 30%, transparent), transparent); }
             th, td { border-bottom: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
             blockquote { color: color-mix(in srgb, var(--text) 78%, transparent); }
             """
@@ -336,7 +360,7 @@ enum ReviewHTML {
             a { color: \(link); }
             code { background: \(code); font-size: 85%; padding: 0.2em 0.4em; border-radius: 6px; }
             pre { background: \(code); border-radius: 6px; }
-            blockquote { color: \(muted); border-left: 0.25em solid \(border); font-style: normal; padding: 0 1em; }
+            blockquote { color: \(muted); border-left: 0.25em solid \(border); border-image: none; font-style: normal; padding: 0 1em; }
             hr { height: 0.25em; width: 100%; background: \(border); margin: 1.5em 0; border-radius: 2px; }
             table { display: table; width: auto; }
             th, td { border: 1px solid \(border); padding: 6px 13px; }
@@ -403,7 +427,7 @@ enum ReviewHTML {
             h2 { font-size: 1.25em; } h3 { font-size: 1.05em; }
             ul { list-style: none; padding-left: 1.4em; } ul li::before { content: "–"; color: var(--accent); margin-left: -1.4em; margin-right: 0.8em; }
             li.task::before { content: none; }
-            blockquote { border-left: 2px solid \(dim); font-style: normal; color: \(dim); }
+            blockquote { border-left: 2px solid \(dim); border-image: none; font-style: normal; color: \(dim); }
             code { background: color-mix(in srgb, \(text) 10%, transparent); } pre { background: color-mix(in srgb, \(text) 7%, transparent); border: 1px solid color-mix(in srgb, \(text) 14%, transparent); }
             hr { width: 100%; background: none; height: auto; }
             hr::after { content: "────────────────────────"; color: \(dim); display: block; text-align: center; }

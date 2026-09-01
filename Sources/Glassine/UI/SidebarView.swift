@@ -246,15 +246,24 @@ struct SidebarView: View {
     }
 
     @ViewBuilder
+    private var sidebarTint: Color { theme.sidebarTintColor.asColor }
+    private var dividerLine: Color { theme.text.color.opacity(theme.isDark ? 0.09 : 0.08) }
+
     private var sidebarBackground: some View {
         ZStack {
             VisualEffectBackground(material: .sidebar)
-            theme.sidebarTintColor.asColor.opacity(theme.sidebarOpacity)
+            LinearGradient(
+                colors: [sidebarTint.opacity(theme.sidebarOpacity), sidebarTint.opacity(theme.sidebarOpacity * 0.7)],
+                startPoint: .top, endPoint: .bottom
+            )
             HStack {
                 Spacer()
-                Rectangle()
-                    .fill(theme.text.color.opacity(theme.isDark ? 0.08 : 0.07))
-                    .frame(width: 1)
+                LinearGradient(
+                    stops: [.init(color: .clear, location: 0), .init(color: dividerLine, location: 0.1),
+                            .init(color: dividerLine, location: 0.9), .init(color: .clear, location: 1)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .frame(width: 1)
             }
         }
         .ignoresSafeArea()
