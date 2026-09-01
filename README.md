@@ -66,6 +66,9 @@ New documents start as "Untitled" and take their file name from the first line a
 | | |
 |---|---|
 | ⌘N / ⌘⇧N | New document / new folder |
+| ⌘⇧D | Today's note (in a Daily folder, created on first use) |
+| ⌘⇧E | Export the document as a PDF in the current Review style |
+| ⌘/ | The shortcut sheet |
 | ⌘S (or ⌘\) | Show or hide the sidebar |
 | ⌘P | All Documents — the mosaic view of the whole library |
 | ⌘↩ | Review — the document rendered read-only in a chosen style (Esc or ⌘↩ leaves) |
@@ -118,6 +121,14 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 `- [ ] ` starts a task. Click the brackets to check it off: the line goes strikethrough and fades, and the file gets a `[x]` that any Markdown app understands. Click again to reopen it. ⌘⇧L does the same from the keyboard and turns an ordinary line into a task when there is no box yet. The checkboxes in Review are live too, and a click there writes the `[x]` straight into the file.
 
+## Daily notes
+
+⌘⇧D (or the Today row in the sidebar) opens today's note, titled with the date and kept in a `Daily` folder that is created the first time you use it. Press it again tomorrow and you get tomorrow's.
+
+## Appearance
+
+Settings → Themes can follow the system: pick one light theme and one dark theme and Glassine switches with macOS. Otherwise the chosen theme stays put.
+
 ## Dates
 
 Type `@today`, `@yesterday` or `@tomorrow` followed by a space (or punctuation, or Return) and it becomes the actual date — `@September 1, 2026` in the file, drawn as a small capsule in the editor and in Review. Typing an ISO date like `@2026-09-01` gets the capsule too. Made for daily notes; the file stays plain text that any other app can read.
@@ -150,7 +161,7 @@ Edit anything under `Sources/Glassine/`, then `./build.sh --run`. Incremental bu
 ## Known limits (v1)
 
 - One window. Glassine is a single-library app by design.
-- No export menu yet; the files are plain Markdown, so any converter works on them directly.
+- Export is PDF only (File → Export as PDF…); the files are plain Markdown, so any converter works on them directly for other formats.
 - Drag-and-drop between folders isn't wired up; use the context menu's "Move To".
 - Tested on macOS 26/27 with Xcode 26. Minimum deployment target is macOS 14.
 

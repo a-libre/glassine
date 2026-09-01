@@ -22,6 +22,7 @@ struct SidebarView: View {
                 LazyVStack(alignment: .leading, spacing: 1) {
                     allDocumentsRow
                     newDocumentRow
+                    todayRow
                         .padding(.bottom, 8)
                     if let filtered = state.filteredDocuments {
                         filterHeader
@@ -163,6 +164,30 @@ struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(HoverRowStyle(theme: theme, selected: state.showingGallery))
+    }
+
+    private var todayRow: some View {
+        Button {
+            state.openTodaysNote()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(theme.accent.color)
+                    .frame(width: 18)
+                Text("Today")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Text("⌘⇧D")
+                    .font(.system(size: 11))
+                    .opacity(0.35)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverRowStyle(theme: theme, selected: false))
+        .help("Open today's note, creating it in the Daily folder if needed")
     }
 
     private var newDocumentRow: some View {

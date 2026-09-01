@@ -2,17 +2,28 @@ import SwiftUI
 
 struct EditorContainerView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoom
 
     private var theme: Theme { state.theme }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             if state.showingGallery || state.document == nil {
-                GalleryView()
+                GalleryView(zoom: zoom)
             } else if let doc = state.document, state.reviewMode {
                 ReviewView(document: doc, initialScrollFraction: state.reviewEntryScrollFraction)
                     .id(doc.id)
             } else if let doc = state.document {
+                if let card = state.zoomingCard {
+                    // Picks up the card's frame and grows to fill the page, then fades.
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05))
+                        .matchedGeometryEffect(id: card, in: zoom)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .allowsHitTesting(false)
+                }
                 EditorView(
                     document: doc,
                     config: state.styleConfig,
@@ -25,13 +36,16 @@ struct EditorContainerView: View {
                 .mask(edgeFade(bottom: state.settings.data.showCounter ? 34 : 16))
                 if state.settings.data.showCounter {
                     FooterBar(document: doc)
+                        .opacity(state.isQuiet ? 0.1 : 1)
+                        .animation(.easeOut(duration: state.isQuiet ? 0.7 : 0.15), value: state.isQuiet)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeOut(duration: 0.18), value: state.showingGallery)
+        .animation(.easeOut(duration: 0.24), value: state.showingGallery)
         .animation(.easeOut(duration: 0.18), value: state.reviewMode)
         .animation(.easeOut(duration: 0.18), value: state.document?.relativePath)
+        .animation(.easeOut(duration: 0.3), value: state.zoomingCard)
     }
 
     /// Text slips out under the top edge and the footer instead of being cut off.

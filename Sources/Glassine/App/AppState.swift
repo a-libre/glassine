@@ -44,7 +44,47 @@ final class AppState: ObservableObject {
         }
     }
 
-    var theme: Theme { themes.theme(id: settings.data.themeID) }
+    /// The theme in force: the chosen one, or the light/dark pair's half that matches the system.
+    var theme: Theme {
+        switch settings.data.appearanceMode {
+        case .fixed: return themes.theme(id: settings.data.themeID)
+        case .system: return themes.theme(id: systemIsDark ? settings.data.darkThemeID : settings.data.lightThemeID)
+        }
+    }
+
+    /// What macOS is set to, independent of what this app's windows are showing.
+    @Published private(set) var systemIsDark: Bool = AppState.readSystemIsDark()
+
+    private static func readSystemIsDark() -> Bool {
+        UserDefaults.standard.string(forKey: "AppleInterfaceStyle")?.lowercased() == "dark"
+    }
+
+    /// Pick a theme from the menu: in system mode it takes the slot it belongs to.
+    func chooseTheme(_ id: String) {
+        switch settings.data.appearanceMode {
+        case .fixed:
+            settings.data.themeID = id
+        case .system:
+            if themes.theme(id: id).isDark { settings.data.darkThemeID = id } else { settings.data.lightThemeID = id }
+        }
+    }
+
+    /// True while the writer is typing and the pointer has not moved since; the footer
+    /// and the sidebar toggle step back so nothing sits in the eye line.
+    @Published private(set) var quietWhileTyping = false
+    var isQuiet: Bool { quietWhileTyping && !galleryOnScreen && !reviewMode && pendingPrompt == nil }
+
+    func noteTyping() {
+        guard !galleryOnScreen, !reviewMode, !quietWhileTyping else { return }
+        quietWhileTyping = true
+    }
+
+    func noteMouse() {
+        if quietWhileTyping { quietWhileTyping = false }
+    }
+
+    /// The ⌘/ overlay listing every shortcut.
+    @Published var showingShortcuts = false
     var styleConfig: StyleConfig { StyleConfig(theme: theme, settings: settings.data) }
 
     private var cancellables = Set<AnyCancellable>()
@@ -65,6 +105,12 @@ final class AppState: ObservableObject {
         startPolling()
 
         let nc = NotificationCenter.default
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"), object: nil, queue: .main
+        ) { [weak self] _ in
+            // The defaults key lags the notification by a moment.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { self?.systemIsDark = AppState.readSystemIsDark() }
+        }
         nc.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             self?.library.rescan()
             self?.document?.checkExternalChanges()
@@ -186,7 +232,16 @@ final class AppState: ObservableObject {
 
     // MARK: - Opening documents
 
-    func open(_ ref: DocumentRef) {
+    /// The card a document is being opened from, while the open animation runs.
+    @Published var zoomingCard: String?
+
+    func open(_ ref: DocumentRef, fromCard: Bool = false) {
+        if fromCard, galleryOnScreen, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            zoomingCard = ref.id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+                if self?.zoomingCard == ref.id { self?.zoomingCard = nil }
+            }
+        }
         showingGallery = false
         if let current = document, current.relativePath == ref.id { return }
         closeCurrentDocument()
@@ -244,6 +299,52 @@ final class AppState: ObservableObject {
             if !target.isEmpty { settings.setExpanded(target, true) }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// ⌘⇧D: today's note in the Daily folder, made on first use.
+    func openTodaysNote() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM d, yyyy"
+        let title = formatter.string(from: Date())
+        let folder = "Daily"
+        let rel = folder + "/" + title.sanitizedFileStem + ".md"
+        if let existing = library.document(withID: rel) {
+            open(existing)
+            reviewMode = false
+            return
+        }
+        do {
+            if !FileManager.default.fileExists(atPath: library.url(forRelativePath: folder).path) {
+                _ = try library.createFolder(named: folder, in: "")
+            }
+            let contents = "# \(title)\n\n"
+            let ref = try library.createDocument(in: folder, stem: title.sanitizedFileStem, contents: contents)
+            settings.data.caretPositions[ref.id] = contents.nsLength
+            open(ref)
+            reviewMode = false
+            settings.setExpanded(folder, true)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// File → Export as PDF…: the document in the current Review style, paginated.
+    func exportPDF() {
+        guard let doc = document else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = doc.title.sanitizedFileStem + ".pdf"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let html = ReviewHTML.document(markdown: doc.text, title: doc.title, style: settings.data.reviewStyle,
+                                       theme: theme, scale: 1.0, forExport: true)
+        PDFExporter.export(html: html, baseURL: doc.url.deletingLastPathComponent(), to: url) { [weak self] error in
+            if let error {
+                self?.errorMessage = "Couldn't export the PDF: \(error.localizedDescription)"
+            } else {
+                self?.showNotice("Exported PDF")
+            }
         }
     }
 

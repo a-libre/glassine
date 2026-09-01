@@ -115,6 +115,7 @@ struct WindowConfigurator: NSViewRepresentable {
                 window.setFrameAutosaveName("GlassineMainWindow")
                 window.minSize = NSSize(width: 620, height: 400)
                 window.tabbingMode = .disallowed
+                window.acceptsMouseMovedEvents = true
             }
             // Keep the window opaque: behind-window blur still works (Finder's sidebar is the
             // same trick), and a non-opaque window would let clicks fall through to the desktop

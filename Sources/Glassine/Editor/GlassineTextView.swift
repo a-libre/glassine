@@ -290,8 +290,22 @@ final class GlassineTextView: NSTextView {
         return ok
     }
 
+    /// Shown in an empty document, at the caret, in the syntax colour.
+    var placeholder = "Start writing"
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard string.isEmpty, !placeholder.isEmpty else { return }
+        let font = config.bodyFont
+        let color = config.theme.syntax.withAlpha(config.theme.isDark ? 0.45 : 0.5)
+        let origin = NSPoint(x: textContainerOrigin.x + (textContainer?.lineFragmentPadding ?? 0) + 1,
+                             y: textContainerOrigin.y + (config.bodyLineHeight - font.ascender + font.descender) / 2)
+        (placeholder as NSString).draw(at: origin, withAttributes: [.font: font, .foregroundColor: color])
+    }
+
     override func didChangeText() {
         super.didChangeText()
+        if (textStorage?.length ?? 0) <= 1 { needsDisplay = true }
         if let storage = textStorage {
             let range = pendingEditRange ?? NSRange(location: selectedRange().location, length: 0)
             pendingEditRange = nil

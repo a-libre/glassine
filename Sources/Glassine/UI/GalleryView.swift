@@ -7,6 +7,8 @@ struct GalleryView: View {
     @EnvironmentObject var state: AppState
     @StateObject private var nav = GalleryNavigator()
     @FocusState private var searchFocused: Bool
+    /// Shared with the editor so an opened card can grow into the page.
+    let zoom: Namespace.ID
 
     private var theme: Theme { state.theme }
 
@@ -37,7 +39,7 @@ struct GalleryView: View {
                                 ForEach(plan.columns.indices, id: \.self) { c in
                                     LazyVStack(spacing: 14) {
                                         ForEach(plan.columns[c]) { doc in
-                                            GalleryCard(doc: doc, isSelected: nav.selectedID == doc.id)
+                                            GalleryCard(doc: doc, isSelected: nav.selectedID == doc.id, zoom: zoom)
                                                 .id(doc.id)
                                                 .background(CardFrameReporter(id: doc.id))
                                         }
@@ -142,7 +144,7 @@ struct GalleryView: View {
             if modifiers == .command {
                 state.openInReview(doc)
             } else {
-                state.open(doc)
+                state.open(doc, fromCard: true)
             }
             handled = true
         default:
@@ -444,6 +446,7 @@ struct GalleryCard: View {
     @EnvironmentObject var state: AppState
     let doc: DocumentRef
     var isSelected: Bool = false
+    let zoom: Namespace.ID
     @State private var hovering = false
 
     static let previewCap: CGFloat = 280
@@ -478,7 +481,7 @@ struct GalleryCard: View {
 
     var body: some View {
         Button {
-            state.open(doc)
+            state.open(doc, fromCard: true)
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 6) {
@@ -550,11 +553,12 @@ struct GalleryCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
+        .matchedGeometryEffect(id: doc.id, in: zoom)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: hovering)
         .animation(.easeOut(duration: 0.12), value: isSelected)
         .contextMenu {
-            Button("Open") { state.open(doc) }
+            Button("Open") { state.open(doc, fromCard: true) }
             Button("Open in Review") { state.openInReview(doc) }
             Divider()
             Button(starred ? "Unstar" : "Star") { state.toggleStar(doc.id) }

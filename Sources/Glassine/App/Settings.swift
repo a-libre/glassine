@@ -44,6 +44,17 @@ enum SortMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum AppearanceMode: String, Codable, CaseIterable, Identifiable {
+    case fixed, system
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .fixed: return "Always the chosen theme"
+        case .system: return "Follow the system"
+        }
+    }
+}
+
 /// Font family sentinels for system fonts.
 enum SystemFontChoice {
     static let sans = "__system__"
@@ -109,6 +120,9 @@ struct SettingsData: Codable, Equatable {
 
     // Theme
     var themeID: String = "graphite"
+    var appearanceMode: AppearanceMode = .fixed
+    var lightThemeID: String = "paper"
+    var darkThemeID: String = "graphite"
 
     // Review mode
     var reviewStyle: ReviewStyle = .glass
@@ -159,6 +173,9 @@ struct SettingsData: Codable, Equatable {
         recents = try c.decodeIfPresent([String: Date].self, forKey: .recents) ?? d.recents
         caretPositions = try c.decodeIfPresent([String: Int].self, forKey: .caretPositions) ?? d.caretPositions
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? d.themeID
+        appearanceMode = try c.decodeIfPresent(AppearanceMode.self, forKey: .appearanceMode) ?? d.appearanceMode
+        lightThemeID = try c.decodeIfPresent(String.self, forKey: .lightThemeID) ?? d.lightThemeID
+        darkThemeID = try c.decodeIfPresent(String.self, forKey: .darkThemeID) ?? d.darkThemeID
         reviewStyle = try c.decodeIfPresent(ReviewStyle.self, forKey: .reviewStyle) ?? d.reviewStyle
         reviewFontScale = try c.decodeIfPresent(Double.self, forKey: .reviewFontScale) ?? d.reviewFontScale
         checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? d.checkForUpdates

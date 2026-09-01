@@ -25,6 +25,7 @@ struct GlassineApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyMonitor: Any?
+    private var mouseMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = nil
@@ -32,18 +33,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // ⌘\ toggles the sidebar as well as ⌘S; menu items can carry only one shortcut.
         // ⌘F searches the library; the system's Find… item would otherwise claim it.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-                  let window = event.window, AppDelegate.isMainWindow(window) else { return event }
+            guard let window = event.window, AppDelegate.isMainWindow(window) else { return event }
+            let state = AppState.shared
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if state.showingShortcuts, event.keyCode == 53 || (flags == .command && event.charactersIgnoringModifiers == "/") {
+                state.showingShortcuts = false
+                return nil
+            }
+            guard flags == .command else {
+                // Any ordinary key in the editor counts as typing.
+                if !flags.contains(.command), window.firstResponder is GlassineTextView { state.noteTyping() }
+                return event
+            }
             switch event.charactersIgnoringModifiers?.lowercased() {
             case "\\":
-                AppState.shared.toggleSidebar()
+                state.toggleSidebar()
                 return nil
             case "f":
-                AppState.shared.focusSearch()
+                state.focusSearch()
                 return nil
             default:
                 return event
             }
+        }
+        // Moving the pointer brings the quiet chrome back.
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .scrollWheel]) { event in
+            AppState.shared.noteMouse()
+            return event
         }
         DispatchQueue.main.async { AppDelegate.retireSystemFindShortcut() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { AppDelegate.retireSystemFindShortcut() }
@@ -107,6 +123,8 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("n", modifiers: .command)
             Button("New Folder…") { state.promptNewFolder() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("Today's Note") { state.openTodaysNote() }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
             Divider()
             Button("Save Now") { state.document?.save() }
                 .disabled(state.document == nil)
@@ -122,6 +140,10 @@ struct GlassineCommands: Commands {
             .disabled(state.document == nil)
             Button("Move to Trash") { state.trashCurrentDocument() }
                 .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(state.document == nil)
+            Divider()
+            Button("Export as PDF…") { state.exportPDF() }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(state.document == nil)
             Divider()
             Button("Reveal Document in Finder") { state.revealCurrentDocument() }
@@ -202,8 +224,8 @@ struct GlassineCommands: Commands {
             ))
             Divider()
             Picker("Theme", selection: Binding(
-                get: { state.settings.data.themeID },
-                set: { state.settings.data.themeID = $0 }
+                get: { state.theme.id },
+                set: { state.chooseTheme($0) }
             )) {
                 ForEach(state.themes.all) { t in
                     Text(t.name).tag(t.id)
@@ -219,7 +241,8 @@ struct GlassineCommands: Commands {
         }
 
         CommandGroup(replacing: .help) {
-            Button("Glassine Shortcuts") { showShortcuts() }
+            Button("Glassine Shortcuts") { state.showingShortcuts.toggle() }
+                .keyboardShortcut("/", modifiers: .command)
             Button("Open Library Folder") { state.revealLibrary() }
             Button("Check for Updates…") { UpdateChecker.check(userInitiated: true) }
             Divider()
@@ -239,24 +262,4 @@ struct GlassineCommands: Commands {
         NSApp.sendAction(#selector(NSResponder.performTextFinderAction(_:)), to: nil, from: sender)
     }
 
-    private func showShortcuts() {
-        let alert = NSAlert()
-        alert.messageText = "Glassine Shortcuts"
-        alert.informativeText = """
-        ⌘N  New document        ⌘⇧N  New folder
-        ⌘S  Toggle sidebar (or ⌘\\)   ⌘P  All Documents
-        ⌘↩  Review              ⌘,   Settings
-        ⌃⌘T Typewriter          ⌃⌘F  Focus mode
-        ⌘B  Bold                ⌘I   Italic
-        ⌘E  Inline code         ⌘K   Link
-        ⌘⌥1–3 Heading level     ⌘⌥0  Body text
-        ⌘⇧L Toggle task         ⌘F   Search library
-        ⌘⇧F Find in document    ⌘G   Find next
-        ⌘R  Rename              ⌘⌫   Move to Trash
-        ⌘+ / ⌘−  Text size
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
-    }
 }

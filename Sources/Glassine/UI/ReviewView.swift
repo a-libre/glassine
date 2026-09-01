@@ -263,7 +263,9 @@ enum ReviewHTML {
 
     /// The page for a document. SwiftUI asks for this on every state change while Review
     /// is up, so the last result is kept; comparing the inputs is far cheaper than rendering.
-    static func document(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double) -> String {
+    static func document(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,
+                         forExport: Bool = false) -> String {
+        if forExport { return build(markdown: markdown, title: title, style: style, theme: theme, scale: scale, export: true) }
         let key = RenderKey(markdown: markdown, title: title, style: style, theme: theme, scale: scale)
         if let last = lastRender, last.key == key { return last.html }
         let html = build(markdown: markdown, title: title, style: style, theme: theme, scale: scale)
@@ -271,8 +273,12 @@ enum ReviewHTML {
         return html
     }
 
-    private static func build(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double) -> String {
+    private static func build(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,
+                              export: Bool = false) -> String {
         let body = MarkdownHTML.render(markdown)
+        // On paper the page needs a colour of its own (styles with their own background
+        // override it), less room at the top, and no lingering edge fades.
+        let exportCSS = export ? "body { background: \(theme.tint.hex); } article { padding: 1rem 0 2rem; max-width: none; }" : ""
         let vars = """
         :root { --scale: \(scale); --accent: \(theme.accent.hex); --text: \(theme.text.hex); --tint: \(theme.tint.hex); \
         --heading: \((theme.heading ?? theme.text).hex); --syntax: \(theme.syntax.hex); --link: \((theme.link ?? theme.accent).hex); }
@@ -282,7 +288,9 @@ enum ReviewHTML {
         <style>
         \(vars)
         \(baseCSS)
+        \(exportCSS)
         \(css(for: style, dark: theme.isDark))
+        \(export ? "article { padding-top: 1rem; }" : "")
         </style></head><body class="\(style.rawValue) \(theme.isDark ? "dark" : "light")"><article>\(body)</article></body></html>
         """
     }

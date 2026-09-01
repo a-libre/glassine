@@ -183,7 +183,41 @@ struct ThemeSettings: View {
     @EnvironmentObject var state: AppState
     @State private var editing: Theme?
 
+    private var data: Binding<SettingsData> {
+        Binding(get: { state.settings.data }, set: { state.settings.data = $0 })
+    }
+
     var body: some View {
+        VStack(spacing: 0) {
+            appearanceBar
+            Divider()
+            themeSplit
+        }
+    }
+
+    /// Either one theme all the time, or a light/dark pair that follows macOS.
+    private var appearanceBar: some View {
+        HStack(spacing: 14) {
+            Picker("Appearance", selection: data.appearanceMode) {
+                ForEach(AppearanceMode.allCases) { Text($0.label).tag($0) }
+            }
+            .frame(maxWidth: 320)
+            if state.settings.data.appearanceMode == .system {
+                Picker("Light", selection: data.lightThemeID) {
+                    ForEach(state.themes.all.filter { !$0.isDark }) { Text($0.name).tag($0.id) }
+                }
+                Picker("Dark", selection: data.darkThemeID) {
+                    ForEach(state.themes.all.filter { $0.isDark }) { Text($0.name).tag($0.id) }
+                }
+            }
+            Spacer()
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private var themeSplit: some View {
         HSplitView {
             VStack(spacing: 0) {
                 List(selection: Binding(
