@@ -2,22 +2,98 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct SettingsView: View {
+/// Settings as a translucent card over the main window (⌘,). Esc or a click
+/// outside puts it away; it can never end up behind the window it configures.
+struct SettingsOverlay: View {
     @EnvironmentObject var state: AppState
+    @State private var tab: Pane = .general
+
+    private var theme: Theme { state.theme }
+
+    enum Pane: String, CaseIterable, Identifiable {
+        case general, editor, caret, themes
+        var id: String { rawValue }
+        var label: String { rawValue.capitalized }
+        var icon: String {
+            switch self {
+            case .general: return "gearshape"
+            case .editor: return "textformat"
+            case .caret: return "cursorarrow.motionlines"
+            case .themes: return "paintpalette"
+            }
+        }
+    }
 
     var body: some View {
-        TabView {
-            GeneralSettings()
-                .tabItem { Label("General", systemImage: "gearshape") }
-            EditorSettings()
-                .tabItem { Label("Editor", systemImage: "textformat") }
-            CaretSettings()
-                .tabItem { Label("Caret", systemImage: "cursorarrow.motionlines") }
-            ThemeSettings()
-                .tabItem { Label("Themes", systemImage: "paintpalette") }
+        ZStack {
+            theme.tint.color.opacity(theme.isDark ? 0.35 : 0.25)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { state.showingSettings = false }
+
+            card
         }
-        .frame(width: 560)
-        .frame(minHeight: 420)
+    }
+
+    private var card: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Text("Settings")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                Spacer()
+                ForEach(Pane.allCases) { pane in
+                    Button {
+                        tab = pane
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: pane.icon).font(.system(size: 11, weight: .medium))
+                            Text(pane.label).font(.system(size: 12, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 26)
+                        .background(
+                            Capsule().fill(tab == pane ? theme.accent.color.opacity(0.22) : theme.text.color.opacity(0.001))
+                        )
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(tab == pane ? 1 : 0.6)
+                }
+                Spacer()
+                Text("Esc")
+                    .font(.system(size: 11))
+                    .opacity(0.4)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 44)
+
+            Divider().opacity(0.5)
+
+            Group {
+                switch tab {
+                case .general: GeneralSettings()
+                case .editor: EditorSettings()
+                case .caret: CaretSettings()
+                case .themes: ThemeSettings()
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .frame(width: 700, height: 500)
+        }
+        .background(
+            ZStack {
+                VisualEffectBackground(material: .hudWindow, blendingMode: .withinWindow)
+                theme.tint.color.opacity(theme.isDark ? 0.42 : 0.55)
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(theme.text.color.opacity(theme.isDark ? 0.12 : 0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(theme.isDark ? 0.45 : 0.18), radius: 30, y: 12)
+        .foregroundStyle(theme.text.color)
+        .onTapGesture { }
     }
 }
 
@@ -119,6 +195,10 @@ struct EditorSettings: View {
                     ForEach(FocusScope.allCases) { Text($0.label).tag($0) }
                 }
                 .disabled(!state.settings.data.focusMode)
+                sliderRow("Unfocused text", value: data.focusDimming, range: 0...1, step: 0.05, format: "%.0f%%", scale: 100)
+                    .disabled(!state.settings.data.focusMode)
+                Text("How bright the rest of the page stays while you focus: 100% is no dimming at all, 0% hides it completely.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Show counter", isOn: data.showCounter)
                 Picker("Counter shows", selection: data.counterMode) {
                     ForEach(CounterMode.allCases) { Text($0.label).tag($0) }

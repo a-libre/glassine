@@ -16,14 +16,15 @@ struct ShortcutSheet: View {
         Group(title: "Documents", rows: [
             ("⌘N", "New document"),
             ("⌘⇧N", "New folder"),
-            ("⌘⇧D", "Today's note"),
+            ("⌘D", "Today's note"),
             ("⌘R", "Rename"),
-            ("⌘D", "Duplicate"),
+            ("⌥⌘D", "Duplicate"),
             ("⌘⌫", "Move to Trash"),
             ("⌘⇧E", "Export as PDF"),
         ]),
         Group(title: "Around the app", rows: [
             ("⌘P", "All documents"),
+            ("⌘K", "Command bar"),
             ("⌘F", "Search the library"),
             ("⌘S", "Show or hide the sidebar"),
             ("⌘↩", "Review"),
@@ -36,7 +37,7 @@ struct ShortcutSheet: View {
     private let right: [Group] = [
         Group(title: "Writing", rows: [
             ("⌘B  ⌘I", "Bold, italic"),
-            ("⌘E  ⌘K", "Inline code, link"),
+            ("⌘E ⌘⇧K", "Inline code, link"),
             ("⌘⌥1–3", "Heading level"),
             ("⌘⌥0", "Body text"),
             ("⌘⇧L", "Task checkbox"),
@@ -85,7 +86,7 @@ struct ShortcutSheet: View {
         .background(
             ZStack {
                 VisualEffectBackground(material: .hudWindow, blendingMode: .withinWindow)
-                theme.tint.color.opacity(theme.isDark ? 0.72 : 0.82)
+                theme.tint.color.opacity(theme.isDark ? 0.38 : 0.5)
             }
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))

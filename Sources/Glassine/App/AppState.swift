@@ -30,7 +30,20 @@ final class AppState: ObservableObject {
     var searchFocusPending = false
 
     /// The mosaic is what the content area shows (asked for, or nothing is open).
-    var galleryOnScreen: Bool { showingGallery || document == nil }
+    var galleryOnScreen: Bool { !showingDaily && (showingGallery || document == nil) }
+
+    /// The Daily timeline: today's note in front, earlier days receding behind it.
+    @Published var showingDaily = false
+
+    /// ⌘F overlay. The mosaic's inline box reports its frame so the overlay can
+    /// glide out of it; the value lives outside @Published because it changes on layout.
+    @Published var showingSearch = false
+    var searchFieldFrame: CGRect = .zero
+
+    /// ⌘K command bar.
+    @Published var showingCommandBar = false
+    @Published var commandQuery = ""
+    @Published var commandSelection = 0
 
     enum Prompt: Identifiable {
         case newFolder(parent: String)
@@ -85,6 +98,8 @@ final class AppState: ObservableObject {
 
     /// The ⌘/ overlay listing every shortcut.
     @Published var showingShortcuts = false
+    /// Settings as an overlay on the main window, so it can never get lost behind it.
+    @Published var showingSettings = false
     var styleConfig: StyleConfig { StyleConfig(theme: theme, settings: settings.data) }
 
     private var cancellables = Set<AnyCancellable>()
@@ -222,12 +237,29 @@ final class AppState: ObservableObject {
         return sorted(titleHits) + sorted(otherHits)
     }
 
-    /// ⌘F: focus the search box in the mosaic when it is showing, else the sidebar's
-    /// (bringing the sidebar back if it is hidden).
+    /// ⌘F: the mosaic comes up (results filter live behind the overlay) and the
+    /// search bar glides to the middle of the window.
     func focusSearch() {
-        if !galleryOnScreen && !settings.data.sidebarVisible { toggleSidebar() }
-        searchFocusPending = true
-        searchFocusRequest += 1
+        showingDaily = false
+        showingCommandBar = false
+        if document != nil { showingGallery = true }
+        showingSearch = true
+    }
+
+    func showDaily() {
+        showingSearch = false
+        showingCommandBar = false
+        reviewMode = false
+        showingDaily = true
+    }
+
+    func toggleCommandBar() {
+        showingCommandBar.toggle()
+        if showingCommandBar {
+            commandQuery = ""
+            commandSelection = 0
+            showingSearch = false
+        }
     }
 
     // MARK: - Opening documents
@@ -236,13 +268,16 @@ final class AppState: ObservableObject {
     @Published var zoomingCard: String?
 
     func open(_ ref: DocumentRef, fromCard: Bool = false) {
-        if fromCard, galleryOnScreen, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        if fromCard, galleryOnScreen || showingDaily, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             zoomingCard = ref.id
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
                 if self?.zoomingCard == ref.id { self?.zoomingCard = nil }
             }
         }
         showingGallery = false
+        showingDaily = false
+        showingSearch = false
+        showingCommandBar = false
         if let current = document, current.relativePath == ref.id { return }
         closeCurrentDocument()
         let doc = DocumentModel(url: ref.url, library: library, settings: settings)
@@ -491,6 +526,7 @@ final class AppState: ObservableObject {
     // MARK: - View toggles
 
     func toggleGallery() {
+        if showingDaily { showingDaily = false; showingGallery = true; return }
         if document == nil { showingGallery = true; return }
         showingGallery.toggle()
     }
@@ -576,6 +612,92 @@ final class AppState: ObservableObject {
         withAnimation(.spring(duration: 0.28, bounce: 0.05)) {
             settings.data.sidebarVisible.toggle()
         }
+    }
+
+    // MARK: - Command bar
+
+    struct AppCommand: Identifiable {
+        let id: String
+        let title: String
+        var keys: String? = nil
+        let action: () -> Void
+    }
+
+    /// What ⌘K offers depends on where you are: Review styles in Review, sorting in
+    /// the mosaic, writing modes in the editor. Themes ride along everywhere.
+    var availableCommands: [AppCommand] {
+        var cmds: [AppCommand] = []
+        func add(_ id: String, _ title: String, keys: String? = nil, _ action: @escaping () -> Void) {
+            cmds.append(AppCommand(id: id, title: title, keys: keys, action: action))
+        }
+        let inReview = reviewMode && !galleryOnScreen && !showingDaily && document != nil
+
+        if inReview {
+            for s in ReviewStyle.allCases {
+                let mark = settings.data.reviewStyle == s ? "  ✓" : ""
+                add("style-\(s.rawValue)", "Review style: \(s.label)\(mark)") { [weak self] in self?.settings.data.reviewStyle = s }
+            }
+            add("leave-review", "Leave Review", keys: "⌘↩") { [weak self] in self?.toggleReview() }
+            add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
+            add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
+            add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
+            add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.toggleGallery() }
+        } else if galleryOnScreen || showingDaily {
+            add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
+            add("today", "Today's Note", keys: "⌘D") { [weak self] in self?.openTodaysNote() }
+            add("daily", showingDaily ? "All Documents" : "Daily Timeline", keys: showingDaily ? "⌘P" : nil) { [weak self] in
+                guard let self else { return }
+                if self.showingDaily { self.toggleGallery() } else { self.showDaily() }
+            }
+            for mode in SortMode.allCases {
+                let mark = settings.data.sortDocumentsBy == mode ? "  ✓" : ""
+                add("sort-\(mode.rawValue)", "Sort by \(mode.label.lowercased())\(mark)") { [weak self] in self?.settings.data.sortDocumentsBy = mode }
+            }
+            add("search", "Search", keys: "⌘F") { [weak self] in self?.focusSearch() }
+            if document != nil {
+                add("back", "Back to Document", keys: "Esc") { [weak self] in
+                    self?.showingDaily = false
+                    self?.showingGallery = false
+                }
+            }
+        } else {
+            add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.toggleGallery() }
+            add("review", "Review", keys: "⌘↩") { [weak self] in self?.toggleReview() }
+            add("today", "Today's Note", keys: "⌘D") { [weak self] in self?.openTodaysNote() }
+            add("daily", "Daily Timeline") { [weak self] in self?.showDaily() }
+            add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
+            add("typewriter", "\(settings.data.typewriterMode ? "Turn off" : "Turn on") typewriter scrolling", keys: "⌃⌘T") { [weak self] in self?.toggleTypewriter() }
+            add("focus", "\(settings.data.focusMode ? "Turn off" : "Turn on") focus mode", keys: "⌃⌘F") { [weak self] in self?.toggleFocus() }
+            add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
+            add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
+            add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
+            add("search", "Search", keys: "⌘F") { [weak self] in self?.focusSearch() }
+        }
+
+        for t in themes.all {
+            let mark = theme.id == t.id ? "  ✓" : ""
+            add("theme-\(t.id)", "Theme: \(t.name)\(mark)") { [weak self] in self?.chooseTheme(t.id) }
+        }
+        add("settings", "Settings…", keys: "⌘,") { [weak self] in self?.showingSettings = true }
+        add("shortcuts", "Shortcuts", keys: "⌘/") { [weak self] in self?.showingShortcuts = true }
+        return cmds
+    }
+
+    var filteredCommands: [AppCommand] {
+        let q = commandQuery.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return availableCommands }
+        let needle = LibraryStore.searchable(q)
+        return availableCommands.filter { LibraryStore.searchable($0.title).contains(needle) }
+    }
+
+    func runCommand(at index: Int) {
+        let list = filteredCommands
+        guard index >= 0, index < list.count else { showingCommandBar = false; return }
+        let command = list[index]
+        showingCommandBar = false
+        commandQuery = ""
+        commandSelection = 0
+        DispatchQueue.main.async { command.action() }
     }
 
     /// Help → Copy Debug Info: whatever is on screen describes itself.

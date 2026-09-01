@@ -25,6 +25,7 @@ struct StyleConfig: Equatable {
     let typewriterOnClick: Bool
     let focus: Bool
     let focusScope: FocusScope
+    let focusDimming: CGFloat
 
     // Text system behaviors
     let smartQuotes: Bool
@@ -53,6 +54,7 @@ struct StyleConfig: Equatable {
         typewriterOnClick = settings.typewriterOnClick
         focus = settings.focusMode
         focusScope = settings.focusScope
+        focusDimming = CGFloat(settings.focusDimming)
         smartQuotes = settings.smartQuotes
         smartDashes = settings.smartDashes
         autocorrect = settings.autocorrect

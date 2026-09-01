@@ -75,6 +75,15 @@ struct Theme: Codable, Identifiable, Hashable {
 }
 
 extension Theme {
+    static let ocean = Theme(
+        id: "ocean", name: "Ocean", isBuiltIn: true, isDark: true,
+        material: .hud, tint: HexColor("#263152"), tintOpacity: 0.15, grain: 0.05,
+        text: HexColor("#DCE2F0"), accent: HexColor("#45A8E5"), syntax: HexColor("#573D79"),
+        heading: HexColor("#F0F4FF"), quote: HexColor("#A7B3CF"), code: HexColor("#CFE0FF"),
+        codeBackground: HexColor("#FFFFFF12"), link: HexColor("#8DBBFF"), caret: HexColor("#6FA8FF"),
+        selection: HexColor("#6FA8FF4D"), sidebarTint: HexColor("#0A1120"), sidebarOpacity: 0.42
+    )
+
     static let graphite = Theme(
         id: "graphite", name: "Graphite", isBuiltIn: true, isDark: true,
         material: .underWindow, tint: HexColor("#141416"), tintOpacity: 0.55, grain: 0.0,
@@ -129,7 +138,7 @@ extension Theme {
         selection: HexColor("#C64B2138"), sidebarTint: HexColor("#F3F0EC"), sidebarOpacity: 0.7
     )
 
-    static let builtIns: [Theme] = [graphite, sepiaNight, midnight, moss, frost, paper]
+    static let builtIns: [Theme] = [ocean, graphite, sepiaNight, midnight, moss, frost, paper]
 }
 
 final class ThemeStore: ObservableObject {
@@ -155,7 +164,7 @@ final class ThemeStore: ObservableObject {
     var all: [Theme] { Theme.builtIns + custom }
 
     func theme(id: String) -> Theme {
-        all.first(where: { $0.id == id }) ?? Theme.graphite
+        all.first(where: { $0.id == id }) ?? Theme.ocean
     }
 
     func update(_ theme: Theme) {

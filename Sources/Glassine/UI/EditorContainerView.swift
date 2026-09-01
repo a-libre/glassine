@@ -8,7 +8,9 @@ struct EditorContainerView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            if state.showingGallery || state.document == nil {
+            if state.showingDaily {
+                DailyTimelineView(zoom: zoom)
+            } else if state.showingGallery || state.document == nil {
                 GalleryView(zoom: zoom)
             } else if let doc = state.document, state.reviewMode {
                 ReviewView(document: doc, initialScrollFraction: state.reviewEntryScrollFraction)
@@ -43,6 +45,7 @@ struct EditorContainerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.easeOut(duration: 0.24), value: state.showingGallery)
+        .animation(.easeOut(duration: 0.24), value: state.showingDaily)
         .animation(.easeOut(duration: 0.18), value: state.reviewMode)
         .animation(.easeOut(duration: 0.18), value: state.document?.relativePath)
         .animation(.easeOut(duration: 0.3), value: state.zoomingCard)

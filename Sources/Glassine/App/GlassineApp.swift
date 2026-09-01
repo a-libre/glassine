@@ -16,10 +16,6 @@ struct GlassineApp: App {
         .defaultSize(width: 1120, height: 760)
         .commands { GlassineCommands(state: state) }
 
-        Settings {
-            SettingsView()
-                .environmentObject(state)
-        }
     }
 }
 
@@ -36,8 +32,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let window = event.window, AppDelegate.isMainWindow(window) else { return event }
             let state = AppState.shared
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if state.showingCommandBar {
+                switch event.keyCode {
+                case 53: state.showingCommandBar = false; return nil
+                case 125: state.commandSelection = min(state.commandSelection + 1, max(0, state.filteredCommands.count - 1)); return nil
+                case 126: state.commandSelection = max(0, state.commandSelection - 1); return nil
+                case 36, 76: state.runCommand(at: state.commandSelection); return nil
+                default: break
+                }
+            }
+            if state.showingSearch, event.keyCode == 53 {
+                state.searchText = ""
+                state.showingSearch = false
+                return nil
+            }
             if state.showingShortcuts, event.keyCode == 53 || (flags == .command && event.charactersIgnoringModifiers == "/") {
                 state.showingShortcuts = false
+                return nil
+            }
+            if state.showingSettings, event.keyCode == 53 {
+                state.showingSettings = false
                 return nil
             }
             guard flags == .command else {
@@ -51,6 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return nil
             case "f":
                 state.focusSearch()
+                return nil
+            case "k":
+                state.toggleCommandBar()
                 return nil
             default:
                 return event
@@ -118,13 +135,18 @@ struct GlassineCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .printItem) { }
 
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { state.showingSettings = true }
+                .keyboardShortcut(",", modifiers: .command)
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("New Document") { state.newDocument() }
                 .keyboardShortcut("n", modifiers: .command)
             Button("New Folder…") { state.promptNewFolder() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Today's Note") { state.openTodaysNote() }
-                .keyboardShortcut("d", modifiers: [.command, .shift])
+                .keyboardShortcut("d", modifiers: .command)
             Divider()
             Button("Save Now") { state.document?.save() }
                 .disabled(state.document == nil)
@@ -136,7 +158,7 @@ struct GlassineCommands: Commands {
             Button("Duplicate") {
                 if let rel = state.document?.relativePath { state.duplicate(rel) }
             }
-            .keyboardShortcut("d", modifiers: .command)
+            .keyboardShortcut("d", modifiers: [.command, .option])
             .disabled(state.document == nil)
             Button("Move to Trash") { state.trashCurrentDocument() }
                 .keyboardShortcut(.delete, modifiers: .command)
@@ -176,7 +198,7 @@ struct GlassineCommands: Commands {
             Button("Strikethrough") { send(#selector(GlassineTextView.markdownStrike(_:))) }
                 .keyboardShortcut("x", modifiers: [.command, .shift])
             Button("Link") { send(#selector(GlassineTextView.markdownLink(_:))) }
-                .keyboardShortcut("k", modifiers: .command)
+                .keyboardShortcut("k", modifiers: [.command, .shift])
             Divider()
             Button("Heading 1") { send(#selector(GlassineTextView.markdownHeading1(_:))) }
                 .keyboardShortcut("1", modifiers: [.command, .option])
@@ -198,6 +220,9 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("p", modifiers: .command)
             Button("Search Library") { state.focusSearch() }
                 .keyboardShortcut("f", modifiers: .command)
+            Button("Command Bar") { state.toggleCommandBar() }
+                .keyboardShortcut("k", modifiers: .command)
+            Button("Daily Timeline") { state.showDaily() }
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(state.document == nil)

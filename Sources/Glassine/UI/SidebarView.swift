@@ -168,7 +168,7 @@ struct SidebarView: View {
 
     private var todayRow: some View {
         Button {
-            state.openTodaysNote()
+            state.showDaily()
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "calendar")
@@ -186,8 +186,8 @@ struct SidebarView: View {
             .frame(height: 28)
             .contentShape(Rectangle())
         }
-        .buttonStyle(HoverRowStyle(theme: theme, selected: false))
-        .help("Open today's note, creating it in the Daily folder if needed")
+        .buttonStyle(HoverRowStyle(theme: theme, selected: state.showingDaily))
+        .help("The Daily timeline — today in front, earlier days behind. ⌘D jumps straight into today's note.")
     }
 
     private var newDocumentRow: some View {

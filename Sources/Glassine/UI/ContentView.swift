@@ -32,13 +32,34 @@ struct ContentView: View {
                     .animation(.easeOut(duration: state.isQuiet ? 0.7 : 0.15), value: state.isQuiet)
             }
 
+            if state.showingSearch {
+                SearchOverlay()
+                    .zIndex(9)
+            }
+
+            if state.showingCommandBar {
+                CommandBar()
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    .zIndex(9)
+            }
+
             if state.showingShortcuts {
                 ShortcutSheet()
                     .transition(.opacity.combined(with: .scale(scale: 0.985)))
                     .zIndex(10)
             }
+
+            if state.showingSettings {
+                SettingsOverlay()
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    .zIndex(11)
+            }
         }
         .animation(.easeOut(duration: 0.16), value: state.showingShortcuts)
+        .animation(.easeOut(duration: 0.16), value: state.showingSettings)
+        .animation(.easeOut(duration: 0.14), value: state.showingSearch)
+        .animation(.easeOut(duration: 0.16), value: state.showingCommandBar)
+        .coordinateSpace(name: "glassineRoot")
         .frame(minWidth: 620, minHeight: 400)
         .background(WindowConfigurator(theme: theme))
         .preferredColorScheme(theme.colorScheme)

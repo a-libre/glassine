@@ -615,7 +615,7 @@ final class GlassineTextView: NSTextView {
         }
         guard force || !NSEqualRanges(focusRange, lastFocusRange) else { return }
         lastFocusRange = focusRange
-        let dim = config.theme.text.withAlpha(config.theme.isDark ? 0.28 : 0.32)
+        let dim = config.theme.text.withAlpha(max(0, min(1, config.focusDimming)))
         lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
         let before = NSRange(location: 0, length: focusRange.location)
         let after = NSRange(location: focusRange.upperBoundValue, length: max(0, storage.length - focusRange.upperBoundValue))

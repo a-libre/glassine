@@ -128,14 +128,15 @@ struct GalleryView: View {
             guard modifiers.isEmpty else { break }
             // With a query in the box, left/right move the caret through it.
             if let fieldEditor, !fieldEditor.string.isEmpty { break }
-            nav.blurFieldEditor()
+            if !state.showingSearch { nav.blurFieldEditor() }
             nav.move(event.specialKey == .leftArrow ? .left : .right)
             handled = true
         case .upArrow?, .downArrow?:
             key = event.specialKey == .upArrow ? "↑" : "↓"
             guard modifiers.isEmpty else { break }
-            // Up/down leave the search box (keeping the query) and walk the cards.
-            if fieldEditor != nil { nav.blurFieldEditor() }
+            // Up/down walk the cards; the sidebar's box gives up the keyboard, the
+            // ⌘F overlay keeps it so the query stays live.
+            if fieldEditor != nil, !state.showingSearch { nav.blurFieldEditor() }
             nav.move(event.specialKey == .upArrow ? .up : .down)
             handled = true
         case .carriageReturn?, .enter?:
@@ -186,22 +187,6 @@ struct GalleryView: View {
             Spacer()
             gallerySearch
             SortMenu()
-            if state.document != nil {
-                Button {
-                    state.showingGallery = false
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.uturn.backward").font(.system(size: 11, weight: .semibold))
-                        Text("Back to document").font(.system(size: 12, weight: .medium))
-                    }
-                    .padding(.horizontal, 10)
-                    .frame(height: 28)
-                    .background(Capsule().fill(theme.text.color.opacity(0.08)))
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .help("Back to the open document (Esc)")
-            }
         }
     }
 
@@ -233,6 +218,11 @@ struct GalleryView: View {
         .padding(.horizontal, 9)
         .frame(width: 210, height: 28)
         .background(Capsule().fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05)))
+        .background(GeometryReader { g in
+            Color.clear.preference(key: SearchFieldFrameKey.self, value: g.frame(in: .named("glassineRoot")))
+        })
+        .opacity(state.showingSearch ? 0 : 1)
+        .onPreferenceChange(SearchFieldFrameKey.self) { state.searchFieldFrame = $0 }
         .help("Search titles, tags and text (⌘F)")
     }
 

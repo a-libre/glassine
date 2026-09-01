@@ -66,9 +66,10 @@ New documents start as "Untitled" and take their file name from the first line a
 | | |
 |---|---|
 | ⌘N / ⌘⇧N | New document / new folder |
-| ⌘⇧D | Today's note (in a Daily folder, created on first use) |
+| ⌘D | Today's note (in a Daily folder, created on first use) |
 | ⌘⇧E | Export the document as a PDF in the current Review style |
 | ⌘/ | The shortcut sheet |
+| ⌘K | The command bar — what makes sense where you are: Review styles in Review, sorting in the mosaic, modes in the editor |
 | ⌘S (or ⌘\) | Show or hide the sidebar |
 | ⌘P | All Documents — the mosaic view of the whole library |
 | ⌘↩ | Review — the document rendered read-only in a chosen style (Esc or ⌘↩ leaves) |
@@ -77,13 +78,13 @@ New documents start as "Untitled" and take their file name from the first line a
 | ↑↓←→ and ↩ | In All Documents: move between cards and open the selected one (⌘↩ opens it in Review) |
 | ⌃⌘T | Typewriter scrolling |
 | ⌃⌘F | Focus mode (paragraph or sentence, pick in Settings) |
-| ⌘B ⌘I ⌘E ⌘K | Bold, italic, inline code, link (wraps the selection in Markdown) |
+| ⌘B ⌘I ⌘E ⌘⇧K | Bold, italic, inline code, link (wraps the selection in Markdown) |
 | ⌘⌥1 ⌘⌥2 ⌘⌥3 ⌘⌥0 | Heading level / body text |
 | ⌘⇧L | Toggle a task checkbox (or click the `[ ]`) |
 | ⌘F | Search the library — titles, tags and full text |
 | ⌘⇧F | Find in the open document (⌘G for next) |
 | ⌘R | Rename |
-| ⌘D | Duplicate |
+| ⌥⌘D | Duplicate |
 | ⌘⌫ | Move to Trash (it goes to the macOS Trash, so it's recoverable) |
 | ⌘+ ⌘− ⌘0 | Text size |
 | ⌘, | Settings |
@@ -123,7 +124,7 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Daily notes
 
-⌘⇧D (or the Today row in the sidebar) opens today's note, titled with the date and kept in a `Daily` folder that is created the first time you use it. Press it again tomorrow and you get tomorrow's.
+⌘D opens today's note, titled with the date and kept in a `Daily` folder that is created the first time you use it. Press it again tomorrow and you get tomorrow's. The Today row in the sidebar opens the Daily timeline instead: today's note in front, earlier days receding behind it, each a little smaller and fainter.
 
 ## Appearance
 
@@ -135,7 +136,7 @@ Type `@today`, `@yesterday` or `@tomorrow` followed by a space (or punctuation, 
 
 ## Search
 
-⌘F puts the cursor in the search box (the mosaic's when it is showing, otherwise the sidebar's). Every word you type has to appear somewhere in a document's title, tags or text, ignoring case and accents; documents whose titles match are listed first. In the mosaic, the top result is selected as you type, so Return opens it, and the arrow keys walk the results. Esc clears the search.
+⌘F glides the search box from its spot in the mosaic header to the middle of the window and gives it the keyboard, with the mosaic filtering live behind it. Every word you type has to appear somewhere in a document's title, tags or text, ignoring case and accents; documents whose titles match are listed first. In the mosaic, the top result is selected as you type, so Return opens it, and the arrow keys walk the results. Esc clears the search.
 
 ## Tags
 

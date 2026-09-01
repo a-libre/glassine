@@ -78,8 +78,8 @@ struct SettingsData: Codable, Equatable {
     var lastOpenedDocument: String? = nil
 
     // Typography
-    var fontFamily: String = SystemFontChoice.serif
-    var fontSize: Double = 18
+    var fontFamily: String = SystemFontChoice.rounded
+    var fontSize: Double = 16
     var lineHeight: Double = 1.55
     var paragraphSpacing: Double = 0.65
     var columnWidth: Double = 660
@@ -89,24 +89,26 @@ struct SettingsData: Codable, Equatable {
 
     // Caret
     var smoothCaret: Bool = true
-    var caretSpeed: Double = 0.11
+    var caretSpeed: Double = 0.27
     var smoothWhileTyping: Bool = true
     var caretBlink: CaretBlink = .soft
-    var caretWidth: Double = 2
+    var caretWidth: Double = 4
 
     // Modes
-    var typewriterMode: Bool = false
+    var typewriterMode: Bool = true
     var typewriterOnClick: Bool = false
-    var focusMode: Bool = false
+    var focusMode: Bool = true
     var focusScope: FocusScope = .paragraph
+    /// Brightness of the unfocused text in focus mode: 1 is normal, 0 is invisible.
+    var focusDimming: Double = 0.4
     var showCounter: Bool = true
-    var counterMode: CounterMode = .words
+    var counterMode: CounterMode = .all
 
     // Text behaviors
     var smartQuotes: Bool = true
-    var smartDashes: Bool = false
+    var smartDashes: Bool = true
     var autocorrect: Bool = false
-    var spellCheck: Bool = true
+    var spellCheck: Bool = false
     var inlinePredictions: Bool = false
     var continueLists: Bool = true
 
@@ -119,10 +121,10 @@ struct SettingsData: Codable, Equatable {
     var caretPositions: [String: Int] = [:]
 
     // Theme
-    var themeID: String = "graphite"
+    var themeID: String = "ocean"
     var appearanceMode: AppearanceMode = .fixed
     var lightThemeID: String = "paper"
-    var darkThemeID: String = "graphite"
+    var darkThemeID: String = "ocean"
 
     // Review mode
     var reviewStyle: ReviewStyle = .glass
@@ -158,6 +160,7 @@ struct SettingsData: Codable, Equatable {
         typewriterOnClick = try c.decodeIfPresent(Bool.self, forKey: .typewriterOnClick) ?? d.typewriterOnClick
         focusMode = try c.decodeIfPresent(Bool.self, forKey: .focusMode) ?? d.focusMode
         focusScope = try c.decodeIfPresent(FocusScope.self, forKey: .focusScope) ?? d.focusScope
+        focusDimming = try c.decodeIfPresent(Double.self, forKey: .focusDimming) ?? d.focusDimming
         showCounter = try c.decodeIfPresent(Bool.self, forKey: .showCounter) ?? d.showCounter
         counterMode = try c.decodeIfPresent(CounterMode.self, forKey: .counterMode) ?? d.counterMode
         smartQuotes = try c.decodeIfPresent(Bool.self, forKey: .smartQuotes) ?? d.smartQuotes
