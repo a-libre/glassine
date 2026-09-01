@@ -2,6 +2,12 @@ import AppKit
 
 /// Applies lightweight, Paper-style Markdown styling: syntax stays visible but
 /// dimmed; headings, emphasis, code, quotes, lists and links are rendered inline.
+/// The `[ ]` / `[x]` of a task item. Clicking it toggles the item (see
+/// GlassineTextView.mouseDown); the attribute value is whether it is checked.
+enum TaskBox {
+    static let attributeKey = NSAttributedString.Key("glassine.taskBox")
+}
+
 final class MarkdownStyler {
     var config: StyleConfig {
         didSet { rebuildCaches() }
@@ -180,9 +186,15 @@ final class MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: absRange(m.range(at: 2)))
             if m.range(at: 4).location != NSNotFound {
                 let box = textNS.substring(with: m.range(at: 4))
+                let checked = box.lowercased().contains("x")
                 storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(m.range(at: 4)))
                 storage.addAttribute(.font, value: monoFont!, range: absRange(m.range(at: 4)))
-                if box.lowercased().contains("x") {
+                // The brackets are a click target: pointing hand, and a toggle on mouse down.
+                let boxRange = NSRange(location: absRange(m.range(at: 4)).location, length: 3)
+                storage.addAttribute(TaskBox.attributeKey, value: checked, range: boxRange)
+                storage.addAttribute(.cursor, value: NSCursor.pointingHand, range: boxRange)
+                if checked {
+                    storage.addAttribute(.foregroundColor, value: theme.accent.withAlpha(0.85), range: boxRange)
                     let rest = NSRange(location: m.range.upperBoundValue, length: full.length - m.range.upperBoundValue)
                     storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(rest))
                     storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: absRange(rest))

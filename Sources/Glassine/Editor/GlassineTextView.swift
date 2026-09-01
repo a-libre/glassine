@@ -772,7 +772,47 @@ final class GlassineTextView: NSTextView {
 
     override func mouseDown(with event: NSEvent) {
         lastTypedWasKeyboard = false
+        if event.clickCount == 1,
+           event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
+           let index = taskBoxIndex(at: event) {
+            toggleTaskBox(at: index)
+            return
+        }
         super.mouseDown(with: event)
+    }
+
+    // MARK: - Task boxes
+
+    /// The character index of the `[ ]` under the mouse, if the click landed on one.
+    private func taskBoxIndex(at event: NSEvent) -> Int? {
+        guard let layoutManager, let textContainer, let storage = textStorage, storage.length > 0 else { return nil }
+        var point = convert(event.locationInWindow, from: nil)
+        point.x -= textContainerOrigin.x
+        point.y -= textContainerOrigin.y
+        var fraction: CGFloat = 0
+        let glyph = layoutManager.glyphIndex(for: point, in: textContainer, fractionOfDistanceThroughGlyph: &fraction)
+        guard glyph < layoutManager.numberOfGlyphs else { return nil }
+        // glyphIndex(for:) snaps to the nearest glyph; only count a click that is really on it.
+        let rect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: textContainer)
+        guard rect.insetBy(dx: -2, dy: -1).contains(point) else { return nil }
+        let index = layoutManager.characterIndexForGlyph(at: glyph)
+        guard index < storage.length, storage.attribute(TaskBox.attributeKey, at: index, effectiveRange: nil) != nil else { return nil }
+        return index
+    }
+
+    /// `[ ]` ↔ `[x]` without moving the caret. Typing an x by hand still works, of course.
+    private func toggleTaskBox(at index: Int) {
+        guard let storage = textStorage else { return }
+        var range = NSRange(location: 0, length: 0)
+        guard let checked = storage.attribute(TaskBox.attributeKey, at: index, longestEffectiveRange: &range,
+                                              in: NSRange(location: 0, length: storage.length)) as? Bool,
+              range.length == 3 else { return }
+        let replacement = checked ? "[ ]" : "[x]"
+        let selection = selectedRange()
+        guard shouldChangeText(in: range, replacementString: replacement) else { return }
+        storage.replaceCharacters(in: range, with: replacement)
+        didChangeText()
+        setSelectedRange(selection.clamped(to: storage.length))
     }
 
     // MARK: - Diagnostics

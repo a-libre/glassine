@@ -76,7 +76,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌃⌘F | Focus mode (paragraph or sentence, pick in Settings) |
 | ⌘B ⌘I ⌘E ⌘K | Bold, italic, inline code, link (wraps the selection in Markdown) |
 | ⌘⌥1 ⌘⌥2 ⌘⌥3 ⌘⌥0 | Heading level / body text |
-| ⌘⇧L | Toggle a task checkbox |
+| ⌘⇧L | Toggle a task checkbox (or click the `[ ]`) |
 | ⌘F | Search the library — titles, tags and full text |
 | ⌘⇧F | Find in the open document (⌘G for next) |
 | ⌘R | Rename |
@@ -113,6 +113,10 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 ## Copying a document
 
 ⌘⇧C copies the whole document as Markdown; ⌥⌘C copies it as rich text (RTF and HTML go on the clipboard, so Mail, Notes, Slack and Google Docs keep headings, bold, lists and links). The copy button at the bottom-right of the editor does Markdown on click, with rich text one click-and-hold away, and both are in the right-click menus in the sidebar and All Documents.
+
+## Tasks
+
+`- [ ] ` starts a task. Click the brackets to check it off: the line goes strikethrough and fades, and the file gets a `[x]` that any Markdown app understands. Click again to reopen it. ⌘⇧L does the same from the keyboard and turns an ordinary line into a task when there is no box yet.
 
 ## Dates
 
