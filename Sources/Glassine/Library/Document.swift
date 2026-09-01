@@ -78,6 +78,38 @@ final class DocumentModel: ObservableObject, Identifiable {
 
     /// The editor pushes the whole string after each change. Strings are
     /// copy-on-write so this is cheap until mutated.
+    /// A task line: optional quote markers, a list marker, then `[ ]` or `[x]` and a space.
+    /// Group 1 is the character inside the brackets.
+    private static let taskLineRx = try! NSRegularExpression(
+        pattern: "^[ \\t]*(?:>[ \\t]?)*[ \\t]*(?:[-*+]|\\d{1,9}[.)])[ \\t]+\\[([ xX])\\][ \\t]+")
+
+    /// Checks or unchecks the n-th task item, counted the way Review renders them
+    /// (top to bottom, skipping fenced code). Returns false when there is no such item
+    /// or it is not in the state the caller expected, so the caller can resync.
+    @discardableResult
+    func setTask(ordinal: Int, checked: Bool) -> Bool {
+        var lines = text.components(separatedBy: "\n")
+        var inFence = false
+        var seen = 0
+        for (i, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") { inFence.toggle(); continue }
+            if inFence { continue }
+            let ns = line as NSString
+            guard let m = DocumentModel.taskLineRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: ns.length)) else { continue }
+            if seen == ordinal {
+                let box = m.range(at: 1)
+                let wasChecked = ns.substring(with: box).lowercased() == "x"
+                guard wasChecked != checked else { return false }
+                lines[i] = ns.replacingCharacters(in: box, with: checked ? "x" : " ")
+                textDidChange(lines.joined(separator: "\n"))
+                return true
+            }
+            seen += 1
+        }
+        return false
+    }
+
     func textDidChange(_ newText: String) {
         guard newText != text else { return }
         text = newText

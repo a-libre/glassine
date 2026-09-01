@@ -116,7 +116,7 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Tasks
 
-`- [ ] ` starts a task. Click the brackets to check it off: the line goes strikethrough and fades, and the file gets a `[x]` that any Markdown app understands. Click again to reopen it. ⌘⇧L does the same from the keyboard and turns an ordinary line into a task when there is no box yet.
+`- [ ] ` starts a task. Click the brackets to check it off: the line goes strikethrough and fades, and the file gets a `[x]` that any Markdown app understands. Click again to reopen it. ⌘⇧L does the same from the keyboard and turns an ordinary line into a task when there is no box yet. The checkboxes in Review are live too, and a click there writes the `[x]` straight into the file.
 
 ## Dates
 

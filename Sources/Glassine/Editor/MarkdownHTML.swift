@@ -353,7 +353,7 @@ enum MarkdownHTML {
             if let firstLine = content.first, let tm = first(taskRx, firstLine) {
                 let checked = tm.group(1).lowercased() == "x"
                 content[0] = tm.group(2)
-                taskPrefix = "<input type=\"checkbox\" disabled\(checked ? " checked" : "")> "
+                taskPrefix = "<input type=\"checkbox\"\(checked ? " checked" : "")> "
                 liClass = checked ? " class=\"task done\"" : " class=\"task\""
             }
             var inner = renderBlocks(content)

@@ -33,7 +33,8 @@ struct ReviewView: View {
                                           theme: theme, scale: state.settings.data.reviewFontScale),
                 scale: state.settings.data.reviewFontScale,
                 initialScrollFraction: initialScrollFraction,
-                baseURL: document.url.deletingLastPathComponent()
+                baseURL: document.url.deletingLastPathComponent(),
+                onToggleTask: { index, checked in document.setTask(ordinal: index, checked: checked) }
             )
             .ignoresSafeArea()
 
@@ -107,6 +108,9 @@ struct ReviewWebView: NSViewRepresentable {
     let scale: Double
     let initialScrollFraction: Double
     let baseURL: URL
+    /// A checkbox was clicked: the n-th task in the document, and its new state.
+    /// Returns false when the document could not follow, so the page is put back.
+    var onToggleTask: (Int, Bool) -> Bool = { _, _ in false }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -121,7 +125,30 @@ struct ReviewWebView: NSViewRepresentable {
         """
         config.userContentController.addUserScript(WKUserScript(source: tracker, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         config.userContentController.add(context.coordinator, name: "glassineScroll")
+        // Task checkboxes are live: a click reports the item's ordinal, and the
+        // document answers with the states to show (see updateNSView).
+        let tasks = """
+        (function() {
+          function boxes() { return document.querySelectorAll('li.task > input[type=checkbox]'); }
+          function paint(box, on) { var li = box.closest('li'); if (li) li.classList.toggle('done', on); }
+          boxes().forEach(function(box, i) {
+            box.addEventListener('change', function() {
+              paint(box, box.checked);
+              window.webkit.messageHandlers.glassineTask.postMessage({ index: i, checked: box.checked });
+            });
+          });
+          window.glassineSetTasks = function(states) {
+            boxes().forEach(function(box, i) {
+              if (i < states.length) { box.checked = states[i]; paint(box, states[i]); }
+            });
+          };
+        })();
+        """
+        config.userContentController.addUserScript(WKUserScript(source: tasks, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        config.userContentController.add(context.coordinator, name: "glassineTask")
+        context.coordinator.onToggleTask = onToggleTask
         let web = WKWebView(frame: .zero, configuration: config)
+        context.coordinator.web = web
         web.navigationDelegate = context.coordinator
         web.setValue(false, forKey: "drawsBackground")
         web.underPageBackgroundColor = .clear
@@ -134,11 +161,20 @@ struct ReviewWebView: NSViewRepresentable {
 
     func updateNSView(_ web: WKWebView, context: Context) {
         let c = context.coordinator
+        c.onToggleTask = onToggleTask
+        c.web = web
         guard c.lastHTML != html else { return }
-        if c.lastHTMLWithoutScale == ReviewHTML.stripScale(html) {
+        let bare = ReviewHTML.stripScale(html)
+        if c.lastHTMLWithoutScale == bare {
             // Only the text scale changed: adjust in place, no reload.
             web.evaluateJavaScript("document.documentElement.style.setProperty('--scale', '\(scale)')", completionHandler: nil)
             c.lastHTML = html
+        } else if ReviewHTML.stripTasks(c.lastHTMLWithoutScale) == ReviewHTML.stripTasks(bare) {
+            // Only checkboxes changed (a click here, or an edit elsewhere): flip them in place.
+            c.showTaskStates(ReviewHTML.taskStates(html))
+            web.evaluateJavaScript("document.documentElement.style.setProperty('--scale', '\(scale)')", completionHandler: nil)
+            c.lastHTML = html
+            c.lastHTMLWithoutScale = bare
         } else {
             c.pendingScrollFraction = c.knownFraction
             c.load(html, into: web, baseURL: baseURL)
@@ -150,6 +186,13 @@ struct ReviewWebView: NSViewRepresentable {
         var lastHTMLWithoutScale = ""
         var pendingScrollFraction: Double?
         var knownFraction: Double = 0
+        var onToggleTask: (Int, Bool) -> Bool = { _, _ in false }
+        weak var web: WKWebView?
+
+        func showTaskStates(_ states: [Bool]) {
+            let list = states.map { $0 ? "true" : "false" }.joined(separator: ",")
+            web?.evaluateJavaScript("if (window.glassineSetTasks) glassineSetTasks([\(list)])", completionHandler: nil)
+        }
 
         func load(_ html: String, into web: WKWebView, baseURL: URL) {
             lastHTML = html
@@ -168,6 +211,12 @@ struct ReviewWebView: NSViewRepresentable {
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             if message.name == "glassineScroll", let f = message.body as? Double {
                 knownFraction = f
+            } else if message.name == "glassineTask", let body = message.body as? [String: Any],
+                      let index = body["index"] as? Int, let checked = body["checked"] as? Bool {
+                if !onToggleTask(index, checked) {
+                    // The document did not follow: show what it actually says.
+                    showTaskStates(ReviewHTML.taskStates(lastHTML))
+                }
             }
         }
 
@@ -211,6 +260,23 @@ enum ReviewHTML {
         return html.replacingCharacters(in: r.lowerBound..<end, with: "--scale: X")
     }
 
+    /// The same page with every task unchecked, to tell "a box was ticked" from a real edit.
+    static func stripTasks(_ html: String) -> String {
+        html.replacingOccurrences(of: "<input type=\"checkbox\" checked>", with: "<input type=\"checkbox\">")
+            .replacingOccurrences(of: "class=\"task done\"", with: "class=\"task\"")
+    }
+
+    /// Checked state of each task checkbox in the page, top to bottom.
+    static func taskStates(_ html: String) -> [Bool] {
+        var states: [Bool] = []
+        var search = html.startIndex
+        while let r = html.range(of: "<input type=\"checkbox\"", range: search..<html.endIndex) {
+            states.append(html[r.upperBound...].hasPrefix(" checked>"))
+            search = r.upperBound
+        }
+        return states
+    }
+
     static let baseCSS = """
     * { box-sizing: border-box; }
     html { font-size: calc(17px * var(--scale)); -webkit-text-size-adjust: 100%; }
@@ -222,7 +288,8 @@ enum ReviewHTML {
     p, ul, ol, blockquote, pre, table, hr { margin: 0 0 1em; }
     li { margin: 0.2em 0; } li > ul, li > ol { margin: 0.2em 0 0.2em; }
     ul, ol { padding-left: 1.5em; }
-    li.task { list-style: none; margin-left: -1.5em; } li.task input { margin: 0 0.5em 0 0; vertical-align: -1px; }
+    li.task { list-style: none; margin-left: -1.5em; }
+    li.task input { margin: 0 0.5em 0 0; vertical-align: -1px; cursor: pointer; accent-color: var(--accent); }
     li.task.done { opacity: 0.6; text-decoration: line-through; }
     a { color: var(--link); text-decoration: none; } a:hover { text-decoration: underline; }
     img { max-width: 100%; height: auto; border-radius: 6px; }
