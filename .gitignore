@@ -3,8 +3,9 @@
 .swiftpm/
 Package.resolved
 
-# Assembled app and logs from build.sh
+# Assembled app, release output and logs
 build/
+dist/
 build.log
 install.log
 

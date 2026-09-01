@@ -22,7 +22,7 @@ The first launch asks for permission to access iCloud Drive. Say yes — that's 
 
 You can also open `Package.swift` in Xcode and press Run, which is handy for debugging; the assembled `.app` from `build.sh` is what you want for daily use (it has the icon and a stable identity for macOS permissions).
 
-There is no signed download yet, so building from source is the only way to run it for now. A notarized `.dmg` is the next step.
+There is no signed download yet, so building from source is the only way to run it for now. A notarized `.dmg` is the next step; the pipeline for it is in `release.sh` and [RELEASING.md](RELEASING.md).
 
 ## What it does
 
@@ -76,6 +76,8 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘+ ⌘− ⌘0 | Text size |
 | ⌘, | Settings |
 | ⌘⌥⇧D | Copy Debug Info (also in the Help menu) — caret geometry, layout and settings in one paste, for bug reports |
+
+Help → Check for Updates… looks at GitHub Releases; the app also checks once a day unless you turn that off in Settings → General.
 
 Return inside a list continues the list; Return on an empty item ends it.
 

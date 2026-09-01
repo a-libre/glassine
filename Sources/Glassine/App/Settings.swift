@@ -114,6 +114,9 @@ struct SettingsData: Codable, Equatable {
     var reviewStyle: ReviewStyle = .glass
     var reviewFontScale: Double = 1.0
 
+    // Updates
+    var checkForUpdates: Bool = true
+
     init() {}
 
     // Tolerant decoding so new fields can be added without invalidating saved settings.
@@ -158,6 +161,7 @@ struct SettingsData: Codable, Equatable {
         themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? d.themeID
         reviewStyle = try c.decodeIfPresent(ReviewStyle.self, forKey: .reviewStyle) ?? d.reviewStyle
         reviewFontScale = try c.decodeIfPresent(Double.self, forKey: .reviewFontScale) ?? d.reviewFontScale
+        checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? d.checkForUpdates
     }
 }
 

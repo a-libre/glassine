@@ -27,6 +27,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = nil
         NSWindow.allowsAutomaticWindowTabbing = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+            if AppState.shared.settings.data.checkForUpdates {
+                UpdateChecker.checkAutomaticallyIfDue()
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -168,6 +173,7 @@ struct GlassineCommands: Commands {
         CommandGroup(replacing: .help) {
             Button("Glassine Shortcuts") { showShortcuts() }
             Button("Open Library Folder") { state.revealLibrary() }
+            Button("Check for Updates…") { UpdateChecker.check(userInitiated: true) }
             Divider()
             Button("Copy Debug Info") { send(#selector(GlassineTextView.copyDebugInfo(_:))) }
                 .keyboardShortcut("d", modifiers: [.command, .option, .shift])

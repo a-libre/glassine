@@ -70,6 +70,14 @@ struct GeneralSettings: View {
                 Text("Changes are written about half a second after you stop typing, and at least every few seconds while you type. Nothing to remember.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Updates") {
+                Toggle("Check for new versions once a day", isOn: data.checkForUpdates)
+                HStack {
+                    Text("Glassine \(UpdateChecker.currentVersion)").foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Check Now") { UpdateChecker.check(userInitiated: true) }
+                }
+            }
         }
         .formStyle(.grouped)
     }
