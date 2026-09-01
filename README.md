@@ -6,6 +6,12 @@ Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift p
 
 ![Glassine in Review mode, Glass style, over a blurred desktop](docs/screenshot.jpg)
 
+The caret, which is most of the point:
+
+![Typing in Glassine — the caret glides between positions](docs/demo.gif)
+
+There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well.
+
 *Glassine is the thin, translucent paper used to protect prints.*
 
 ## Install
