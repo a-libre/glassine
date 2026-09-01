@@ -24,9 +24,20 @@ struct GlassineApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var keyMonitor: Any?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = nil
         NSWindow.allowsAutomaticWindowTabbing = false
+        // ⌘\ toggles the sidebar as well as ⌘S; menu items can carry only one shortcut.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+               event.charactersIgnoringModifiers == "\\" {
+                AppState.shared.toggleSidebar()
+                return nil
+            }
+            return event
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
             if AppState.shared.settings.data.checkForUpdates {
                 UpdateChecker.checkAutomaticallyIfDue()
@@ -59,6 +70,8 @@ struct GlassineCommands: Commands {
     @ObservedObject var state: AppState
 
     var body: some Commands {
+        CommandGroup(replacing: .printItem) { }
+
         CommandGroup(replacing: .newItem) {
             Button("New Document") { state.newDocument() }
                 .keyboardShortcut("n", modifiers: .command)
@@ -66,7 +79,6 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Divider()
             Button("Save Now") { state.document?.save() }
-                .keyboardShortcut("s", modifiers: .command)
                 .disabled(state.document == nil)
             Button("Rename…") {
                 if let rel = state.document?.relativePath { state.promptRename(rel, isFolder: false) }
@@ -125,9 +137,9 @@ struct GlassineCommands: Commands {
 
         CommandGroup(after: .sidebar) {
             Button(state.settings.data.sidebarVisible ? "Hide Sidebar" : "Show Sidebar") { state.toggleSidebar() }
-                .keyboardShortcut("\\", modifiers: .command)
+                .keyboardShortcut("s", modifiers: .command)
             Button(state.showingGallery ? "Back to Document" : "All Documents") { state.toggleGallery() }
-                .keyboardShortcut("o", modifiers: [.command, .shift])
+                .keyboardShortcut("p", modifiers: .command)
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(state.document == nil)
@@ -189,7 +201,8 @@ struct GlassineCommands: Commands {
         alert.messageText = "Glassine Shortcuts"
         alert.informativeText = """
         ⌘N  New document        ⌘⇧N  New folder
-        ⌘\\  Toggle sidebar      ⌘,   Settings
+        ⌘S  Toggle sidebar (or ⌘\\)   ⌘P  All Documents
+        ⌘↩  Review              ⌘,   Settings
         ⌃⌘T Typewriter          ⌃⌘F  Focus mode
         ⌘B  Bold                ⌘I   Italic
         ⌘E  Inline code         ⌘K   Link

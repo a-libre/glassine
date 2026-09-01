@@ -90,7 +90,7 @@ struct SidebarView: View {
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .opacity(0.55)
             Spacer()
-            SidebarIconButton(systemName: "sidebar.left", help: "Hide Sidebar (⌘\\)") {
+            SidebarIconButton(systemName: "sidebar.left", help: "Hide Sidebar (⌘S)") {
                 state.toggleSidebar()
             }
         }
@@ -137,7 +137,7 @@ struct SidebarView: View {
                 Text("All Documents")
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text("⌘⇧O")
+                Text("⌘P")
                     .font(.system(size: 11))
                     .opacity(0.35)
             }

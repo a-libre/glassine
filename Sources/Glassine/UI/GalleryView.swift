@@ -407,7 +407,7 @@ struct GalleryCard: View {
             )
             .shadow(color: isSelected ? theme.accent.color.opacity(0.25) : .clear, radius: 12, y: 2)
             .overlay(alignment: .bottomTrailing) {
-                if hovering {
+                if hovering || isSelected {
                     Text(caption)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .opacity(0.45)

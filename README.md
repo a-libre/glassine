@@ -38,8 +38,8 @@ There is no signed download yet, so building from source is the only way to run 
 - **Smooth caret.** The insertion point glides between positions instead of jumping. Speed, blink style and width are adjustable.
 - **A library, not a file picker.** Documents live in `iCloud Drive/Glassine` as plain `.md` files and folders. New document is ⌘N; the file takes its name from the first line as you write.
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
-- **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘\.
-- **All Documents** (⌘⇧O): a mosaic of every document with rendered previews, navigable with the arrow keys.
+- **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘S.
+- **All Documents** (⌘P): a mosaic of every document with rendered previews, navigable with the arrow keys.
 - **Review** (⌘↩): the document rendered as HTML in one of five styles — Glass, GitHub, Book, Editorial, Mono.
 - **Typewriter scrolling, focus mode, word count and reading time.**
 - **Markdown, lightly styled.** Syntax stays visible but steps back: headings, emphasis, code, quotes, lists, tasks, links, tags.
@@ -53,7 +53,7 @@ Change the location under Settings → General if you'd rather use a different f
 
 ## Saving
 
-Always on. Glassine writes about half a second after you stop typing, at least every four seconds while you type continuously, when you switch documents, when the app loses focus, and on quit. The small dot at the bottom-left tells you what's happening: grey means clean, accent-colored means unsaved edits are pending, and a brief "Saved" with an iCloud check appears after each write. `⌘S` forces a write if you want the reassurance.
+Always on. Glassine writes about half a second after you stop typing, at least every four seconds while you type continuously, when you switch documents, when the app loses focus, and on quit. The small dot at the bottom-left tells you what's happening: grey means clean, accent-colored means unsaved edits are pending, and a brief "Saved" with an iCloud check appears after each write. File → Save Now forces a write if you want the reassurance.
 
 If a file changes on disk while it's open and you have no unsaved edits, Glassine reloads it. If both sides changed, your edits win and the other version is kept next to it as "… (conflict).md". Glassine compares file *contents* to decide this, not timestamps — iCloud rewrites modification dates after upload, and trusting them produced phantom conflict copies in the very first build. Any "(conflict)" files from that build are safe to delete.
 
@@ -66,8 +66,8 @@ New documents start as "Untitled" and take their file name from the first line a
 | | |
 |---|---|
 | ⌘N / ⌘⇧N | New document / new folder |
-| ⌘\ | Show or hide the sidebar |
-| ⌘⇧O | All Documents — the mosaic view of the whole library |
+| ⌘S (or ⌘\) | Show or hide the sidebar |
+| ⌘P | All Documents — the mosaic view of the whole library |
 | ⌘↩ | Review — the document rendered read-only in a chosen style (Esc or ⌘↩ leaves) |
 | ⌘⇧C / ⌥⌘C | Copy the whole document as Markdown / as rich text |
 | Esc | Zoom out one level: Review → editor → All Documents. Inside All Documents, Esc returns to the open document |
@@ -103,7 +103,7 @@ Glass materials, roughly: *Soft glass* is the standard window blur, *Deep glass*
 
 ## All Documents
 
-The mosaic view (⌘⇧O, the grid row at the top of the sidebar, Esc from the editor, or automatically when nothing is open) lays every document out as a card with its title and a small rendered preview, Craft-style. Cards are arranged shortest-column-first so the grid stays balanced; the current document gets a thin accent outline. The arrow keys move a selection between cards (left/right jump to the nearest card in the next column), Return opens the selected one and ⌘↩ opens it in Review. Search, tag filters and the sort order apply here too, and the right-click menu is the same as in the sidebar.
+The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the editor, or automatically when nothing is open) lays every document out as a card with its title and a small rendered preview, Craft-style. Cards are arranged shortest-column-first so the grid stays balanced; the current document gets a thin accent outline. The arrow keys move a selection between cards (left/right jump to the nearest card in the next column), Return opens the selected one and ⌘↩ opens it in Review. Search, tag filters and the sort order apply here too, and the right-click menu is the same as in the sidebar.
 
 ## Review
 

@@ -91,7 +91,7 @@ struct FloatingSidebarToggle: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.15), value: hovering)
-        .help("Show Sidebar (⌘\\)")
+        .help("Show Sidebar (⌘S)")
     }
 }
 
