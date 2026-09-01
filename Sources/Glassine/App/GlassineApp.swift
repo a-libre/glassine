@@ -146,7 +146,7 @@ struct GlassineCommands: Commands {
             Button("New Folder…") { state.promptNewFolder() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Today's Note") { state.openTodaysNote() }
-                .keyboardShortcut("d", modifiers: .command)
+                .keyboardShortcut("d", modifiers: [.command, .option])
             Divider()
             Button("Save Now") { state.document?.save() }
                 .disabled(state.document == nil)
@@ -158,7 +158,6 @@ struct GlassineCommands: Commands {
             Button("Duplicate") {
                 if let rel = state.document?.relativePath { state.duplicate(rel) }
             }
-            .keyboardShortcut("d", modifiers: [.command, .option])
             .disabled(state.document == nil)
             Button("Move to Trash") { state.trashCurrentDocument() }
                 .keyboardShortcut(.delete, modifiers: .command)
@@ -223,6 +222,7 @@ struct GlassineCommands: Commands {
             Button("Command Bar") { state.toggleCommandBar() }
                 .keyboardShortcut("k", modifiers: .command)
             Button("Daily Timeline") { state.showDaily() }
+                .keyboardShortcut("d", modifiers: .command)
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(state.document == nil)

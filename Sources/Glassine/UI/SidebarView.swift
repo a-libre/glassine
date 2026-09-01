@@ -190,7 +190,7 @@ struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(HoverRowStyle(theme: theme, selected: state.showingDaily))
-        .help("The Daily timeline — today in front, earlier days behind. ⌘D jumps straight into today's note.")
+        .help("The Daily timeline — today in front, earlier days behind. ⌥⌘D opens today's note directly.")
     }
 
     private var newDocumentRow: some View {

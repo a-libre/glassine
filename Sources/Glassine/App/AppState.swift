@@ -645,8 +645,8 @@ final class AppState: ObservableObject {
             add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.toggleGallery() }
         } else if galleryOnScreen || showingDaily {
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
-            add("today", "Today's Note", keys: "⌘D") { [weak self] in self?.openTodaysNote() }
-            add("daily", showingDaily ? "All Documents" : "Daily Timeline", keys: showingDaily ? "⌘P" : nil) { [weak self] in
+            add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
+            add("daily", showingDaily ? "All Documents" : "Daily Timeline", keys: showingDaily ? "⌘P" : "⌘D") { [weak self] in
                 guard let self else { return }
                 if self.showingDaily { self.toggleGallery() } else { self.showDaily() }
             }
@@ -664,8 +664,8 @@ final class AppState: ObservableObject {
         } else {
             add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.toggleGallery() }
             add("review", "Review", keys: "⌘↩") { [weak self] in self?.toggleReview() }
-            add("today", "Today's Note", keys: "⌘D") { [weak self] in self?.openTodaysNote() }
-            add("daily", "Daily Timeline") { [weak self] in self?.showDaily() }
+            add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
+            add("daily", "Daily Timeline", keys: "⌘D") { [weak self] in self?.showDaily() }
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
             add("typewriter", "\(settings.data.typewriterMode ? "Turn off" : "Turn on") typewriter scrolling", keys: "⌃⌘T") { [weak self] in self?.toggleTypewriter() }
             add("focus", "\(settings.data.focusMode ? "Turn off" : "Turn on") focus mode", keys: "⌃⌘F") { [weak self] in self?.toggleFocus() }

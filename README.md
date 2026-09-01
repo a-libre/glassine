@@ -66,7 +66,8 @@ New documents start as "Untitled" and take their file name from the first line a
 | | |
 |---|---|
 | ⌘N / ⌘⇧N | New document / new folder |
-| ⌘D | Today's note (in a Daily folder, created on first use) |
+| ⌘D | The Daily timeline — today in front, earlier days receding behind it |
+| ⌥⌘D | Today's note (in a Daily folder, created on first use) |
 | ⌘⇧E | Export the document as a PDF in the current Review style |
 | ⌘/ | The shortcut sheet |
 | ⌘K | The command bar — what makes sense where you are: Review styles in Review, sorting in the mosaic, modes in the editor |
@@ -84,7 +85,6 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘F | Search the library — titles, tags and full text |
 | ⌘⇧F | Find in the open document (⌘G for next) |
 | ⌘R | Rename |
-| ⌥⌘D | Duplicate |
 | ⌘⌫ | Move to Trash (it goes to the macOS Trash, so it's recoverable) |
 | ⌘+ ⌘− ⌘0 | Text size |
 | ⌘, | Settings |
@@ -124,7 +124,7 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Daily notes
 
-⌘D opens today's note, titled with the date and kept in a `Daily` folder that is created the first time you use it. Press it again tomorrow and you get tomorrow's. The Today row in the sidebar opens the Daily timeline instead: today's note in front, earlier days receding behind it, each a little smaller and fainter.
+⌘D (or the Today row in the sidebar) opens the Daily timeline: today's note lying readable at the front, earlier days receding up the corridor behind it — tilted back, smaller and fainter toward the vanishing point. Scroll to walk back through the days; click a card to open it. ⌥⌘D skips the corridor and opens today's note directly, titled with the date and kept in a `Daily` folder created on first use. Press it again tomorrow and you get tomorrow's.
 
 ## Appearance
 

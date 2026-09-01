@@ -16,14 +16,14 @@ struct ShortcutSheet: View {
         Group(title: "Documents", rows: [
             ("⌘N", "New document"),
             ("⌘⇧N", "New folder"),
-            ("⌘D", "Today's note"),
+            ("⌥⌘D", "Today's note"),
             ("⌘R", "Rename"),
-            ("⌥⌘D", "Duplicate"),
             ("⌘⌫", "Move to Trash"),
             ("⌘⇧E", "Export as PDF"),
         ]),
         Group(title: "Around the app", rows: [
             ("⌘P", "All documents"),
+            ("⌘D", "Daily timeline"),
             ("⌘K", "Command bar"),
             ("⌘F", "Search the library"),
             ("⌘S", "Show or hide the sidebar"),
