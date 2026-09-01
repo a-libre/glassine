@@ -4,6 +4,8 @@ A quiet Markdown writing app for macOS. A translucent glass window, a caret that
 
 Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift package and a build script. MIT licensed.
 
+![Glassine in Review mode, Glass style, over a blurred desktop](docs/screenshot.jpg)
+
 *Glassine is the thin, translucent paper used to protect prints.*
 
 ## Install
