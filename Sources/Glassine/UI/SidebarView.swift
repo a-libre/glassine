@@ -78,7 +78,16 @@ struct SidebarView: View {
         .frame(maxHeight: .infinity)
         .foregroundStyle(theme.text.color)
         .onExitCommand { searchFocused = false; state.searchText = "" }
+        .onAppear { takeSearchFocusIfAsked() }
+        .onChange(of: state.searchFocusRequest) { _, _ in takeSearchFocusIfAsked() }
         .background(sidebarBackground)
+    }
+
+    /// ⌘F lands here unless the mosaic is showing (it has its own box).
+    private func takeSearchFocusIfAsked() {
+        guard state.searchFocusPending, !state.galleryOnScreen else { return }
+        state.searchFocusPending = false
+        DispatchQueue.main.async { searchFocused = true }
     }
 
     // MARK: - Pieces
@@ -108,6 +117,9 @@ struct SidebarView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12.5))
                 .focused($searchFocused)
+                .onSubmit {
+                    if let first = state.filteredDocuments?.first { state.open(first) }
+                }
             if !state.searchText.isEmpty {
                 Button {
                     state.searchText = ""
@@ -115,10 +127,15 @@ struct SidebarView: View {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 11)).opacity(0.45)
                 }
                 .buttonStyle(.plain)
+            } else if !searchFocused {
+                Text("⌘F")
+                    .font(.system(size: 10.5))
+                    .opacity(0.3)
             }
         }
         .padding(.horizontal, 8)
         .frame(height: 26)
+        .help("Search titles, tags and text (⌘F)")
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05))

@@ -6,6 +6,7 @@ import SwiftUI
 struct GalleryView: View {
     @EnvironmentObject var state: AppState
     @StateObject private var nav = GalleryNavigator()
+    @FocusState private var searchFocused: Bool
 
     private var theme: Theme { state.theme }
 
@@ -38,6 +39,7 @@ struct GalleryView: View {
                                         ForEach(plan.columns[c]) { doc in
                                             GalleryCard(doc: doc, isSelected: nav.selectedID == doc.id)
                                                 .id(doc.id)
+                                                .background(CardFrameReporter(id: doc.id))
                                         }
                                     }
                                     .frame(maxWidth: .infinity)
@@ -49,8 +51,15 @@ struct GalleryView: View {
                     .padding(.top, 52)
                     .padding(.bottom, 48)
                 }
+                .coordinateSpace(name: GalleryNavigator.coordinateSpace)
+                .onPreferenceChange(CardFramesKey.self) { nav.frames = $0 }
                 .onChange(of: nav.selectedID) { _, id in
-                    if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: nil) } }
+                    guard let id else { return }
+                    // Next pass: by then the cards have laid out and reported where they are.
+                    DispatchQueue.main.async {
+                        guard let anchor = nav.scrollAnchor(toReveal: id, viewportHeight: geo.size.height) else { return }
+                        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: anchor) }
+                    }
                 }
             }
             .onAppear {
@@ -59,7 +68,7 @@ struct GalleryView: View {
             }
             .onChange(of: plan.signature) { _, _ in
                 nav.plan = plan
-                nav.ensureSelection(preferring: nil)
+                nav.planChanged(query: state.searchText)
             }
         }
         .foregroundStyle(theme.text.color)
@@ -69,6 +78,7 @@ struct GalleryView: View {
             Button("") {
                 if !state.searchText.isEmpty {
                     state.searchText = ""
+                    searchFocused = false
                 } else if state.tagFilter != nil {
                     state.tagFilter = nil
                 } else if state.document != nil {
@@ -84,37 +94,64 @@ struct GalleryView: View {
                 guard let state else { return false }
                 return GalleryView.handle(event, nav: nav, state: state)
             }
+            // Whatever text field had focus (the sidebar search, say) gives it up so the
+            // arrow keys go to the cards straight away.
+            DispatchQueue.main.async { nav.blurFieldEditor() }
+            takeSearchFocusIfAsked()
         }
+        .onChange(of: state.searchFocusRequest) { _, _ in takeSearchFocusIfAsked() }
         .onDisappear { nav.uninstall() }
+    }
+
+    private func takeSearchFocusIfAsked() {
+        guard state.searchFocusPending else { return }
+        state.searchFocusPending = false
+        DispatchQueue.main.async { searchFocused = true }
     }
 
     /// Keyboard handling for the mosaic. Returns true when the event was consumed.
     private static func handle(_ event: NSEvent, nav: GalleryNavigator, state: AppState) -> Bool {
-        guard event.window === nav.window else { return false }
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let typingInField = event.window?.firstResponder is NSTextView
-        switch event.keyCode {
-        case 123: // ←
-            if typingInField { return false }
-            nav.move(.left); return true
-        case 124: // →
-            if typingInField { return false }
-            nav.move(.right); return true
-        case 125: // ↓
-            nav.move(.down); return true
-        case 126: // ↑
-            nav.move(.up); return true
-        case 36, 76: // Return / Enter
-            guard let doc = nav.selectedDocument else { return false }
-            if flags.contains(.command) {
+        guard let window = event.window, window === (nav.window ?? NSApp.mainWindow) else { return false }
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function])
+        // A text field being edited (the search box) owns a field editor; the document
+        // editor's text view is not one, and it is gone from the window here anyway.
+        let fieldEditor = (window.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0 : nil }
+        let before = nav.selectedID
+        var handled = false
+        var key = "?"
+
+        switch event.specialKey {
+        case .leftArrow?, .rightArrow?:
+            key = event.specialKey == .leftArrow ? "←" : "→"
+            guard modifiers.isEmpty else { break }
+            // With a query in the box, left/right move the caret through it.
+            if let fieldEditor, !fieldEditor.string.isEmpty { break }
+            nav.blurFieldEditor()
+            nav.move(event.specialKey == .leftArrow ? .left : .right)
+            handled = true
+        case .upArrow?, .downArrow?:
+            key = event.specialKey == .upArrow ? "↑" : "↓"
+            guard modifiers.isEmpty else { break }
+            // Up/down leave the search box (keeping the query) and walk the cards.
+            if fieldEditor != nil { nav.blurFieldEditor() }
+            nav.move(event.specialKey == .upArrow ? .up : .down)
+            handled = true
+        case .carriageReturn?, .enter?:
+            key = "↩"
+            guard modifiers.isEmpty || modifiers == .command, let doc = nav.selectedDocument else { break }
+            if modifiers == .command {
                 state.openInReview(doc)
             } else {
                 state.open(doc)
             }
-            return true
+            handled = true
         default:
             return false
         }
+
+        let responder = window.firstResponder.map { String(describing: type(of: $0)) } ?? "nil"
+        nav.note("\(key) mods=\(modifiers.rawValue) responder=\(responder) fieldEditor=\(fieldEditor != nil) \(before ?? "-") → \(nav.selectedID ?? "-") handled=\(handled) frames=\(nav.frames.count)")
+        return handled
     }
 
     private var header: some View {
@@ -174,6 +211,10 @@ struct GalleryView: View {
             TextField("Search", text: $state.searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12.5))
+                .focused($searchFocused)
+                .onSubmit {
+                    if let doc = nav.selectedDocument ?? state.filteredDocuments?.first { state.open(doc) }
+                }
             if !state.searchText.isEmpty {
                 Button {
                     state.searchText = ""
@@ -181,11 +222,16 @@ struct GalleryView: View {
                     Image(systemName: "xmark.circle.fill").font(.system(size: 11)).opacity(0.45)
                 }
                 .buttonStyle(.plain)
+            } else if !searchFocused {
+                Text("⌘F")
+                    .font(.system(size: 10.5))
+                    .opacity(0.3)
             }
         }
         .padding(.horizontal, 9)
         .frame(width: 210, height: 28)
         .background(Capsule().fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05)))
+        .help("Search titles, tags and text (⌘F)")
     }
 
     private var emptyState: some View {
@@ -239,15 +285,26 @@ struct MasonryPlan {
         self.slots = slots
         self.signature = hasher.finalize()
     }
+
+    var firstID: String? { columns.first(where: { !$0.isEmpty })?.first?.id }
 }
 
 final class GalleryNavigator: ObservableObject {
     enum Direction { case up, down, left, right }
 
+    static let coordinateSpace = "glassine.gallery"
+    /// The navigator of the mosaic currently on screen, for diagnostics.
+    static weak var current: GalleryNavigator?
+
     @Published var selectedID: String?
     var plan: MasonryPlan?
     weak var window: NSWindow?
+    /// Where the cards that exist right now sit, in the scroll view's coordinates.
+    /// Cards the lazy stacks have not built yet are absent.
+    var frames: [String: CGRect] = [:]
     private var monitor: Any?
+    private var lastQuery = ""
+    private(set) var log: [String] = []
 
     var selectedDocument: DocumentRef? {
         guard let id = selectedID, let plan else { return nil }
@@ -263,13 +320,23 @@ final class GalleryNavigator: ObservableObject {
             return
         }
         if let current = selectedID, all.contains(where: { $0.id == current }) { return }
-        selectedID = all.first?.id
+        selectedID = plan.firstID
+    }
+
+    /// The layout was rebuilt: keep the selection if it still exists, except when the
+    /// search query changed, where the top result is what Return should open.
+    func planChanged(query: String) {
+        if query != lastQuery {
+            lastQuery = query
+            if !query.isEmpty { selectedID = plan?.firstID; return }
+        }
+        ensureSelection(preferring: nil)
     }
 
     func move(_ direction: Direction) {
         guard let plan else { return }
         guard let id = selectedID, let slot = plan.slots[id] else {
-            selectedID = plan.columns.first?.first?.id
+            selectedID = plan.firstID
             return
         }
         switch direction {
@@ -289,8 +356,29 @@ final class GalleryNavigator: ObservableObject {
         }
     }
 
+    /// How to scroll so the card is fully on screen, or nil when it already is.
+    /// Unbuilt cards (off screen in a lazy stack) are centred.
+    func scrollAnchor(toReveal id: String, viewportHeight: CGFloat) -> UnitPoint? {
+        guard let frame = frames[id] else { return .center }
+        let margin: CGFloat = 12
+        if frame.minY < margin { return .top }
+        if frame.maxY > viewportHeight - margin {
+            // Taller than the viewport: showing the top is more useful than the bottom.
+            return frame.height > viewportHeight - 2 * margin ? .top : .bottom
+        }
+        return nil
+    }
+
+    /// Ends editing in whatever text field has focus (the search box).
+    func blurFieldEditor() {
+        guard let window = window ?? NSApp.keyWindow,
+              let editor = window.firstResponder as? NSTextView, editor.isFieldEditor else { return }
+        window.makeFirstResponder(nil)
+    }
+
     func install(_ handler: @escaping (NSEvent) -> Bool) {
         uninstall()
+        GalleryNavigator.current = self
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             handler(event) ? nil : event
         }
@@ -299,6 +387,20 @@ final class GalleryNavigator: ObservableObject {
     func uninstall() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        if GalleryNavigator.current === self { GalleryNavigator.current = nil }
+    }
+
+    func note(_ line: String) {
+        log.append(line)
+        if log.count > 20 { log.removeFirst(log.count - 20) }
+    }
+
+    var debugDescription: String {
+        let sel = selectedID ?? "-"
+        let slot = selectedID.flatMap { plan?.slots[$0] }.map { "col \($0.column) row \($0.row)" } ?? "no slot"
+        let cols = plan?.columns.map(\.count).map(String.init).joined(separator: "/") ?? "no plan"
+        return "gallery: selected=\(sel) (\(slot)) columns=\(cols) frames=\(frames.count) monitor=\(monitor != nil) window=\(window != nil)\n"
+            + log.joined(separator: "\n")
     }
 
     deinit { uninstall() }
@@ -315,6 +417,24 @@ struct WindowTap: NSViewRepresentable {
         override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); report() }
         func report() { if let window { onWindow?(window) } }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+}
+
+/// Each built card reports its frame in the scroll view's coordinate space so the
+/// navigator knows whether the selection is on screen.
+struct CardFramesKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] { [:] }
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+struct CardFrameReporter: View {
+    let id: String
+    var body: some View {
+        GeometryReader { g in
+            Color.clear.preference(key: CardFramesKey.self, value: [id: g.frame(in: .named(GalleryNavigator.coordinateSpace))])
+        }
     }
 }
 

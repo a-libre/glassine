@@ -77,7 +77,8 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘B ⌘I ⌘E ⌘K | Bold, italic, inline code, link (wraps the selection in Markdown) |
 | ⌘⌥1 ⌘⌥2 ⌘⌥3 ⌘⌥0 | Heading level / body text |
 | ⌘⇧L | Toggle a task checkbox |
-| ⌘F | Find (and ⌘G for next) |
+| ⌘F | Search the library — titles, tags and full text |
+| ⌘⇧F | Find in the open document (⌘G for next) |
 | ⌘R | Rename |
 | ⌘D | Duplicate |
 | ⌘⌫ | Move to Trash (it goes to the macOS Trash, so it's recoverable) |
@@ -117,6 +118,10 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 Type `@today`, `@yesterday` or `@tomorrow` followed by a space (or punctuation, or Return) and it becomes the actual date — `@September 1, 2026` in the file, drawn as a small capsule in the editor and in Review. Typing an ISO date like `@2026-09-01` gets the capsule too. Made for daily notes; the file stays plain text that any other app can read.
 
+## Search
+
+⌘F puts the cursor in the search box (the mosaic's when it is showing, otherwise the sidebar's). Every word you type has to appear somewhere in a document's title, tags or text, ignoring case and accents; documents whose titles match are listed first. In the mosaic, the top result is selected as you type, so Return opens it, and the arrow keys walk the results. Esc clears the search.
+
 ## Tags
 
 Write `#tag` anywhere in a document and it appears under Tags in the sidebar. Click a tag to filter the list. Hex colors like `#FFF` are ignored.
@@ -141,7 +146,6 @@ Edit anything under `Sources/Glassine/`, then `./build.sh --run`. Incremental bu
 ## Known limits (v1)
 
 - One window. Glassine is a single-library app by design.
-- Search matches titles and tags, not full text.
 - No export menu yet; the files are plain Markdown, so any converter works on them directly.
 - Drag-and-drop between folders isn't wired up; use the context menu's "Move To".
 - Tested on macOS 26/27 with Xcode 26. Minimum deployment target is macOS 14.

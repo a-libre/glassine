@@ -25,6 +25,12 @@ final class AppState: ObservableObject {
     private var noticeWork: DispatchWorkItem?
     /// Scroll position (0–1) the editor was at when Review mode was entered.
     var reviewEntryScrollFraction: Double = 0
+    /// Bumped by ⌘F; whichever search box is on screen takes focus and clears the flag.
+    @Published var searchFocusRequest: Int = 0
+    var searchFocusPending = false
+
+    /// The mosaic is what the content area shows (asked for, or nothing is open).
+    var galleryOnScreen: Bool { showingGallery || document == nil }
 
     enum Prompt: Identifiable {
         case newFolder(parent: String)
@@ -119,17 +125,42 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Documents matching the search box and/or the tag filter, or nil when neither is set.
+    /// Every word of the query has to appear somewhere in the title, tags or text
+    /// (case- and accent-insensitive). Title matches come first, then the rest in the usual order.
     var filteredDocuments: [DocumentRef]? {
         let q = searchText.trimmingCharacters(in: .whitespaces)
+        let base: [DocumentRef]
         if let tag = tagFilter {
-            let base = library.allDocuments.filter { $0.tags.contains(tag) }
-            return sorted(q.isEmpty ? base : base.filter { $0.title.localizedCaseInsensitiveContains(q) })
+            base = library.allDocuments.filter { $0.tags.contains(tag) }
+        } else {
+            guard !q.isEmpty else { return nil }
+            base = library.allDocuments
         }
-        guard !q.isEmpty else { return nil }
-        let needle = q.lowercased()
-        return sorted(library.allDocuments.filter {
-            $0.title.lowercased().contains(needle) || $0.tags.contains { $0.contains(needle.replacingOccurrences(of: "#", with: "")) }
-        })
+        guard !q.isEmpty else { return sorted(base) }
+
+        let words = LibraryStore.searchable(q).split(separator: " ").map(String.init)
+        // The open document may be ahead of what is on disk.
+        let liveID = document?.relativePath
+        let liveText = document.map { LibraryStore.searchable($0.text) }
+        var titleHits: [DocumentRef] = []
+        var otherHits: [DocumentRef] = []
+        for doc in base {
+            let title = LibraryStore.searchable(doc.title)
+            if words.allSatisfy({ title.contains($0) }) { titleHits.append(doc); continue }
+            let body = doc.id == liveID ? liveText : library.searchableText(for: doc.id)
+            let haystack = title + "\n" + doc.tags.joined(separator: " ") + "\n" + (body ?? "")
+            if words.allSatisfy({ haystack.contains($0) }) { otherHits.append(doc) }
+        }
+        return sorted(titleHits) + sorted(otherHits)
+    }
+
+    /// ⌘F: focus the search box in the mosaic when it is showing, else the sidebar's
+    /// (bringing the sidebar back if it is hidden).
+    func focusSearch() {
+        if !galleryOnScreen && !settings.data.sidebarVisible { toggleSidebar() }
+        searchFocusPending = true
+        searchFocusRequest += 1
     }
 
     // MARK: - Opening documents
@@ -425,6 +456,20 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Help → Copy Debug Info: whatever is on screen describes itself.
+    func copyDebugInfo() {
+        var parts: [String] = ["Glassine \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") debug"]
+        parts.append("view: \(galleryOnScreen ? "gallery" : (reviewMode ? "review" : "editor")) sidebar=\(settings.data.sidebarVisible) docs=\(library.allDocuments.count) query=\"\(searchText)\"")
+        if let key = NSApp.keyWindow {
+            parts.append("keyWindow firstResponder: \(key.firstResponder.map { String(describing: type(of: $0)) } ?? "nil")")
+        }
+        if let nav = GalleryNavigator.current { parts.append(nav.debugDescription) }
+        if let textView = GlassineTextView.current { parts.append(textView.debugDescription) }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(parts.joined(separator: "\n"), forType: .string)
+        showNotice("Debug info copied")
+    }
+
     func toggleTypewriter() { settings.data.typewriterMode.toggle() }
     func toggleFocus() { settings.data.focusMode.toggle() }
 
@@ -461,7 +506,7 @@ enum WelcomeDocument {
     ## A few things to try
 
     - Watch the caret glide as you type. Tune it under **Glassine → Settings → Caret**.
-    - Press ⌘S to hide the sidebar. Press it again to bring it back. ⌘P shows every document at once.
+    - Press ⌘S to hide the sidebar. Press it again to bring it back. ⌘P shows every document at once; ⌘F searches everything you have written.
     - Try ⌃⌘T for typewriter scrolling and ⌃⌘F for focus mode.
     - Themes live under **View → Theme**. Duplicate one in Settings to make it yours.
     - The file's name follows the first line of the document. Change this heading and watch the sidebar.

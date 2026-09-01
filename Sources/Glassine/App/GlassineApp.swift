@@ -30,14 +30,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = nil
         NSWindow.allowsAutomaticWindowTabbing = false
         // ⌘\ toggles the sidebar as well as ⌘S; menu items can carry only one shortcut.
+        // ⌘F searches the library; the system's Find… item would otherwise claim it.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-               event.charactersIgnoringModifiers == "\\" {
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                  let window = event.window, AppDelegate.isMainWindow(window) else { return event }
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "\\":
                 AppState.shared.toggleSidebar()
                 return nil
+            case "f":
+                AppState.shared.focusSearch()
+                return nil
+            default:
+                return event
             }
-            return event
         }
+        DispatchQueue.main.async { AppDelegate.retireSystemFindShortcut() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { AppDelegate.retireSystemFindShortcut() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
             if AppState.shared.settings.data.checkForUpdates {
                 UpdateChecker.checkAutomaticallyIfDue()
@@ -49,14 +58,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
+    /// The Edit → Find → Find… item that SwiftUI adds carries ⌘F. Take that away so the
+    /// menu bar shows ⌘F next to Search Library only; the item still works by mouse
+    /// and Find in Document (⌘⇧F) opens the same find bar.
+    static func retireSystemFindShortcut() {
+        func walk(_ menu: NSMenu) {
+            for item in menu.items {
+                if let sub = item.submenu { walk(sub); continue }
+                let isFind = item.action == #selector(NSResponder.performTextFinderAction(_:))
+                    || item.action == NSSelectorFromString("performFindPanelAction:")
+                if isFind, item.keyEquivalent.lowercased() == "f", item.keyEquivalentModifierMask == [.command] {
+                    item.keyEquivalent = ""
+                }
+            }
+        }
+        if let main = NSApp.mainMenu { walk(main) }
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         AppState.shared.saveEverythingNow()
         return .terminateNow
     }
 
+    static func isMainWindow(_ window: NSWindow) -> Bool {
+        window.identifier?.rawValue.hasPrefix("main") == true || window.title == "Glassine"
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
-            for window in NSApp.windows where window.identifier?.rawValue.hasPrefix("main") == true || window.title == "Glassine" {
+            for window in NSApp.windows where AppDelegate.isMainWindow(window) {
                 window.makeKeyAndOrderFront(nil)
                 return false
             }
@@ -108,6 +138,10 @@ struct GlassineCommands: Commands {
             Button("Copy Document as Rich Text") { state.copyCurrentDocument(asMarkdown: false) }
                 .keyboardShortcut("c", modifiers: [.command, .option])
                 .disabled(state.document == nil)
+            Divider()
+            Button("Find in Document…") { showFindBar() }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(state.document == nil || state.galleryOnScreen || state.reviewMode)
         }
 
         CommandMenu("Format") {
@@ -140,6 +174,8 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("s", modifiers: .command)
             Button(state.showingGallery ? "Back to Document" : "All Documents") { state.toggleGallery() }
                 .keyboardShortcut("p", modifiers: .command)
+            Button("Search Library") { state.focusSearch() }
+                .keyboardShortcut("f", modifiers: .command)
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(state.document == nil)
@@ -187,13 +223,20 @@ struct GlassineCommands: Commands {
             Button("Open Library Folder") { state.revealLibrary() }
             Button("Check for Updates…") { UpdateChecker.check(userInitiated: true) }
             Divider()
-            Button("Copy Debug Info") { send(#selector(GlassineTextView.copyDebugInfo(_:))) }
+            Button("Copy Debug Info") { state.copyDebugInfo() }
                 .keyboardShortcut("d", modifiers: [.command, .option, .shift])
         }
     }
 
     private func send(_ selector: Selector) {
         NSApp.sendAction(selector, to: nil, from: nil)
+    }
+
+    /// The editor's find bar. NSTextView reads which action from the sender's tag.
+    private func showFindBar() {
+        let sender = NSMenuItem()
+        sender.tag = NSTextFinder.Action.showFindInterface.rawValue
+        NSApp.sendAction(#selector(NSResponder.performTextFinderAction(_:)), to: nil, from: sender)
     }
 
     private func showShortcuts() {
@@ -207,7 +250,8 @@ struct GlassineCommands: Commands {
         ⌘B  Bold                ⌘I   Italic
         ⌘E  Inline code         ⌘K   Link
         ⌘⌥1–3 Heading level     ⌘⌥0  Body text
-        ⌘⇧L Toggle task         ⌘F   Find
+        ⌘⇧L Toggle task         ⌘F   Search library
+        ⌘⇧F Find in document    ⌘G   Find next
         ⌘R  Rename              ⌘⌫   Move to Trash
         ⌘+ / ⌘−  Text size
         """

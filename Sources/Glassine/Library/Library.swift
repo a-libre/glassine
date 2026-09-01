@@ -62,6 +62,18 @@ final class LibraryStore: ObservableObject {
         let modified: Date
         let tags: [String]
         let preview: String
+        /// The whole text, folded for searching (lowercase, accents stripped).
+        let searchable: String
+    }
+
+    /// Text as the search compares it: case- and accent-insensitive.
+    static func searchable(_ s: String) -> String {
+        s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    /// The searchable text of a document as of the last scan, if it was small enough to read.
+    func searchableText(for id: String) -> String? {
+        tagCache[id]?.searchable
     }
     private var scanPending = false
 
@@ -208,11 +220,13 @@ final class LibraryStore: ObservableObject {
                         // Dataless iCloud file (not downloaded yet): ask for it, don't block on it.
                         try? fm.startDownloadingUbiquitousItem(at: item)
                     } else if size < 2_000_000 {
+                        var searchable = ""
                         if let text = try? String(contentsOf: item, encoding: .utf8) {
                             tags = TagExtractor.tags(in: text)
                             preview = String(text.prefix(2000))
+                            searchable = LibraryStore.searchable(text)
                         }
-                        tagCache[childRel] = CachedMeta(modified: modified, tags: tags, preview: preview)
+                        tagCache[childRel] = CachedMeta(modified: modified, tags: tags, preview: preview, searchable: searchable)
                     }
                     docs.append(DocumentRef(
                         id: childRel, url: item,

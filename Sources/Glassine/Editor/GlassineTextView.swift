@@ -778,11 +778,16 @@ final class GlassineTextView: NSTextView {
     // MARK: - Diagnostics
 
     @objc func copyDebugInfo(_ sender: Any?) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(debugDescription, forType: .string)
+    }
+
+    override var debugDescription: String {
         let sel = selectedRange()
         let rect = caretRect().map { "\($0)" } ?? "nil"
         let clip = enclosingScrollView?.contentView.bounds ?? .zero
-        let info = """
-        Glassine debug
+        return """
+        editor
         selection: \(sel) affinity: \(selectionAffinity == .upstream ? "upstream" : "downstream")
         caretRect: \(rect) layerFrame: \(caretLayer.frame) opacity: \(caretLayer.opacity) visible: \(caretVisible)
         layerFlipped: \(layer?.isGeometryFlipped ?? false) firstResponder: \(window?.firstResponder === self) key: \(window?.isKeyWindow ?? false)
@@ -793,8 +798,6 @@ final class GlassineTextView: NSTextView {
         caret: smooth=\(config.smoothCaret) dur=\(config.caretDuration) typing=\(config.smoothWhileTyping) blink=\(config.caretBlink) w=\(config.caretWidth)
         modes: typewriter=\(config.typewriter) focus=\(config.focus) reduceMotion=\(GlassineTextView.reduceMotion)
         """
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(info, forType: .string)
     }
 
     // MARK: - Menu validation
