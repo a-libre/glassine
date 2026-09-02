@@ -55,10 +55,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     state.showingSettings = false
                     return nil
                 }
-                // Tab walks the panes; ⇧Tab walks back. Text fields keep
-                // their normal tabbing.
-                if event.keyCode == 48, flags.isEmpty || flags == .shift,
-                   !(window.firstResponder is NSTextView) {
+                // Tab walks the panes; ⇧Tab walks back. A field being edited
+                // inside the card keeps its normal tabbing; the document editor
+                // behind the overlay does not get a tab typed into it.
+                let fieldEditing = (window.firstResponder as? NSTextView)?.isFieldEditor ?? false
+                if event.keyCode == 48, flags.isEmpty || flags == .shift, !fieldEditing {
                     let step = flags == .shift ? -1 : 1
                     state.settingsTab = ((state.settingsTab + step) % 4 + 4) % 4
                     return nil
