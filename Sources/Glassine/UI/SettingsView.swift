@@ -6,9 +6,13 @@ import UniformTypeIdentifiers
 /// outside puts it away; it can never end up behind the window it configures.
 struct SettingsOverlay: View {
     @EnvironmentObject var state: AppState
-    @State private var tab: Pane = .general
 
     private var theme: Theme { state.theme }
+
+    private var tab: Pane {
+        let n = Pane.allCases.count
+        return Pane.allCases[((state.settingsTab % n) + n) % n]
+    }
 
     enum Pane: String, CaseIterable, Identifiable {
         case general, editor, caret, themes
@@ -43,7 +47,7 @@ struct SettingsOverlay: View {
                 Spacer()
                 ForEach(Pane.allCases) { pane in
                     Button {
-                        tab = pane
+                        state.settingsTab = Pane.allCases.firstIndex(of: pane) ?? 0
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: pane.icon).font(.system(size: 11, weight: .medium))
@@ -81,7 +85,7 @@ struct SettingsOverlay: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(width: 580)
-        .frame(maxHeight: 660)
+        .frame(maxHeight: 760)
         .background(
             ZStack {
                 VisualEffectBackground(material: .hudWindow, blendingMode: .withinWindow)
@@ -301,7 +305,7 @@ struct ThemeSettings: View {
     }
 
     private var themeSplit: some View {
-        HSplitView {
+        HStack(spacing: 0) {
             VStack(spacing: 0) {
                 List(selection: Binding(
                     get: { state.settings.data.themeID },
@@ -341,10 +345,12 @@ struct ThemeSettings: View {
                 .buttonStyle(.borderless)
                 .padding(8)
             }
-            .frame(minWidth: 170, idealWidth: 190, maxWidth: 220)
+            .frame(width: 190)
+
+            Divider()
 
             ThemeEditor(theme: state.theme)
-                .frame(minWidth: 300, maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

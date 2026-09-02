@@ -50,9 +50,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state.showingShortcuts = false
                 return nil
             }
-            if state.showingSettings, event.keyCode == 53 {
-                state.showingSettings = false
-                return nil
+            if state.showingSettings {
+                if event.keyCode == 53 {
+                    state.showingSettings = false
+                    return nil
+                }
+                // Tab walks the panes; ⇧Tab walks back. Text fields keep
+                // their normal tabbing.
+                if event.keyCode == 48, flags.isEmpty || flags == .shift,
+                   !(window.firstResponder is NSTextView) {
+                    let step = flags == .shift ? -1 : 1
+                    state.settingsTab = ((state.settingsTab + step) % 4 + 4) % 4
+                    return nil
+                }
             }
             // ⌘Z / ⇧⌘Z: text edits go first; when the focused text has
             // nothing left, the library's own stack takes back file operations —

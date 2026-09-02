@@ -100,6 +100,8 @@ final class AppState: ObservableObject {
     @Published var showingShortcuts = false
     /// Settings as an overlay on the main window, so it can never get lost behind it.
     @Published var showingSettings = false
+    /// Which settings pane is up (0–3); Tab and ⇧Tab walk it around.
+    @Published var settingsTab = 0
     var styleConfig: StyleConfig { StyleConfig(theme: theme, settings: settings.data) }
 
     private var cancellables = Set<AnyCancellable>()
