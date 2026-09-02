@@ -84,6 +84,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘⇧L | Toggle a task checkbox (or click the `[ ]`) |
 | ⌘F | Search the library — titles, tags and full text |
 | ⌘⇧F | Find in the open document (⌘G for next) |
+| ⇥ / ⇧⇥ | Nest or un-nest a list item — bullets, numbers, and tasks; numbered items renumber to fit, and Return on an empty nested item steps back out |
 | ⌘R | Rename |
 | ⌘⌫ | Move to Trash (it goes to the macOS Trash, so it's recoverable) |
 | ⌘Z ⇧⌘Z | Undo and redo — typing first, then file operations: a new document, a rename, a move, a duplicate, a trash |

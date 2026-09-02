@@ -420,7 +420,9 @@ final class GlassineTextView: NSTextView {
         let hasTask = m.range(at: 5).location != NSNotFound
         let content = lineNS.substring(with: m.range(at: 6))
         if content.trimmingCharacters(in: .whitespaces).isEmpty {
-            // Empty item: end the list by clearing the marker.
+            // An empty nested item steps out a level; an empty top-level item
+            // ends the list by clearing the marker.
+            if !indent.isEmpty, shiftListItems(deeper: false) { return true }
             if shouldChangeText(in: lineRange, replacementString: "") {
                 textStorage?.replaceCharacters(in: lineRange, with: "")
                 didChangeText()
@@ -433,6 +435,126 @@ final class GlassineTextView: NSTextView {
         }
         let insertion = "\n" + indent + nextMarker + gap + (hasTask ? "[ ] " : "")
         insertText(insertion, replacementRange: sel)
+        return true
+    }
+
+    // MARK: - List nesting
+
+    private static let listLineRx = try! NSRegularExpression(pattern: "^([ \\t]*)([-*+]|(\\d{1,3})[.)])([ \\t]+)(\\[[ xX]\\][ \\t]+)?(.*)$")
+    private static let indentUnit = "    "
+
+    private static func indentWidth(_ s: String) -> Int {
+        s.reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
+    }
+
+    /// Tab on a list item nests it one level deeper; Shift-Tab brings it back out.
+    /// Anywhere else both keys keep their usual meaning.
+    override func insertTab(_ sender: Any?) {
+        if config.continueLists, shiftListItems(deeper: true) { return }
+        super.insertTab(sender)
+    }
+
+    override func insertBacktab(_ sender: Any?) {
+        if config.continueLists, shiftListItems(deeper: false) { return }
+        super.insertBacktab(sender)
+    }
+
+    /// The number a numbered item should carry at `width`, judged by the item
+    /// just above it at the same depth (1 when it starts a fresh list).
+    private func nextNumber(before location: Int, width: Int) -> Int {
+        guard let ns = textStorage?.string as NSString? else { return 1 }
+        var p = location
+        while p > 0 {
+            let lr = ns.lineRange(for: NSRange(location: p - 1, length: 0))
+            var r = lr
+            if r.length > 0, ns.character(at: r.upperBoundValue - 1) == 10 { r.length -= 1 }
+            let line = ns.substring(with: r)
+            if line.trimmingCharacters(in: .whitespaces).isEmpty { return 1 }
+            let lineNS = line as NSString
+            guard let m = Self.listLineRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: lineNS.length)) else { return 1 }
+            let w = Self.indentWidth(lineNS.substring(with: m.range(at: 1)))
+            if w == width {
+                if m.range(at: 3).location != NSNotFound, let n = Int(lineNS.substring(with: m.range(at: 3))) { return n + 1 }
+                return 1
+            }
+            if w < width { return 1 }
+            p = lr.location
+        }
+        return 1
+    }
+
+    /// Nests (or un-nests) every list item the selection touches by one level,
+    /// renumbering numbered items to fit their new neighbors. Returns false when
+    /// no touched line is a list item, so Tab can keep its ordinary meaning.
+    @discardableResult
+    private func shiftListItems(deeper: Bool) -> Bool {
+        guard let storage = textStorage else { return false }
+        var sel = selectedRange()
+        let ns = storage.string as NSString
+        let para = ns.paragraphRange(for: sel)
+        var lineRanges: [NSRange] = []
+        var loc = para.location
+        repeat {
+            let lr = ns.lineRange(for: NSRange(location: loc, length: 0))
+            var r = lr
+            if r.length > 0, ns.character(at: r.upperBoundValue - 1) == 10 { r.length -= 1 }
+            lineRanges.append(r)
+            if lr.length == 0 { break }
+            loc = lr.upperBoundValue
+        } while loc < para.upperBoundValue
+        let isList: (NSRange) -> Bool = { r in
+            let line = ns.substring(with: r)
+            return Self.listLineRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: (line as NSString).length)) != nil
+        }
+        guard lineRanges.contains(where: isList) else { return false }
+
+        undoManager?.beginUndoGrouping()
+        defer { undoManager?.endUndoGrouping() }
+        var shift = 0   // how far earlier edits in this pass have moved later text
+        for original in lineRanges {
+            let r = NSRange(location: original.location + shift, length: original.length)
+            let current = storage.string as NSString
+            let line = current.substring(with: r)
+            let lineNS = line as NSString
+            guard let m = Self.listLineRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: lineNS.length)) else { continue }
+            let indent = lineNS.substring(with: m.range(at: 1))
+            let marker = lineNS.substring(with: m.range(at: 2))
+            let gap = lineNS.substring(with: m.range(at: 4))
+            let task = m.range(at: 5).location == NSNotFound ? "" : lineNS.substring(with: m.range(at: 5))
+            let content = lineNS.substring(with: m.range(at: 6))
+            let newIndent: String
+            if deeper {
+                newIndent = Self.indentUnit + indent
+            } else if indent.hasPrefix("\t") {
+                newIndent = String(indent.dropFirst())
+            } else {
+                newIndent = String(indent.dropFirst(min(4, indent.prefix { $0 == " " }.count)))
+            }
+            if newIndent == indent { continue }
+            var newMarker = marker
+            if m.range(at: 3).location != NSNotFound {
+                newMarker = "\(nextNumber(before: r.location, width: Self.indentWidth(newIndent)))" + marker.suffix(1)
+            }
+            let newLine = newIndent + newMarker + gap + task + content
+            guard shouldChangeText(in: r, replacementString: newLine) else { continue }
+            storage.replaceCharacters(in: r, with: newLine)
+            didChangeText()
+            let oldPrefix = (indent + marker + gap).nsLength
+            let newPrefix = (newIndent + newMarker + gap).nsLength
+            let delta = newLine.nsLength - line.nsLength
+            // Keep the selection on the same characters it covered before.
+            func adjust(_ p: Int) -> Int {
+                if p < r.location { return p }
+                if p > r.upperBoundValue { return p + delta }
+                let off = p - r.location
+                return r.location + (off >= oldPrefix ? off + (newPrefix - oldPrefix) : newPrefix)
+            }
+            let end = adjust(sel.upperBoundValue)
+            let start = adjust(sel.location)
+            sel = NSRange(location: start, length: max(0, end - start))
+            shift += delta
+        }
+        setSelectedRange(sel)
         return true
     }
 

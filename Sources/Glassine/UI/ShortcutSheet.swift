@@ -42,6 +42,7 @@ struct ShortcutSheet: View {
             ("⌘⌥1–3", "Heading level"),
             ("⌘⌥0", "Body text"),
             ("⌘⇧L", "Task checkbox"),
+            ("⇥  ⇧⇥", "Nest or un-nest a list item"),
             ("⌘⇧X", "Strikethrough"),
             ("⌘⇧F", "Find in document"),
         ]),
