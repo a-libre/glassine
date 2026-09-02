@@ -34,7 +34,7 @@ struct ReviewView: View {
                 scale: state.settings.data.reviewFontScale,
                 initialScrollFraction: initialScrollFraction,
                 baseURL: document.url.deletingLastPathComponent(),
-                onToggleTask: { index, checked in document.setTask(ordinal: index, checked: checked) }
+                onToggleTask: { index, checked in state.toggleTask(ordinal: index, checked: checked) }
             )
             .ignoresSafeArea()
 

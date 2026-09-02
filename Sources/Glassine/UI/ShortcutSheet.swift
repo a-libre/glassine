@@ -19,6 +19,7 @@ struct ShortcutSheet: View {
             ("⌥⌘D", "Today's note"),
             ("⌘R", "Rename"),
             ("⌘⌫", "Move to Trash"),
+            ("⌘Z", "Undo — files too"),
             ("⌘⇧E", "Export as PDF"),
         ]),
         Group(title: "Around the app", rows: [

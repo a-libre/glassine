@@ -297,6 +297,7 @@ final class AppState: ObservableObject {
         doc.onRenamed = { [weak self] old, new in
             guard let self else { return }
             self.settings.renamePath(old, to: new)
+            self.pathDidMove(old, to: new)
             if self.selection == old { self.selection = new }
             self.objectWillChange.send()
         }
@@ -325,6 +326,104 @@ final class AppState: ObservableObject {
         nil
     }
 
+    // MARK: - Undo (the library kind)
+
+    /// File operations register their inverses here; ⌘Z falls back to this
+    /// stack whenever the focused text has no edit left to take back.
+    let libraryUndo = UndoManager()
+
+    /// A relative path that stays correct while an undo entry waits around:
+    /// renames and moves (automatic first-line renames included) update every
+    /// live box, so undoing an old action finds the file where it is now.
+    final class PathBox {
+        var rel: String
+        init(_ rel: String) { self.rel = rel }
+    }
+    private let trackedPaths = NSHashTable<PathBox>.weakObjects()
+
+    private func track(_ rel: String) -> PathBox {
+        let box = PathBox(rel)
+        trackedPaths.add(box)
+        return box
+    }
+
+    private func pathDidMove(_ old: String, to new: String) {
+        guard old != new else { return }
+        for box in trackedPaths.allObjects {
+            if box.rel == old {
+                box.rel = new
+            } else if box.rel.hasPrefix(old + "/") {
+                box.rel = new + box.rel.dropFirst(old.count)
+            }
+        }
+    }
+
+    /// A fresh file or folder was just made; undoing sends it to the Trash.
+    private func registerCreationUndo(of rel: String, label: String) {
+        let box = track(rel)
+        libraryUndo.registerUndo(withTarget: self) { s in
+            s.undoableTrash(box, label: label)
+        }
+        libraryUndo.setActionName(label)
+    }
+
+    /// Trashes a file or folder (always the macOS Trash, never a hard delete)
+    /// and registers the restore as its inverse.
+    private func undoableTrash(_ box: PathBox, label: String) {
+        let rel = box.rel
+        let wasOpen = document?.relativePath == rel || (document?.relativePath.hasPrefix(rel + "/") ?? false)
+        do {
+            if wasOpen {
+                document?.saveNow()
+                document = nil
+                selection = nil
+            }
+            let trashedURL = try library.trash(rel)
+            settings.forgetPath(rel)
+            if selectedFolder == rel || selectedFolder.hasPrefix(rel + "/") { selectedFolder = "" }
+            if wasOpen, let next = recentDocuments.first { open(next) }
+            if let trashedURL {
+                libraryUndo.registerUndo(withTarget: self) { s in
+                    s.undoableRestore(from: trashedURL, to: box, label: label, reopen: wasOpen)
+                }
+                libraryUndo.setActionName(label)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func undoableRestore(from trashedURL: URL, to box: PathBox, label: String, reopen: Bool) {
+        do {
+            let newRel = try library.restore(from: trashedURL, toRelativePath: box.rel)
+            box.rel = newRel
+            libraryUndo.registerUndo(withTarget: self) { s in
+                s.undoableTrash(box, label: label)
+            }
+            libraryUndo.setActionName(label)
+            if reopen, library.document(withID: newRel) != nil {
+                open(relativePath: newRel)
+                reviewMode = false
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Review-mode checkbox clicks come through here so they land on the undo
+    /// stack; the editor's own clicks ride the text view's undo instead.
+    @discardableResult
+    func toggleTask(ordinal: Int, checked: Bool) -> Bool {
+        guard let doc = document, doc.setTask(ordinal: ordinal, checked: checked) else { return false }
+        let box = track(doc.relativePath)
+        libraryUndo.registerUndo(withTarget: self) { s in
+            if s.document?.relativePath != box.rel { s.open(relativePath: box.rel) }
+            s.toggleTask(ordinal: ordinal, checked: !checked)
+        }
+        libraryUndo.setActionName(checked ? "Check Off Task" : "Uncheck Task")
+        return true
+    }
+
     // MARK: - Creating
 
     func newDocument(in folder: String? = nil) {
@@ -333,6 +432,7 @@ final class AppState: ObservableObject {
             let ref = try library.createDocument(in: target)
             open(ref)
             reviewMode = false
+            registerCreationUndo(of: ref.id, label: "New Document")
             if !target.isEmpty { settings.setExpanded(target, true) }
         } catch {
             errorMessage = error.localizedDescription
@@ -359,6 +459,7 @@ final class AppState: ObservableObject {
             let ref = try library.createDocument(in: folder, stem: title.sanitizedFileStem, contents: contents)
             open(ref)
             reviewMode = false
+            registerCreationUndo(of: ref.id, label: "Today's Note")
             settings.setExpanded(folder, true)
         } catch {
             errorMessage = error.localizedDescription
@@ -391,6 +492,7 @@ final class AppState: ObservableObject {
     func createFolder(named name: String, in parent: String) {
         do {
             let rel = try library.createFolder(named: name, in: parent)
+            registerCreationUndo(of: rel, label: "New Folder")
             settings.setExpanded(rel, true)
             if !parent.isEmpty { settings.setExpanded(parent, true) }
             selectedFolder = rel
@@ -406,12 +508,18 @@ final class AppState: ObservableObject {
     }
 
     func rename(_ rel: String, to newName: String, isFolder: Bool) {
+        let oldStem = isFolder
+            ? URL(fileURLWithPath: rel).lastPathComponent
+            : URL(fileURLWithPath: rel).deletingPathExtension().lastPathComponent
         do {
+            let resultRel: String
             if let doc = document, doc.relativePath == rel {
                 try doc.rename(to: newName)
+                resultRel = doc.relativePath
             } else {
                 let newRel = try library.rename(rel, to: newName)
                 settings.renamePath(rel, to: newRel)
+                pathDidMove(rel, to: newRel)
                 if isFolder, let doc = document, doc.relativePath.hasPrefix(rel + "/") {
                     let moved = newRel + doc.relativePath.dropFirst(rel.count)
                     doc.didMove(to: moved)
@@ -419,6 +527,14 @@ final class AppState: ObservableObject {
                     settings.data.lastOpenedDocument = moved
                 }
                 if selectedFolder == rel { selectedFolder = newRel }
+                resultRel = newRel
+            }
+            if resultRel != rel {
+                let box = track(resultRel)
+                libraryUndo.registerUndo(withTarget: self) { s in
+                    s.rename(box.rel, to: oldStem, isFolder: isFolder)
+                }
+                libraryUndo.setActionName("Rename")
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -426,11 +542,13 @@ final class AppState: ObservableObject {
     }
 
     func move(_ rel: String, toFolder folder: String) {
+        let oldFolder = rel.contains("/") ? String(rel[..<rel.lastIndex(of: "/")!]) : ""
         do {
             let wasOpen = document?.relativePath == rel
             if wasOpen { document?.saveNow() }
             let newRel = try library.move(rel, toFolder: folder)
             settings.renamePath(rel, to: newRel)
+            pathDidMove(rel, to: newRel)
             if wasOpen {
                 document?.didMove(to: newRel)
                 selection = newRel
@@ -438,6 +556,13 @@ final class AppState: ObservableObject {
                 settings.data.lastOpenedDocument = newRel
             }
             if !folder.isEmpty { settings.setExpanded(folder, true) }
+            if newRel != rel {
+                let box = track(newRel)
+                libraryUndo.registerUndo(withTarget: self) { s in
+                    s.move(box.rel, toFolder: oldFolder)
+                }
+                libraryUndo.setActionName("Move")
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -448,26 +573,14 @@ final class AppState: ObservableObject {
             if document?.relativePath == rel { document?.saveNow() }
             let newRel = try library.duplicate(rel)
             open(relativePath: newRel)
+            registerCreationUndo(of: newRel, label: "Duplicate")
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     func trash(_ rel: String) {
-        do {
-            let wasOpen = document?.relativePath == rel || (document?.relativePath.hasPrefix(rel + "/") ?? false)
-            if wasOpen {
-                document?.saveNow()
-                document = nil
-                selection = nil
-            }
-            try library.trash(rel)
-            settings.forgetPath(rel)
-            if selectedFolder == rel || selectedFolder.hasPrefix(rel + "/") { selectedFolder = "" }
-            if wasOpen, let next = recentDocuments.first { open(next) }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        undoableTrash(track(rel), label: "Move to Trash")
     }
 
     func trashCurrentDocument() {

@@ -338,10 +338,39 @@ final class LibraryStore: ObservableObject {
         return relativePath(for: target)
     }
 
-    func trash(_ rel: String) throws {
+    /// Moves an item to the macOS Trash and returns where it landed, so the
+    /// operation can be taken back.
+    @discardableResult
+    func trash(_ rel: String) throws -> URL? {
         let source = url(forRelativePath: rel)
-        try FileManager.default.trashItem(at: source, resultingItemURL: nil)
+        var trashed: NSURL?
+        try FileManager.default.trashItem(at: source, resultingItemURL: &trashed)
         scanNow()
+        return trashed as URL?
+    }
+
+    /// Brings an item back from the Trash to its old relative path (or a
+    /// non-colliding neighbor). Returns the restored relative path.
+    func restore(from trashedURL: URL, toRelativePath rel: String) throws -> String {
+        var target = url(forRelativePath: rel)
+        if FileManager.default.fileExists(atPath: target.path) {
+            if trashedURL.isDirectoryURL {
+                var n = 2
+                let parent = target.deletingLastPathComponent()
+                let name = target.lastPathComponent
+                while FileManager.default.fileExists(atPath: target.path) {
+                    target = parent.appendingPathComponent("\(name) \(n)", isDirectory: true)
+                    n += 1
+                }
+            } else {
+                target = uniqueURL(in: target.deletingLastPathComponent(),
+                                   stem: target.deletingPathExtension().lastPathComponent,
+                                   ext: target.pathExtension.isEmpty ? "md" : target.pathExtension)
+            }
+        }
+        try FileCoordination.move(from: trashedURL, to: target)
+        scanNow()
+        return relativePath(for: target)
     }
 
     func revealInFinder(_ rel: String) {

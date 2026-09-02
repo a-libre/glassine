@@ -78,8 +78,10 @@ struct SettingsOverlay: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .frame(width: 700, height: 500)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(width: 580)
+        .frame(maxHeight: 660)
         .background(
             ZStack {
                 VisualEffectBackground(material: .hudWindow, blendingMode: .withinWindow)
@@ -92,6 +94,7 @@ struct SettingsOverlay: View {
                 .strokeBorder(theme.text.color.opacity(theme.isDark ? 0.12 : 0.1), lineWidth: 1)
         )
         .shadow(color: .black.opacity(theme.isDark ? 0.45 : 0.18), radius: 30, y: 12)
+        .padding(.vertical, 30)
         .foregroundStyle(theme.text.color)
         .onTapGesture { }
     }
@@ -114,7 +117,7 @@ struct GeneralSettings: View {
                         Text(state.library.rootURL.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .lineLimit(3)
                             .multilineTextAlignment(.trailing)
                             .textSelection(.enabled)
                         HStack {

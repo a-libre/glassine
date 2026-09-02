@@ -54,6 +54,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state.showingSettings = false
                 return nil
             }
+            // ⌘Z / ⇧⌘Z: text edits go first; when the focused text has
+            // nothing left, the library's own stack takes back file operations —
+            // a stray new document, a rename, a move, a duplicate, a trash.
+            if event.charactersIgnoringModifiers?.lowercased() == "z",
+               flags == .command || flags == [.command, .shift] {
+                let redo = flags.contains(.shift)
+                if let tv = window.firstResponder as? NSTextView,
+                   let text = tv.undoManager, redo ? text.canRedo : text.canUndo {
+                    return event
+                }
+                let lib = state.libraryUndo
+                if state.pendingPrompt == nil, redo ? lib.canRedo : lib.canUndo {
+                    if redo { lib.redo() } else { lib.undo() }
+                    return nil
+                }
+                return event
+            }
             guard flags == .command else {
                 // Any ordinary key in the editor counts as typing.
                 if !flags.contains(.command), window.firstResponder is GlassineTextView { state.noteTyping() }
