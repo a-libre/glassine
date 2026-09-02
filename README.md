@@ -87,6 +87,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⇥ / ⇧⇥ | Nest or un-nest a list item — bullets, numbers, and tasks; numbered items renumber to fit, and Return on an empty nested item steps back out |
 | ⌘R | Rename |
 | ⌘⌫ | Move to Trash (it goes to the macOS Trash, so it's recoverable) |
+| — | Check a task (click its box in the editor or in Review) and it sinks below the last unfinished item in its list, nested items in tow; uncheck it and it rises back. Settings → Editor turns that off |
 | ⌘Z ⇧⌘Z | Undo and redo — typing first, then file operations: a new document, a rename, a move, a duplicate, a trash |
 | ⌘+ ⌘− ⌘0 | Text size |
 | ⌘, | Settings |

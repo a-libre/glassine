@@ -945,10 +945,36 @@ final class GlassineTextView: NSTextView {
               range.length == 3 else { return }
         let replacement = checked ? "[ ]" : "[x]"
         let selection = selectedRange()
+        undoManager?.beginUndoGrouping()
+        defer { undoManager?.endUndoGrouping() }
         guard shouldChangeText(in: range, replacementString: replacement) else { return }
         storage.replaceCharacters(in: range, with: replacement)
         didChangeText()
         setSelectedRange(selection.clamped(to: storage.length))
+        if config.moveCompletedTasks { sinkToggledTask(boxAt: range.location) }
+    }
+
+    /// After a checkbox flips, move its item to where the tidy-list rule says it
+    /// belongs, and carry the caret along on the checkbox.
+    private func sinkToggledTask(boxAt location: Int) {
+        guard let storage = textStorage else { return }
+        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        var lineIndex = 0, lineStart = 0
+        for (i, l) in lines.enumerated() {
+            let len = (l as NSString).length
+            if location <= lineStart + len { lineIndex = i; break }
+            lineStart += len + 1
+        }
+        guard let result = TaskReorder.afterToggle(lines: lines, at: lineIndex) else { return }
+        let blockStart = lines[..<result.blockStart].reduce(0) { $0 + ($1 as NSString).length + 1 }
+        let blockLength = lines[result.blockStart...result.blockEnd].reduce(0) { $0 + ($1 as NSString).length + 1 } - 1
+        let newBlock = result.lines[result.blockStart...result.blockEnd].joined(separator: "\n")
+        let blockRange = NSRange(location: blockStart, length: blockLength)
+        guard shouldChangeText(in: blockRange, replacementString: newBlock) else { return }
+        storage.replaceCharacters(in: blockRange, with: newBlock)
+        didChangeText()
+        let newLineStart = result.lines[..<result.movedTo].reduce(0) { $0 + ($1 as NSString).length + 1 }
+        setSelectedRange(NSRange(location: min(newLineStart + (location - lineStart), storage.length), length: 0))
     }
 
     // MARK: - Diagnostics

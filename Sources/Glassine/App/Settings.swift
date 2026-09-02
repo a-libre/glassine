@@ -112,6 +112,8 @@ struct SettingsData: Codable, Equatable {
     var spellCheck: Bool = false
     var inlinePredictions: Bool = false
     var continueLists: Bool = true
+    /// A task you check off sinks below the last unfinished item in its list.
+    var moveCompletedTasks: Bool = true
 
     // Layout
     var sidebarVisible: Bool = true
@@ -171,6 +173,7 @@ struct SettingsData: Codable, Equatable {
         spellCheck = try c.decodeIfPresent(Bool.self, forKey: .spellCheck) ?? d.spellCheck
         inlinePredictions = try c.decodeIfPresent(Bool.self, forKey: .inlinePredictions) ?? d.inlinePredictions
         continueLists = try c.decodeIfPresent(Bool.self, forKey: .continueLists) ?? d.continueLists
+        moveCompletedTasks = try c.decodeIfPresent(Bool.self, forKey: .moveCompletedTasks) ?? d.moveCompletedTasks
         sidebarVisible = try c.decodeIfPresent(Bool.self, forKey: .sidebarVisible) ?? d.sidebarVisible
         sidebarWidth = try c.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? d.sidebarWidth
         expandedFolders = try c.decodeIfPresent([String].self, forKey: .expandedFolders) ?? d.expandedFolders

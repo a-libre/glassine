@@ -85,10 +85,11 @@ final class DocumentModel: ObservableObject, Identifiable {
         pattern: "^[ \\t]*(?:>[ \\t]?)*[ \\t]*(?:[-*+]|\\d{1,9}[.)])[ \\t]+\\[([ xX])\\][ \\t]+")
 
     /// Checks or unchecks the n-th task item, counted the way Review renders them
-    /// (top to bottom, skipping fenced code). Returns false when there is no such item
-    /// or it is not in the state the caller expected, so the caller can resync.
+    /// (top to bottom, skipping fenced code), and lets a finished task sink when
+    /// that setting is on. Returns the item's ordinal afterwards, or nil when there
+    /// is no such item or it is not in the state the caller expected.
     @discardableResult
-    func setTask(ordinal: Int, checked: Bool) -> Bool {
+    func setTask(ordinal: Int, checked: Bool) -> Int? {
         var lines = text.components(separatedBy: "\n")
         var inFence = false
         var seen = 0
@@ -101,14 +102,19 @@ final class DocumentModel: ObservableObject, Identifiable {
             if seen == ordinal {
                 let box = m.range(at: 1)
                 let wasChecked = ns.substring(with: box).lowercased() == "x"
-                guard wasChecked != checked else { return false }
+                guard wasChecked != checked else { return nil }
                 lines[i] = ns.replacingCharacters(in: box, with: checked ? "x" : " ")
+                var landed = i
+                if settings.data.moveCompletedTasks, let moved = TaskReorder.afterToggle(lines: lines, at: i) {
+                    lines = moved.lines
+                    landed = moved.movedTo
+                }
                 textDidChange(lines.joined(separator: "\n"))
-                return true
+                return TaskReorder.ordinal(ofTaskAt: landed, in: lines) ?? ordinal
             }
             seen += 1
         }
-        return false
+        return nil
     }
 
     func textDidChange(_ newText: String) {
