@@ -363,8 +363,8 @@ enum MarkdownHTML {
             }
             if !taskPrefix.isEmpty, item.tight {
                 // The item's own text (not a nested list) gets a span the stylesheet can strike.
-                let nested = inner.range(of: "\n<ul>") ?? inner.range(of: "\n<ol")
-                let end = nested?.lowerBound ?? inner.endIndex
+                // Text is escaped, so a literal <ul> or <ol can only be a nested list.
+                let end = [inner.range(of: "<ul>"), inner.range(of: "<ol")].compactMap { $0?.lowerBound }.min() ?? inner.endIndex
                 inner = "<span class=\"task-text\">" + inner[..<end] + "</span>" + inner[end...]
             }
             out += "<li\(liClass)>" + taskPrefix + inner + "</li>\n"

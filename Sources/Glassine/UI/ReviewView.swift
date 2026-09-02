@@ -332,6 +332,7 @@ enum ReviewHTML {
     li { margin: 0.2em 0; } li > ul, li > ol { margin: 0.2em 0 0.2em; }
     ul, ol { padding-left: 1.5em; }
     li.task { list-style: none; margin-left: -1.5em; }
+    li.task > ul, li.task > ol { margin-left: 1.5em; }
     li.task input { margin: 0 0.5em 0 0; vertical-align: -1px; cursor: pointer; accent-color: var(--accent); }
     li.task.done { opacity: 0.6; }
     li.task.done:not(:has(.task-text)) { text-decoration: line-through; }
