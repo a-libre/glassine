@@ -477,7 +477,7 @@ final class AppState: ObservableObject {
         panel.nameFieldStringValue = doc.title.sanitizedFileStem + ".pdf"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let html = ReviewHTML.document(markdown: doc.text, title: doc.title, style: settings.data.reviewStyle,
-                                       theme: theme, scale: 1.0, forExport: true)
+                                       theme: theme, scale: 1.0, centerHeadings: settings.data.centerHeadings, forExport: true)
         PDFExporter.export(html: html, baseURL: doc.url.deletingLastPathComponent(), to: url) { [weak self] error in
             if let error {
                 self?.errorMessage = "Couldn't export the PDF: \(error.localizedDescription)"

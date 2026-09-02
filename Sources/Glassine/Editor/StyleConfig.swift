@@ -26,6 +26,7 @@ struct StyleConfig: Equatable {
     let focus: Bool
     let focusScope: FocusScope
     let focusDimming: CGFloat
+    let centerHeadings: Bool
 
     // Text system behaviors
     let smartQuotes: Bool
@@ -43,6 +44,7 @@ struct StyleConfig: Equatable {
         paragraphSpacingEm = CGFloat(settings.paragraphSpacing)
         letterSpacing = CGFloat(settings.letterSpacing)
         scaledHeadings = settings.scaledHeadings
+        centerHeadings = settings.centerHeadings
         columnWidth = CGFloat(settings.columnWidth)
         topInset = CGFloat(settings.topInset)
         smoothCaret = settings.smoothCaret
@@ -132,6 +134,7 @@ struct StyleConfig: Equatable {
         let p = baseParagraphStyle()
         p.paragraphSpacingBefore = level == 1 ? paragraphSpacing * 1.2 : paragraphSpacing * 0.8
         p.paragraphSpacing = paragraphSpacing * 0.6
+        p.alignment = centerHeadings ? .center : .natural
         return p
     }
 

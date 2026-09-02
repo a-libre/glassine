@@ -85,6 +85,7 @@ struct SettingsData: Codable, Equatable {
     var columnWidth: Double = 660
     var letterSpacing: Double = 0
     var scaledHeadings: Bool = true
+    var centerHeadings: Bool = true
     var topInset: Double = 96
 
     // Caret
@@ -150,6 +151,7 @@ struct SettingsData: Codable, Equatable {
         columnWidth = try c.decodeIfPresent(Double.self, forKey: .columnWidth) ?? d.columnWidth
         letterSpacing = try c.decodeIfPresent(Double.self, forKey: .letterSpacing) ?? d.letterSpacing
         scaledHeadings = try c.decodeIfPresent(Bool.self, forKey: .scaledHeadings) ?? d.scaledHeadings
+        centerHeadings = try c.decodeIfPresent(Bool.self, forKey: .centerHeadings) ?? d.centerHeadings
         topInset = try c.decodeIfPresent(Double.self, forKey: .topInset) ?? d.topInset
         smoothCaret = try c.decodeIfPresent(Bool.self, forKey: .smoothCaret) ?? d.smoothCaret
         caretSpeed = try c.decodeIfPresent(Double.self, forKey: .caretSpeed) ?? d.caretSpeed

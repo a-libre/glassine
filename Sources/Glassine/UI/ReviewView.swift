@@ -30,7 +30,8 @@ struct ReviewView: View {
         ZStack(alignment: .topTrailing) {
             ReviewWebView(
                 html: ReviewHTML.document(markdown: document.text, title: document.title, style: style,
-                                          theme: theme, scale: state.settings.data.reviewFontScale),
+                                          theme: theme, scale: state.settings.data.reviewFontScale,
+                                          centerHeadings: state.settings.data.centerHeadings),
                 scale: state.settings.data.reviewFontScale,
                 initialScrollFraction: initialScrollFraction,
                 baseURL: document.url.deletingLastPathComponent(),
@@ -257,24 +258,24 @@ struct ReviewWebView: NSViewRepresentable {
 
 enum ReviewHTML {
     private struct RenderKey: Equatable {
-        let markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double
+        let markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double, centerHeadings: Bool
     }
     private static var lastRender: (key: RenderKey, html: String)?
 
     /// The page for a document. SwiftUI asks for this on every state change while Review
     /// is up, so the last result is kept; comparing the inputs is far cheaper than rendering.
     static func document(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,
-                         forExport: Bool = false) -> String {
-        if forExport { return build(markdown: markdown, title: title, style: style, theme: theme, scale: scale, export: true) }
-        let key = RenderKey(markdown: markdown, title: title, style: style, theme: theme, scale: scale)
+                         centerHeadings: Bool = true, forExport: Bool = false) -> String {
+        if forExport { return build(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings, export: true) }
+        let key = RenderKey(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings)
         if let last = lastRender, last.key == key { return last.html }
-        let html = build(markdown: markdown, title: title, style: style, theme: theme, scale: scale)
+        let html = build(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings)
         lastRender = (key, html)
         return html
     }
 
     private static func build(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,
-                              export: Bool = false) -> String {
+                              centerHeadings: Bool, export: Bool = false) -> String {
         let body = MarkdownHTML.render(markdown)
         // On paper the page needs a colour of its own (styles with their own background
         // override it), less room at the top, and no lingering edge fades.
@@ -289,6 +290,7 @@ enum ReviewHTML {
         \(vars)
         \(baseCSS)
         \(exportCSS)
+        \(centerHeadings ? "h1, h2, h3, h4, h5, h6 { text-align: center; }" : "")
         \(css(for: style, dark: theme.isDark))
         \(export ? "article { padding-top: 1rem; }" : "")
         </style></head><body class="\(style.rawValue) \(theme.isDark ? "dark" : "light")"><article>\(body)</article></body></html>

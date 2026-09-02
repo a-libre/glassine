@@ -128,6 +128,10 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ⌘D (or the Today row in the sidebar) opens the Daily timeline: today's note lying readable at the front, earlier days receding up the corridor behind it — tilted back, smaller and fainter toward the vanishing point. Scroll to walk back through the days; click a card to open it. ⌥⌘D skips the corridor and opens today's note directly, titled with the date and kept in a `Daily` folder created on first use. Press it again tomorrow and you get tomorrow's.
 
+## Headings
+
+Headings are centered by default, in the editor and in Review alike; Settings → Editor turns that off (and switches off the larger heading sizes separately).
+
 ## Appearance
 
 Settings → Themes can follow the system: pick one light theme and one dark theme and Glassine switches with macOS. Otherwise the chosen theme stays put.

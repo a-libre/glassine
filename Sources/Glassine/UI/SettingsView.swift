@@ -188,6 +188,7 @@ struct EditorSettings: View {
                 sliderRow("Paragraph spacing", value: data.paragraphSpacing, range: 0...1.5, step: 0.05, format: "%.2f em")
                 sliderRow("Letter spacing", value: data.letterSpacing, range: -1...2, step: 0.1, format: "%.1f pt")
                 Toggle("Larger headings", isOn: data.scaledHeadings)
+                Toggle("Center headings", isOn: data.centerHeadings)
             }
             Section("Layout") {
                 sliderRow("Column width", value: data.columnWidth, range: 420...1100, step: 10, format: "%.0f pt")
