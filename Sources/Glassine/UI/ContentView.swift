@@ -4,6 +4,7 @@ struct ContentView: View {
     @EnvironmentObject var state: AppState
     @State private var promptText = ""
     @State private var dragStartWidth: CGFloat?
+    @State private var handleHovered = false
 
     private var theme: Theme { state.theme }
     private var sidebarVisible: Bool { state.settings.data.sidebarVisible }
@@ -84,16 +85,24 @@ struct ContentView: View {
             .frame(width: 6)
             .contentShape(Rectangle())
             .onHover { inside in
+                handleHovered = inside
+                guard dragStartWidth == nil else { return }   // mid-drag the pointer strays; keep the cursor
                 if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
             }
             .gesture(
-                DragGesture(minimumDistance: 1)
+                // Measured in window space: the handle itself moves with every
+                // width change, so its own space would feed back into the drag.
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
                     .onChanged { value in
                         if dragStartWidth == nil { dragStartWidth = CGFloat(state.settings.data.sidebarWidth) }
                         let w = (dragStartWidth ?? 250) + value.translation.width
-                        state.settings.data.sidebarWidth = Double(min(420, max(190, w)))
+                        let width = Double(min(420, max(190, w)).rounded())
+                        if width != state.settings.data.sidebarWidth { state.settings.data.sidebarWidth = width }
                     }
-                    .onEnded { _ in dragStartWidth = nil }
+                    .onEnded { _ in
+                        dragStartWidth = nil
+                        if !handleHovered { NSCursor.pop() }
+                    }
             )
     }
 }

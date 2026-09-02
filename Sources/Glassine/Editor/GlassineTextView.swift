@@ -35,6 +35,11 @@ final class GlassineTextView: NSTextView {
     private var blinkWork: DispatchWorkItem?
     private var suppressAnimationOnce = false
 
+    // Dragging a list item by its task box or marker
+    private var listDrag: ListDrag?
+    private let dragHighlight = CALayer()
+    private let dropBar = CALayer()
+
     // Editing bookkeeping
     private var pendingEditRange: NSRange?
     private var lastEditAt: CFTimeInterval = 0
@@ -108,6 +113,14 @@ final class GlassineTextView: NSTextView {
         caretLayer.opacity = 0
         caretLayer.zPosition = 10
         layer?.addSublayer(caretLayer)
+        for l in [dragHighlight, dropBar] {
+            l.anchorPoint = CGPoint(x: 0, y: 0)
+            l.opacity = 0
+            l.zPosition = 9
+            layer?.addSublayer(l)
+        }
+        dragHighlight.cornerRadius = 5
+        dropBar.cornerRadius = 1.5
 
         applyConfig(previous: nil)
     }
@@ -155,6 +168,8 @@ final class GlassineTextView: NSTextView {
         let theme = config.theme
         selectedTextAttributes = [.backgroundColor: theme.selectionColor]
         caretLayer.backgroundColor = theme.caretColor.cgColor
+        dragHighlight.backgroundColor = theme.caretColor.withAlphaComponent(0.10).cgColor
+        dropBar.backgroundColor = theme.caretColor.cgColor
         linkTextAttributes = [.foregroundColor: theme.linkColor]
         typingAttributes = config.baseAttributes
         defaultParagraphStyle = config.baseParagraphStyle()
@@ -910,17 +925,59 @@ final class GlassineTextView: NSTextView {
         lastTypedWasKeyboard = false
         if event.clickCount == 1,
            event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
-           let index = taskBoxIndex(at: event) {
-            toggleTaskBox(at: index)
+           let handle = listHandle(at: event) {
+            // Settled on mouse up: a click toggles or places the caret, a drag moves the item.
+            listDrag = ListDrag(handle: handle, start: event.locationInWindow)
             return
         }
         super.mouseDown(with: event)
     }
 
-    // MARK: - Task boxes
+    override func mouseDragged(with event: NSEvent) {
+        guard var drag = listDrag else { super.mouseDragged(with: event); return }
+        if !drag.dragging {
+            guard abs(event.locationInWindow.y - drag.start.y) >= 4 else { return }
+            drag.dragging = true
+            NSCursor.closedHand.push()
+        }
+        _ = autoscroll(with: event)
+        showDropTarget(for: drag.handle, at: event)
+        listDrag = drag
+    }
 
-    /// The character index of the `[ ]` under the mouse, if the click landed on one.
-    private func taskBoxIndex(at event: NSEvent) -> Int? {
+    override func mouseUp(with event: NSEvent) {
+        guard let drag = listDrag else { super.mouseUp(with: event); return }
+        listDrag = nil
+        if drag.dragging {
+            NSCursor.pop()
+            hideDropTarget()
+            dropListItem(handleAt: drag.handle.index, toward: linePosition(at: event))
+            return
+        }
+        switch drag.handle {
+        case .box(let index):
+            toggleTaskBox(at: index)
+        case .marker:
+            let index = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
+            setSelectedRange(NSRange(location: index, length: 0))
+        }
+    }
+
+    // MARK: - Task boxes and list handles
+
+    private enum ListHandle {
+        case box(Int), marker(Int)
+        var index: Int { switch self { case .box(let i), .marker(let i): return i } }
+    }
+
+    private struct ListDrag {
+        let handle: ListHandle
+        let start: NSPoint
+        var dragging = false
+    }
+
+    /// The character under the mouse, only when the pointer is really on its glyph.
+    private func characterIndex(under event: NSEvent) -> Int? {
         guard let layoutManager, let textContainer, let storage = textStorage, storage.length > 0 else { return nil }
         var point = convert(event.locationInWindow, from: nil)
         point.x -= textContainerOrigin.x
@@ -932,8 +989,19 @@ final class GlassineTextView: NSTextView {
         let rect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: textContainer)
         guard rect.insetBy(dx: -2, dy: -1).contains(point) else { return nil }
         let index = layoutManager.characterIndexForGlyph(at: glyph)
-        guard index < storage.length, storage.attribute(TaskBox.attributeKey, at: index, effectiveRange: nil) != nil else { return nil }
-        return index
+        return index < storage.length ? index : nil
+    }
+
+    /// The task box or list marker under the mouse: what you click to toggle, or
+    /// grab to move the item within its list.
+    private func listHandle(at event: NSEvent) -> ListHandle? {
+        guard let storage = textStorage, let index = characterIndex(under: event) else { return nil }
+        if storage.attribute(TaskBox.attributeKey, at: index, effectiveRange: nil) != nil { return .box(index) }
+        let ns = storage.string as NSString
+        let lineRange = ns.lineRange(for: NSRange(location: index, length: 0))
+        let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        guard let marker = TaskReorder.markerRange(in: line), NSLocationInRange(index - lineRange.location, marker) else { return nil }
+        return .marker(index)
     }
 
     /// `[ ]` ↔ `[x]` without moving the caret. Typing an x by hand still works, of course.
@@ -959,22 +1027,123 @@ final class GlassineTextView: NSTextView {
     private func sinkToggledTask(boxAt location: Int) {
         guard let storage = textStorage else { return }
         let lines = (storage.string as NSString).components(separatedBy: "\n")
-        var lineIndex = 0, lineStart = 0
+        let (lineIndex, lineStart) = Self.line(containing: location, in: lines)
+        guard let result = TaskReorder.afterToggle(lines: lines, at: lineIndex),
+              let landed = apply(result, from: lines, carrying: location - lineStart) else { return }
+        setSelectedRange(NSRange(location: landed, length: 0))
+    }
+
+    // MARK: - Dragging list items
+
+    /// Drops the item whose handle is at `handle` where the pointer is (`y` in
+    /// line units, see `TaskReorder.Siblings`), leaving the caret on the handle.
+    private func dropListItem(handleAt handle: Int, toward y: Double) {
+        guard let storage = textStorage else { return }
+        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let (lineIndex, lineStart) = Self.line(containing: handle, in: lines)
+        guard let result = TaskReorder.drag(lines: lines, itemLine: lineIndex, toward: y),
+              let landed = apply(result, from: lines, carrying: handle - lineStart) else { return }
+        setSelectedRange(NSRange(location: landed, length: 0))
+    }
+
+    /// Tints the item being dragged and draws a bar where it would land.
+    private func showDropTarget(for handle: ListHandle, at event: NSEvent) {
+        guard let storage = textStorage else { return }
+        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let (lineIndex, _) = Self.line(containing: handle.index, in: lines)
+        guard let siblings = TaskReorder.siblings(lines: lines, at: lineIndex) else { hideDropTarget(); return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        dragHighlight.frame = rect(forLines: siblings.spans[siblings.index], in: lines).insetBy(dx: -6, dy: -1)
+        dragHighlight.opacity = 1
+        let slot = siblings.slot(toward: linePosition(at: event))
+        if slot == siblings.index {
+            dropBar.opacity = 0
+        } else {
+            let dropLine = siblings.dropLine(for: slot)
+            let y = dropLine == 0
+                ? rect(forLines: 0...0, in: lines).minY
+                : rect(forLines: (dropLine - 1)...(dropLine - 1), in: lines).maxY
+            let x = rect(forCharacters: NSRange(location: handle.index, length: 1)).minX - 4
+            let right = textContainerOrigin.x + (textContainer?.size.width ?? bounds.width)
+            dropBar.frame = CGRect(x: x, y: y - 1.5, width: max(0, right - x), height: 3)
+            dropBar.opacity = 1
+        }
+        CATransaction.commit()
+    }
+
+    private func hideDropTarget() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        dragHighlight.opacity = 0
+        dropBar.opacity = 0
+        CATransaction.commit()
+    }
+
+    /// Where the pointer is, in line units: the line under it plus how far down that line.
+    private func linePosition(at event: NSEvent) -> Double {
+        guard let storage = textStorage else { return 0 }
+        let point = convert(event.locationInWindow, from: nil)
+        let ns = storage.string as NSString
+        let index = min(characterIndexForInsertion(at: point), ns.length)
+        let lineRange = ns.lineRange(for: NSRange(location: index, length: 0))
+        let line = Self.lineNumber(before: lineRange.location, in: ns)
+        let rect = rect(forCharacters: lineRange)
+        guard rect.height > 0 else { return Double(line) + 0.5 }
+        return Double(line) + Double(min(max((point.y - rect.minY) / rect.height, 0), 1))
+    }
+
+    /// The layout rectangle of a run of lines, in view coordinates.
+    private func rect(forLines span: ClosedRange<Int>, in lines: [String]) -> CGRect {
+        let start = lines[..<span.lowerBound].reduce(0) { $0 + ($1 as NSString).length + 1 }
+        let length = lines[span].reduce(0) { $0 + ($1 as NSString).length + 1 } - 1
+        return rect(forCharacters: NSRange(location: start, length: max(length, 0)))
+    }
+
+    private func rect(forCharacters range: NSRange) -> CGRect {
+        guard let layoutManager, let textContainer else { return .zero }
+        let glyphs = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+        var r = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
+        r.origin.x += textContainerOrigin.x
+        r.origin.y += textContainerOrigin.y
+        return r
+    }
+
+    /// The line holding character `location`, and where that line starts.
+    private static func line(containing location: Int, in lines: [String]) -> (index: Int, start: Int) {
+        var lineStart = 0
         for (i, l) in lines.enumerated() {
             let len = (l as NSString).length
-            if location <= lineStart + len { lineIndex = i; break }
+            if location <= lineStart + len { return (i, lineStart) }
             lineStart += len + 1
         }
-        guard let result = TaskReorder.afterToggle(lines: lines, at: lineIndex) else { return }
+        return (max(lines.count - 1, 0), max(lineStart - (lines.last ?? "").utf16.count - 1, 0))
+    }
+
+    private static func lineNumber(before location: Int, in ns: NSString) -> Int {
+        var count = 0, i = 0
+        while i < location {
+            let r = ns.range(of: "\n", options: [], range: NSRange(location: i, length: location - i))
+            if r.location == NSNotFound { break }
+            count += 1
+            i = r.location + 1
+        }
+        return count
+    }
+
+    /// Replaces the lines a reorder changed and returns where `offset` into the
+    /// moved line ended up.
+    private func apply(_ result: TaskReorder.Result, from lines: [String], carrying offset: Int) -> Int? {
+        guard let storage = textStorage else { return nil }
         let blockStart = lines[..<result.blockStart].reduce(0) { $0 + ($1 as NSString).length + 1 }
         let blockLength = lines[result.blockStart...result.blockEnd].reduce(0) { $0 + ($1 as NSString).length + 1 } - 1
         let newBlock = result.lines[result.blockStart...result.blockEnd].joined(separator: "\n")
         let blockRange = NSRange(location: blockStart, length: blockLength)
-        guard shouldChangeText(in: blockRange, replacementString: newBlock) else { return }
+        guard shouldChangeText(in: blockRange, replacementString: newBlock) else { return nil }
         storage.replaceCharacters(in: blockRange, with: newBlock)
         didChangeText()
         let newLineStart = result.lines[..<result.movedTo].reduce(0) { $0 + ($1 as NSString).length + 1 }
-        setSelectedRange(NSRange(location: min(newLineStart + (location - lineStart), storage.length), length: 0))
+        return min(newLineStart + offset, storage.length)
     }
 
     // MARK: - Diagnostics
