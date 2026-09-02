@@ -47,6 +47,9 @@ fi
 if [[ -f Resources/AppIcon.icns ]]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 fi
+if [[ -f Resources/wordmark.png ]]; then
+  cp Resources/wordmark.png "$APP/Contents/Resources/wordmark.png"
+fi
 
 # Ad-hoc signature so macOS treats it as a proper local app (stable identity for permissions).
 codesign --force --deep --sign - --identifier com.alexlibre.glassine "$APP" >/dev/null 2>&1

@@ -99,9 +99,7 @@ struct SidebarView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Spacer(minLength: 68) // room for the traffic lights
-            Text("Glassine")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .opacity(0.55)
+            wordmark
             Spacer()
             SidebarIconButton(systemName: "sidebar.left", help: "Hide Sidebar (⌘S)") {
                 state.toggleSidebar()
@@ -110,6 +108,26 @@ struct SidebarView: View {
         .padding(.horizontal, 12)
         .frame(height: 38)
         .padding(.top, 6)
+    }
+
+    /// The hand-made wordmark, tinted with the theme's text color — the foil
+    /// grain lives in the image's alpha. Type stands in if the asset is missing.
+    @ViewBuilder
+    private var wordmark: some View {
+        if let image = Bundle.main.image(forResource: "wordmark") {
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(height: 14)
+                .foregroundStyle(theme.text.color)
+                .opacity(0.62)
+        } else {
+            Text("Glassine")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .opacity(0.55)
+        }
     }
 
     private var searchField: some View {
