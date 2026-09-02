@@ -1,3 +1,4 @@
+#if !APPSTORE
 import AppKit
 
 /// Checks GitHub Releases for a newer version. Deliberately simple: no
@@ -77,3 +78,4 @@ enum UpdateChecker {
         return a.runModal()
     }
 }
+#endif

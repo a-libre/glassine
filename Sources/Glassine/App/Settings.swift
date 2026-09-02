@@ -73,6 +73,8 @@ enum SystemFontChoice {
 struct SettingsData: Codable, Equatable {
     // Library
     var libraryPath: String? = nil
+    /// Security-scoped bookmark for `libraryPath`; what lets the sandboxed build back in.
+    var libraryBookmark: Data? = nil
     var nameFilesFromFirstLine: Bool = true
     var sortDocumentsBy: SortMode = .modified
     var lastOpenedDocument: String? = nil
@@ -143,6 +145,7 @@ struct SettingsData: Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = SettingsData()
         libraryPath = try c.decodeIfPresent(String.self, forKey: .libraryPath) ?? d.libraryPath
+        libraryBookmark = try c.decodeIfPresent(Data.self, forKey: .libraryBookmark) ?? d.libraryBookmark
         nameFilesFromFirstLine = try c.decodeIfPresent(Bool.self, forKey: .nameFilesFromFirstLine) ?? d.nameFilesFromFirstLine
         sortDocumentsBy = try c.decodeIfPresent(SortMode.self, forKey: .sortDocumentsBy) ?? d.sortDocumentsBy
         lastOpenedDocument = try c.decodeIfPresent(String.self, forKey: .lastOpenedDocument) ?? d.lastOpenedDocument

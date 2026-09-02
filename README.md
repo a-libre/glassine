@@ -30,7 +30,7 @@ The first launch asks for permission to access iCloud Drive. Say yes — that's 
 
 You can also open `Package.swift` in Xcode and press Run, which is handy for debugging; the assembled `.app` from `build.sh` is what you want for daily use (it has the icon and a stable identity for macOS permissions).
 
-There is no signed download yet, so building from source is the only way to run it for now. A notarized `.dmg` is the next step; the pipeline for it is in `release.sh` and [RELEASING.md](RELEASING.md).
+There is no signed download yet, so building from source is the only way to run it for now. Two release routes are ready to go, both described in [RELEASING.md](RELEASING.md): a notarized `.dmg` for direct download (`release.sh`) and a Mac App Store build (`appstore.sh`, listed as "Glassine Writer"). `./build.sh --appstore` builds the store flavor locally: sandboxed, with its own iCloud folder instead of reading iCloud Drive directly.
 
 ## What it does
 
@@ -50,6 +50,8 @@ There is no signed download yet, so building from source is the only way to run 
 `~/Library/Mobile Documents/com~apple~CloudDocs/Glassine/` — that's the "Glassine" folder at the top level of iCloud Drive in Finder. Every document is a plain `.md` file, folders are folders. Anything you drop in there from Finder or another Mac shows up in the sidebar within a few seconds; anything Glassine writes syncs the usual iCloud way.
 
 Change the location under Settings → General if you'd rather use a different folder (a Dropbox or Obsidian vault works fine).
+
+The App Store build is sandboxed, so it cannot read iCloud Drive directly; it keeps its documents in an iCloud folder of its own, which Finder also shows as "Glassine" in iCloud Drive (with the app's icon). Pointing it at the folder above through Settings → General works too, and the permission is remembered.
 
 ## Saving
 
@@ -158,9 +160,10 @@ Sources/Glassine/
   Library/    Library (iCloud folder scanning + file operations), Document (autosave, renaming)
   Editor/     GlassineTextView (smooth caret, layout, typewriter, focus), MarkdownStyler, StyleConfig, EditorView bridge
   UI/         ContentView, SidebarView, EditorContainerView, SettingsView, GlassBackground
-  Support/    HexColor, small extensions
-Resources/    Info.plist, icon
-build.sh      assembles and signs Glassine.app
+  Support/    Distribution (sandbox / App Store differences), HexColor, small extensions
+Resources/    Info.plist, icon, entitlements for each build flavor
+build.sh      assembles and signs Glassine.app (--appstore for the sandboxed flavor)
+release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for the Mac App Store
 ```
 
 ## Rebuilding after you change something

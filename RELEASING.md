@@ -48,6 +48,41 @@ Use three numbers. Bump the last for fixes (0.1.1), the middle for features (0.2
 
 `xcrun notarytool log <submission-id> --keychain-profile glassine-notary` prints the reasons. The usual ones are a missing `--timestamp`, a binary without hardened runtime, or an expired certificate. The script already handles the first two.
 
-## Later: the App Store
+## The App Store
 
-Same code, different container. The App Store requires the App Sandbox, which means replacing direct access to `~/Library/Mobile Documents/…` with an iCloud container entitlement (the app gets its own folder that still shows in iCloud Drive) and a security-scoped bookmark for custom library folders. About a day of work; not needed for the download route.
+The same source, built a second way: `./build.sh --appstore` compiles with `APPSTORE` set, which turns on the App Sandbox and leaves out the GitHub update check (the store handles updates). The store listing is called **Glassine Writer** because plain "Glassine" was already reserved in App Store Connect; the app itself is still Glassine everywhere.
+
+### What the sandbox changes
+
+- **Where documents live.** A sandboxed app cannot read `~/Library/Mobile Documents` directly, so the store build gets its own iCloud container, `iCloud.com.alexlibre.glassine`. Its Documents folder shows up in iCloud Drive as a **Glassine** folder with the app's icon, syncs the same way, and is the default library. When iCloud Drive is off, the library falls back to the sandbox's own Documents folder.
+- **Custom folders.** Settings → Library → *Change…* still works: the open panel's permission is kept as a security-scoped bookmark (`libraryBookmark` in settings), so the folder stays reachable on the next launch. Someone moving from the direct download can point the store build at their old `iCloud Drive/Glassine` folder this way and carry on.
+- **Trash.** Deleting still tries the macOS Trash first; if the sandbox refuses (it can, for iCloud container files), the item goes to a hidden `.Trash` folder inside the library, which still syncs and still undoes.
+- **Old Pyrus settings and folder** are not migrated in the store build (it cannot see them).
+
+`Distribution.swift` is where all of this is decided at run time.
+
+### One-time setup
+
+1. **App ID with iCloud.** developer.apple.com → Certificates, Identifiers & Profiles → Identifiers → `com.alexlibre.glassine` → tick **iCloud**, click *Configure*, and create (or assign) the container **`iCloud.com.alexlibre.glassine`**. Save.
+2. **Certificates.** Xcode → Settings → Accounts → Manage Certificates → **+** → *Apple Distribution*, then **+** → *Mac Installer Distribution*. (Both are separate from the Developer ID certificate the direct download uses.)
+3. **Provisioning profile.** developer.apple.com → Profiles → **+** → *Mac App Store Connect* → App ID `com.alexlibre.glassine` → the Apple Distribution certificate → name it "Glassine App Store" → download. Save it as `Resources/Glassine-AppStore.provisionprofile` (git-ignored). The iCloud entitlement needs this; without it the app would be killed at launch.
+4. **App Store Connect record.** appstoreconnect.apple.com → My Apps → **+** → macOS, name *Glassine Writer*, bundle ID `com.alexlibre.glassine`, SKU `glassine-mac-1`. Fill in the listing later (screenshots at 1280×800 or 2560×1600, a description, the category Productivity, a support URL — the GitHub repo works — and a privacy policy URL; the app collects nothing, so a one-line page saying so is enough).
+5. **Transporter.** Install it from the App Store (Apple's, free). It is what uploads the package.
+
+### Every store release
+
+```bash
+./appstore.sh 0.2.0
+```
+
+That bumps the version and build number, builds the sandboxed flavor, embeds the provisioning profile, signs with Apple Distribution and the real Team ID, verifies the entitlements, builds `dist/Glassine-0.2.0-AppStore.pkg` signed with the installer certificate, commits the version bump, and opens Transporter with the package. In Transporter: sign in, *Deliver*. Then in App Store Connect: TestFlight to try it on your own Mac first, or add the build to the version and *Submit for Review*.
+
+`./appstore.sh 0.2.0 --dry-run` builds and packages without committing.
+
+To try the sandboxed flavor without any of the signing: `./build.sh --appstore --run`. It is ad-hoc signed, so there is no iCloud container — the library lands in `~/Library/Containers/com.alexlibre.glassine/Data/Documents` — but everything else behaves as the store build will.
+
+### Review notes worth knowing
+
+- The direct download and the store build store documents in different places (`iCloud Drive/Glassine` vs the app's own iCloud folder). They can be pointed at the same folder through Settings → Library, but do not run both at once against it.
+- Both builds bump the same `CFBundleVersion`; App Store Connect only insists it goes up.
+- Reviewers get a sandboxed Mac with iCloud possibly off. The local Documents fallback covers that; the welcome document appears there.

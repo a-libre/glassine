@@ -111,7 +111,11 @@ final class AppState: ObservableObject {
         let settings = AppSettings()
         self.settings = settings
         self.themes = ThemeStore()
-        self.library = LibraryStore(customPath: settings.data.libraryPath)
+        self.library = LibraryStore(chosen: ChosenFolder(bookmark: settings.data.libraryBookmark, path: settings.data.libraryPath))
+        // A bookmark that had gone stale was refreshed on the way in; keep the fresh one.
+        if let fresh = library.chosenBookmark, fresh != settings.data.libraryBookmark {
+            settings.data.libraryBookmark = fresh
+        }
 
         // Republish nested object changes so views observing AppState refresh.
         settings.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
@@ -616,26 +620,27 @@ final class AppState: ObservableObject {
         panel.message = "Choose the folder Glassine keeps your documents in. A folder inside iCloud Drive syncs to your other devices."
         panel.directoryURL = library.rootURL
         if panel.runModal() == .OK, let url = panel.url {
-            setLibraryPath(url.path)
+            setLibrary(chosen: ChosenFolder(pickedURL: url))
         }
     }
 
     func resetLibraryToDefault() {
-        setLibraryPath(nil)
+        setLibrary(chosen: nil)
     }
 
-    private func setLibraryPath(_ path: String?) {
+    private func setLibrary(chosen: ChosenFolder?) {
         closeCurrentDocument()
         selection = nil
         selectedFolder = ""
         tagFilter = nil
-        settings.data.libraryPath = path
+        settings.data.libraryPath = chosen?.url.path
+        settings.data.libraryBookmark = chosen?.bookmark
         settings.data.lastOpenedDocument = nil
         settings.data.recents = [:]
         settings.data.starred = []
         settings.data.expandedFolders = []
         settings.data.caretPositions = [:]
-        library = LibraryStore(customPath: path)
+        library = LibraryStore(chosen: chosen)
         bindLibrary()
         bootstrapLibrary()
     }

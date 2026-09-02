@@ -36,5 +36,21 @@
 	<string>Glassine keeps your library in a folder you choose.</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
+	<!-- App Store: no encryption beyond the system's, so no export-compliance questions on upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- The sandboxed build's own iCloud folder, shown in iCloud Drive as "Glassine" with the app icon. -->
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.com.alexlibre.glassine</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Glassine</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

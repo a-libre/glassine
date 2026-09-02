@@ -1,11 +1,16 @@
 # Swift Package Manager
 .build/
+.build-appstore/
 .swiftpm/
 Package.resolved
 
 # Assembled app, release output and logs
 build/
 dist/
+
+# Signing material never goes in the repo
+*.provisionprofile
+*.p12
 build.log
 install.log
 

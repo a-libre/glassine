@@ -118,7 +118,7 @@ struct GeneralSettings: View {
             Section("Library") {
                 LabeledContent("Location") {
                     VStack(alignment: .trailing, spacing: 6) {
-                        Text(state.library.rootURL.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                        Text(state.library.displayPath)
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .lineLimit(3)
@@ -136,7 +136,9 @@ struct GeneralSettings: View {
                 }
                 Text(state.library.isInICloud
                      ? "This folder lives in iCloud Drive, so documents sync to your other devices automatically."
-                     : "This folder is not in iCloud Drive. Choose a folder inside iCloud Drive to sync.")
+                     : (Distribution.isSandboxed
+                        ? "iCloud Drive is off, so documents stay on this Mac. Turn on iCloud Drive in System Settings to sync them."
+                        : "This folder is not in iCloud Drive. Choose a folder inside iCloud Drive to sync."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -153,6 +155,12 @@ struct GeneralSettings: View {
                 Text("Changes are written about half a second after you stop typing, and at least every few seconds while you type. Nothing to remember.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            #if APPSTORE
+            Section("Updates") {
+                Text("Glassine \(Distribution.version) · App Store. Updates arrive through the App Store.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            #else
             Section("Updates") {
                 Toggle("Check for new versions once a day", isOn: data.checkForUpdates)
                 HStack {
@@ -161,6 +169,7 @@ struct GeneralSettings: View {
                     Button("Check Now") { UpdateChecker.check(userInitiated: true) }
                 }
             }
+            #endif
         }
         .formStyle(.grouped)
     }

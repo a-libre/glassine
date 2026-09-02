@@ -85,33 +85,71 @@ final class LibraryStore: ObservableObject {
 
     // MARK: - Root resolution
 
+    /// The user's own iCloud Drive, which the direct build reads straight from
+    /// disk. The sandboxed build cannot see it; that build owns a container instead.
     static var iCloudDriveURL: URL? {
+        guard !Distribution.isSandboxed else { return nil }
         let url = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs", isDirectory: true)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
+    /// Where the library lives when the user has not chosen a folder: Glassine's
+    /// own iCloud container (App Store), the Glassine folder in iCloud Drive
+    /// (direct download), or a local Documents folder when iCloud is off.
     static func defaultRootURL() -> (URL, Bool) {
+        if let container = Distribution.iCloudContainerDocuments() { return (container, true) }
         if let icloud = iCloudDriveURL {
             return (icloud.appendingPathComponent(appFolderName, isDirectory: true), true)
         }
-        let docs = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Documents", isDirectory: true)
-        return (docs.appendingPathComponent(appFolderName, isDirectory: true), false)
+        return (Distribution.localDocumentsFallback(folderName: appFolderName), false)
     }
 
-    init(customPath: String?) {
+    /// The folder the user chose, if any. Held for the store's lifetime so its
+    /// security scope (the sandbox's permission to touch it) stays open.
+    private let chosen: ChosenFolder?
+
+    /// True when the user picked the folder rather than taking the default.
+    var isCustomLocation: Bool { chosen != nil }
+
+    /// The bookmark as it should be saved (refreshed if the stored one went stale).
+    var chosenBookmark: Data? { chosen?.bookmark }
+
+    /// The root as people read it: "iCloud Drive › Glassine" rather than the
+    /// ~/Library/Mobile Documents path underneath.
+    var displayPath: String {
+        let path = rootURL.path
+        if let r = path.range(of: "/Library/Mobile Documents/") {
+            var rest = String(path[r.upperBound...])
+            if rest.hasPrefix("com~apple~CloudDocs/") { rest = String(rest.dropFirst("com~apple~CloudDocs/".count)) }
+            else if rest.hasPrefix("iCloud~") {
+                // An app container: "iCloud~com~x~app/Documents/…" reads as the app's folder.
+                let parts = rest.split(separator: "/", maxSplits: 2).map(String.init)
+                rest = ([LibraryStore.appFolderName] + parts.dropFirst(2)).joined(separator: "/")
+            }
+            return "iCloud Drive › " + rest.replacingOccurrences(of: "/", with: " › ")
+        }
+        if path.hasPrefix(Distribution.realHomePath) {
+            return "~" + path.dropFirst(Distribution.realHomePath.count)
+        }
+        return path
+    }
+
+    init(chosen: ChosenFolder?) {
         var url: URL
         var inCloud: Bool
-        if let p = customPath, !p.isEmpty {
-            url = URL(fileURLWithPath: (p as NSString).expandingTildeInPath, isDirectory: true)
-            inCloud = url.path.contains("Mobile Documents/com~apple~CloudDocs")
+        if let chosen, chosen.isReachable {
+            self.chosen = chosen
+            url = chosen.url
+            inCloud = url.path.contains("Mobile Documents/")
         } else {
+            self.chosen = nil
             (url, inCloud) = LibraryStore.defaultRootURL()
         }
         rootURL = url.standardizedFileURL
         isInICloud = inCloud
         root = LibraryFolder(id: "", name: rootURL.lastPathComponent, url: rootURL, folders: [], documents: [])
-        if customPath == nil || customPath?.isEmpty == true {
+        if self.chosen == nil, !Distribution.isSandboxed {
             Legacy.migrateLibraryFolderIfNeeded(newRoot: rootURL)
         }
         ensureRootExists()
@@ -339,14 +377,39 @@ final class LibraryStore: ObservableObject {
     }
 
     /// Moves an item to the macOS Trash and returns where it landed, so the
-    /// operation can be taken back.
+    /// operation can be taken back. When the Trash is out of reach — a sandboxed
+    /// app cannot always get an iCloud container's files there — the item goes to
+    /// a hidden `.Trash` folder inside the library instead, which still syncs and
+    /// still restores.
     @discardableResult
     func trash(_ rel: String) throws -> URL? {
         let source = url(forRelativePath: rel)
         var trashed: NSURL?
-        try FileManager.default.trashItem(at: source, resultingItemURL: &trashed)
-        scanNow()
-        return trashed as URL?
+        do {
+            try FileManager.default.trashItem(at: source, resultingItemURL: &trashed)
+            scanNow()
+            return trashed as URL?
+        } catch {
+            let bin = rootURL.appendingPathComponent(".Trash", isDirectory: true)
+            try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+            let stem = source.deletingPathExtension().lastPathComponent
+            let target = source.isDirectoryURL
+                ? uniqueFolderURL(in: bin, name: source.lastPathComponent)
+                : uniqueURL(in: bin, stem: stem, ext: source.pathExtension.isEmpty ? "md" : source.pathExtension)
+            try FileCoordination.move(from: source, to: target)
+            scanNow()
+            return target
+        }
+    }
+
+    private func uniqueFolderURL(in parent: URL, name: String) -> URL {
+        var candidate = parent.appendingPathComponent(name, isDirectory: true)
+        var n = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = parent.appendingPathComponent("\(name) \(n)", isDirectory: true)
+            n += 1
+        }
+        return candidate
     }
 
     /// Brings an item back from the Trash to its old relative path (or a

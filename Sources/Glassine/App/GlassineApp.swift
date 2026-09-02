@@ -108,11 +108,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         DispatchQueue.main.async { AppDelegate.retireSystemFindShortcut() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { AppDelegate.retireSystemFindShortcut() }
+        #if !APPSTORE
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
             if AppState.shared.settings.data.checkForUpdates {
                 UpdateChecker.checkAutomaticallyIfDue()
             }
         }
+        #endif
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -297,7 +299,9 @@ struct GlassineCommands: Commands {
             Button("Glassine Shortcuts") { state.showingShortcuts.toggle() }
                 .keyboardShortcut("/", modifiers: .command)
             Button("Open Library Folder") { state.revealLibrary() }
+            #if !APPSTORE
             Button("Check for Updates…") { UpdateChecker.check(userInitiated: true) }
+            #endif
             Divider()
             Button("Copy Debug Info") { state.copyDebugInfo() }
                 .keyboardShortcut("d", modifiers: [.command, .option, .shift])
