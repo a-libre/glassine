@@ -416,11 +416,12 @@ final class AppState: ObservableObject {
     /// stack; the editor's own clicks ride the text view's undo instead.
     @discardableResult
     func toggleTask(ordinal: Int, checked: Bool) -> Bool {
-        guard let doc = document, let landed = doc.setTask(ordinal: ordinal, checked: checked) else { return false }
+        guard let doc = document, let lineText = doc.setTask(ordinal: ordinal, checked: checked) else { return false }
         let box = track(doc.relativePath)
         libraryUndo.registerUndo(withTarget: self) { s in
             if s.document?.relativePath != box.rel { s.open(relativePath: box.rel) }
-            s.toggleTask(ordinal: landed, checked: !checked)
+            // The task may have sunk since; find it by what its line says now.
+            s.toggleTask(ordinal: s.document?.ordinal(ofTaskLine: lineText) ?? ordinal, checked: !checked)
         }
         libraryUndo.setActionName(checked ? "Check Off Task" : "Uncheck Task")
         return true

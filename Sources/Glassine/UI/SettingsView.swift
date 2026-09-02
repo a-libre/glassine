@@ -220,7 +220,7 @@ struct EditorSettings: View {
                 Toggle("Correct spelling automatically", isOn: data.autocorrect)
                 Toggle("Inline predictions", isOn: data.inlinePredictions)
                 Toggle("Continue lists on Return", isOn: data.continueLists)
-                Toggle("Move finished tasks to the bottom", isOn: data.moveCompletedTasks)
+                Toggle("Move finished tasks to the bottom after a moment", isOn: data.moveCompletedTasks)
             }
         }
         .formStyle(.grouped)

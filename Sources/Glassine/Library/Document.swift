@@ -42,6 +42,8 @@ final class DocumentModel: ObservableObject, Identifiable {
     private let saveDebouncer = Debouncer(delay: 0.5)
     private let renameDebouncer = Debouncer(delay: 4.0)
     private let statsDebouncer = Debouncer(delay: 0.25)
+    /// Checked-off tasks waiting to sink, by their line text.
+    private var pendingSinks: [String: DispatchWorkItem] = [:]
     private var maxIntervalTimer: Timer?
     private var saveInFlight = false
     private var saveAgain = false
@@ -85,11 +87,12 @@ final class DocumentModel: ObservableObject, Identifiable {
         pattern: "^[ \\t]*(?:>[ \\t]?)*[ \\t]*(?:[-*+]|\\d{1,9}[.)])[ \\t]+\\[([ xX])\\][ \\t]+")
 
     /// Checks or unchecks the n-th task item, counted the way Review renders them
-    /// (top to bottom, skipping fenced code), and lets a finished task sink when
-    /// that setting is on. Returns the item's ordinal afterwards, or nil when there
-    /// is no such item or it is not in the state the caller expected.
+    /// (top to bottom, skipping fenced code). With the tidy-list setting on, a
+    /// checked task sinks after a moment and an unchecked one rises at once.
+    /// Returns the item's new line text, or nil when there is no such item or it
+    /// is not in the state the caller expected.
     @discardableResult
-    func setTask(ordinal: Int, checked: Bool) -> Int? {
+    func setTask(ordinal: Int, checked: Bool) -> String? {
         var lines = text.components(separatedBy: "\n")
         var inFence = false
         var seen = 0
@@ -104,17 +107,48 @@ final class DocumentModel: ObservableObject, Identifiable {
                 let wasChecked = ns.substring(with: box).lowercased() == "x"
                 guard wasChecked != checked else { return nil }
                 lines[i] = ns.replacingCharacters(in: box, with: checked ? "x" : " ")
-                var landed = i
-                if settings.data.moveCompletedTasks, let moved = TaskReorder.afterToggle(lines: lines, at: i) {
-                    lines = moved.lines
-                    landed = moved.movedTo
+                let newLine = lines[i]
+                if settings.data.moveCompletedTasks {
+                    if checked {
+                        scheduleSink(of: newLine, near: i)
+                    } else {
+                        pendingSinks.removeValue(forKey: ns.replacingCharacters(in: box, with: "x"))?.cancel()
+                        if let moved = TaskReorder.afterToggle(lines: lines, at: i) { lines = moved.lines }
+                    }
                 }
                 textDidChange(lines.joined(separator: "\n"))
-                return TaskReorder.ordinal(ofTaskAt: landed, in: lines) ?? ordinal
+                return newLine
             }
             seen += 1
         }
         return nil
+    }
+
+    /// A task you check off waits a moment before sinking, so the check itself
+    /// registers first. If the line is edited or unchecked meanwhile, it stays.
+    private func scheduleSink(of lineText: String, near line: Int) {
+        pendingSinks[lineText]?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingSinks[lineText] = nil
+            guard self.settings.data.moveCompletedTasks else { return }
+            let lines = self.text.components(separatedBy: "\n")
+            let index: Int
+            if line < lines.count, lines[line] == lineText { index = line }
+            else if let found = lines.firstIndex(of: lineText) { index = found }
+            else { return }
+            guard let moved = TaskReorder.afterToggle(lines: lines, at: index) else { return }
+            self.textDidChange(moved.lines.joined(separator: "\n"))
+        }
+        pendingSinks[lineText] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + GlassineTextView.sinkDelay, execute: work)
+    }
+
+    /// Review's ordinal for the task whose line reads `text`, wherever it is now.
+    func ordinal(ofTaskLine text: String) -> Int? {
+        let lines = self.text.components(separatedBy: "\n")
+        guard let i = lines.firstIndex(of: text) else { return nil }
+        return TaskReorder.ordinal(ofTaskAt: i, in: lines)
     }
 
     func textDidChange(_ newText: String) {

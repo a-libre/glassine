@@ -39,6 +39,9 @@ final class GlassineTextView: NSTextView {
     private var listDrag: ListDrag?
     private let dragHighlight = CALayer()
     private let dropBar = CALayer()
+    // Checked-off tasks waiting to sink, by their line text
+    private var pendingSinks: [String: DispatchWorkItem] = [:]
+    static let sinkDelay: TimeInterval = 1.6
 
     // Editing bookkeeping
     private var pendingEditRange: NSRange?
@@ -207,6 +210,8 @@ final class GlassineTextView: NSTextView {
         guard let storage = textStorage else { return }
         suppressAnimationOnce = true
         undoManager?.removeAllActions()
+        pendingSinks.values.forEach { $0.cancel() }
+        pendingSinks.removeAll()
         storage.beginEditing()
         storage.setAttributedString(NSAttributedString(string: text, attributes: config.baseAttributes))
         storage.endEditing()
@@ -1019,18 +1024,74 @@ final class GlassineTextView: NSTextView {
         storage.replaceCharacters(in: range, with: replacement)
         didChangeText()
         setSelectedRange(selection.clamped(to: storage.length))
-        if config.moveCompletedTasks { sinkToggledTask(boxAt: range.location) }
+        guard config.moveCompletedTasks else { return }
+        if checked { riseUncheckedTask(boxAt: range.location) } else { scheduleSink(ofTaskAt: range.location) }
     }
 
-    /// After a checkbox flips, move its item to where the tidy-list rule says it
-    /// belongs, and carry the caret along on the checkbox.
-    private func sinkToggledTask(boxAt location: Int) {
+    /// A task you check off waits a moment before sinking, so the check itself
+    /// registers first. If the line is edited or unchecked meanwhile, it stays.
+    private func scheduleSink(ofTaskAt location: Int) {
+        guard let storage = textStorage else { return }
+        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let (lineIndex, _) = Self.line(containing: location, in: lines)
+        let text = lines[lineIndex]
+        pendingSinks[text]?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingSinks[text] = nil
+            self.sinkTask(reading: text, near: lineIndex)
+        }
+        pendingSinks[text] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.sinkDelay, execute: work)
+    }
+
+    private func sinkTask(reading text: String, near line: Int) {
+        guard config.moveCompletedTasks, let storage = textStorage else { return }
+        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let index: Int
+        if line < lines.count, lines[line] == text { index = line }
+        else if let found = lines.firstIndex(of: text) { index = found }
+        else { return }
+        guard let result = TaskReorder.afterToggle(lines: lines, at: index) else { return }
+        let caret = selectedRange().location
+        guard apply(result, from: lines) else { return }
+        setSelectedRange(NSRange(location: Self.carriedCaret(caret, from: lines, to: result), length: 0))
+    }
+
+    /// An unchecked task rises straight away, back to where it came from.
+    private func riseUncheckedTask(boxAt location: Int) {
         guard let storage = textStorage else { return }
         let lines = (storage.string as NSString).components(separatedBy: "\n")
         let (lineIndex, lineStart) = Self.line(containing: location, in: lines)
-        guard let result = TaskReorder.afterToggle(lines: lines, at: lineIndex),
-              let landed = apply(result, from: lines, carrying: location - lineStart) else { return }
-        setSelectedRange(NSRange(location: landed, length: 0))
+        let checkedForm = (lines[lineIndex] as NSString).replacingCharacters(in: NSRange(location: location - lineStart + 1, length: 1), with: "x")
+        pendingSinks.removeValue(forKey: checkedForm)?.cancel()
+        guard let result = TaskReorder.afterToggle(lines: lines, at: lineIndex) else { return }
+        let caret = selectedRange().location
+        guard apply(result, from: lines) else { return }
+        setSelectedRange(NSRange(location: Self.carriedCaret(caret, from: lines, to: result), length: 0))
+    }
+
+    /// Where a caret ends up after a reorder permutes a block: on the same line
+    /// (found by text) at the same column; text after the block shifts with any renumbering.
+    private static func carriedCaret(_ caret: Int, from lines: [String], to result: TaskReorder.Result) -> Int {
+        let bs = charOffset(ofLine: result.blockStart, in: lines)
+        let be = charOffset(ofLine: result.blockEnd + 1, in: lines) - 1
+        if caret < bs { return caret }
+        if caret > be { return caret + (charOffset(ofLine: result.blockEnd + 1, in: result.lines) - charOffset(ofLine: result.blockEnd + 1, in: lines)) }
+        let (li, lineStart) = line(containing: caret, in: lines)
+        let text = lines[li], col = caret - lineStart
+        var nth = 0
+        for i in result.blockStart..<li where lines[i] == text { nth += 1 }
+        var target = li
+        for j in result.blockStart...result.blockEnd where result.lines[j] == text {
+            if nth == 0 { target = j; break }
+            nth -= 1
+        }
+        return charOffset(ofLine: target, in: result.lines) + min(col, (result.lines[target] as NSString).length)
+    }
+
+    private static func charOffset(ofLine line: Int, in lines: [String]) -> Int {
+        lines.prefix(line).reduce(0) { $0 + ($1 as NSString).length + 1 }
     }
 
     // MARK: - Dragging list items
@@ -1041,9 +1102,9 @@ final class GlassineTextView: NSTextView {
         guard let storage = textStorage else { return }
         let lines = (storage.string as NSString).components(separatedBy: "\n")
         let (lineIndex, lineStart) = Self.line(containing: handle, in: lines)
-        guard let result = TaskReorder.drag(lines: lines, itemLine: lineIndex, toward: y),
-              let landed = apply(result, from: lines, carrying: handle - lineStart) else { return }
-        setSelectedRange(NSRange(location: landed, length: 0))
+        guard let result = TaskReorder.drag(lines: lines, itemLine: lineIndex, toward: y), apply(result, from: lines) else { return }
+        let landed = Self.charOffset(ofLine: result.movedTo, in: result.lines) + (handle - lineStart)
+        setSelectedRange(NSRange(location: min(landed, storage.length), length: 0))
     }
 
     /// Tints the item being dragged and draws a bar where it would land.
@@ -1131,19 +1192,17 @@ final class GlassineTextView: NSTextView {
         return count
     }
 
-    /// Replaces the lines a reorder changed and returns where `offset` into the
-    /// moved line ended up.
-    private func apply(_ result: TaskReorder.Result, from lines: [String], carrying offset: Int) -> Int? {
-        guard let storage = textStorage else { return nil }
-        let blockStart = lines[..<result.blockStart].reduce(0) { $0 + ($1 as NSString).length + 1 }
-        let blockLength = lines[result.blockStart...result.blockEnd].reduce(0) { $0 + ($1 as NSString).length + 1 } - 1
+    /// Replaces the lines a reorder changed, as one undoable edit.
+    private func apply(_ result: TaskReorder.Result, from lines: [String]) -> Bool {
+        guard let storage = textStorage else { return false }
+        let blockStart = Self.charOffset(ofLine: result.blockStart, in: lines)
+        let blockLength = Self.charOffset(ofLine: result.blockEnd + 1, in: lines) - 1 - blockStart
         let newBlock = result.lines[result.blockStart...result.blockEnd].joined(separator: "\n")
         let blockRange = NSRange(location: blockStart, length: blockLength)
-        guard shouldChangeText(in: blockRange, replacementString: newBlock) else { return nil }
+        guard shouldChangeText(in: blockRange, replacementString: newBlock) else { return false }
         storage.replaceCharacters(in: blockRange, with: newBlock)
         didChangeText()
-        let newLineStart = result.lines[..<result.movedTo].reduce(0) { $0 + ($1 as NSString).length + 1 }
-        return min(newLineStart + offset, storage.length)
+        return true
     }
 
     // MARK: - Diagnostics
