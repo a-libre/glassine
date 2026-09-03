@@ -71,6 +71,9 @@ fi
 # would otherwise carry them straight in. Directories and the executable keep
 # their execute bit; nothing else gains one.
 chmod -R a+rX "$APP"
+# Downloaded files carry a quarantine attribute that cp preserves and the App
+# Store rejects; nothing in a bundle needs any extended attribute.
+xattr -cr "$APP" 2>/dev/null || true
 
 # Ad-hoc signature so macOS treats it as a proper local app (stable identity for
 # permissions). The App Store flavor also gets the sandbox, so it behaves here as

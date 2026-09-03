@@ -175,6 +175,8 @@ echo "▸ Version $VERSION (build $BUILD_NUMBER)"
 
 # --- Provisioning profile + entitlements with the real Team ID ------------------------------
 cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
+# The profile came from a browser download, so it arrives quarantined.
+xattr -cr "$APP"
 ENT="$(mktemp -t glassine-entitlements).plist"
 sed "s/TEAM_ID_PLACEHOLDER/$TEAM_ID/g" Resources/Glassine-AppStore.entitlements > "$ENT"
 
@@ -186,6 +188,24 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 echo "▸ Entitlements as signed:"
 codesign -d --entitlements :- "$APP" 2>/dev/null | grep -E 'sandbox|icloud|ubiquity|team-identifier|application-identifier' || true
 rm -f "$ENT"
+
+# --- Package hygiene ------------------------------------------------------------------------
+# Two things Apple's processing rejects after the upload has already gone
+# through: a file not every user can read, and a file with the quarantine
+# attribute. Both are cheap to catch here.
+unreadable="$(find "$APP" ! -perm -o+r 2>/dev/null || true)"
+if [[ -n "$unreadable" ]]; then
+  echo "These files are not readable by every user:" >&2
+  echo "$unreadable" >&2
+  exit 1
+fi
+quarantined="$(xattr -lr "$APP" 2>/dev/null | grep -B1 'com.apple.quarantine' | grep -v quarantine || true)"
+if [[ -n "$quarantined" ]]; then
+  echo "These files still carry com.apple.quarantine:" >&2
+  echo "$quarantined" >&2
+  exit 1
+fi
+echo "▸ Bundle is clean: every file readable, no quarantine attributes"
 
 # --- Package -------------------------------------------------------------------------------
 mkdir -p "$DIST"
