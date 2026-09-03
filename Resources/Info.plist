@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Glassine</string>
 	<key>CFBundleExecutable</key>
 	<string>Glassine</string>
 	<key>CFBundleIconFile</key>
@@ -14,32 +16,28 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Glassine</string>
-	<key>CFBundleDisplayName</key>
-	<string>Glassine</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>Made for Alex.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>Glassine keeps your library in a folder you choose.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Made for Alex.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
-	<!-- App Store: no encryption beyond the system's, so no export-compliance questions on upload. -->
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<!-- The sandboxed build's own iCloud folder, shown in iCloud Drive as "Glassine" with the app icon. -->
 	<key>NSUbiquitousContainers</key>
 	<dict>
 		<key>iCloud.com.alexlibre.glassine</key>
