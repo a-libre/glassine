@@ -32,10 +32,6 @@ if pgrep -f "$BIN" >/dev/null; then
   exit 1
 fi
 
-# The finished files are squared up with Pillow: python3 -m pip install --user pillow
-python3 -c 'import PIL' 2>/dev/null \
-  || { echo "Python needs Pillow for the last step: python3 -m pip install --user pillow" >&2; exit 1; }
-
 # Stage Manager parks the window of whatever app is not on the current stage as a
 # thumbnail at the edge of the screen, which is no use to photograph and is the
 # hardest failure here to recognise from a log.
@@ -57,13 +53,39 @@ if ! screencapture -x -R 0,0,8,8 /tmp/glassine-capture-test.png 2>/dev/null \
 fi
 rm -f /tmp/glassine-capture-test.png
 
-# --- Window finder ----------------------------------------------------------------------------
-# Two things the shell cannot answer: the size of the screen a window may use, and
-# where a running app's window actually is. Both come from the window server, so
-# neither needs Accessibility.
+# --- Helper ---------------------------------------------------------------------------------
+# Three things the shell cannot do on its own: measure the screen, find a running
+# app's window, and write a PNG without an alpha channel. All three come from the
+# system frameworks, so nothing needs installing and nothing needs Accessibility.
 HELPER=/tmp/glassine-winbounds
 cat > /tmp/glassine-winbounds.swift <<'SWIFT'
 import AppKit
+import ImageIO
+
+if CommandLine.arguments[1] == "flatten" {
+    // flatten <png> <width> <height>: rewrite the capture as opaque RGB at exactly
+    // this size — App Store Connect refuses an alpha channel, and screencapture
+    // always writes one. A pixel or two of rounding is trimmed; more is scaled.
+    let url = URL(fileURLWithPath: CommandLine.arguments[2]) as CFURL
+    let W = Int(CommandLine.arguments[3])!, H = Int(CommandLine.arguments[4])!
+    guard let src = CGImageSourceCreateWithURL(url, nil), let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { exit(2) }
+    if img.width < W || img.height < H { print("captured \(img.width)x\(img.height), smaller than \(W)x\(H)"); exit(3) }
+    let ctx = CGContext(data: nil, width: W, height: H, bitsPerComponent: 8, bytesPerRow: 0,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    ctx.interpolationQuality = .high
+    let dx = img.width - W, dy = img.height - H
+    if dx <= 4 && dy <= 4 {
+        ctx.draw(img, in: CGRect(x: -dx / 2, y: -dy / 2, width: img.width, height: img.height))
+    } else {
+        ctx.draw(img, in: CGRect(x: 0, y: 0, width: W, height: H))
+    }
+    let out = ctx.makeImage()!
+    let dest = CGImageDestinationCreateWithURL(url, "public.png" as CFString, 1, nil)!
+    CGImageDestinationAddImage(dest, out, nil)
+    guard CGImageDestinationFinalize(dest) else { exit(4) }
+    print("\(out.width)x\(out.height)")
+    exit(0)
+}
 
 if CommandLine.arguments[1] == "screen" {
     // The area a window may occupy, in Cocoa coordinates: what AppKit records
@@ -142,14 +164,6 @@ done
 xattr -cr "$DOCS" 2>/dev/null || true
 mkdir -p "$OUT"
 
-# Offset of a phrase in a document, for parking the caret.
-offset_of() { python3 - "$1" "$2" <<'PY'
-import sys; text = open(sys.argv[1], encoding="utf-8").read(); i = text.find(sys.argv[2]); print(i if i >= 0 else 0)
-PY
-}
-ESSAY="$DOCS/Essays/On Writing Slowly.md"
-MID=$(offset_of "$ESSAY" "A slow writer reads")
-
 # Preferences are held by cfprefsd, which flushes an app's cached values a moment
 # after it exits — long enough to overwrite a write made right after a kill. So
 # wait for the process to be gone before writing, and check the write landed.
@@ -209,34 +223,17 @@ shot() {
   read -r x y _ h <<<"$bounds"
   screencapture -x -R "$x,$y,$win_w,$h" "$OUT/$name.png"
   quit_app "$pid"
-  # App Store Connect refuses an alpha channel, and screencapture writes one.
-  # Flatten it; trim a rounding pixel if the size is off by a hair, scale if by more.
-  python3 - "$OUT/$name.png" "$TARGET_W" "$TARGET_H" <<'PYEOF'
-import sys
-from PIL import Image
-path, W, H = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-im = Image.open(path).convert("RGB")
-if im.size != (W, H):
-    if im.width < W or im.height < H:
-        sys.exit(f"{path}: captured {im.width}x{im.height}, smaller than {W}x{H}")
-    if im.width - W <= 4 and im.height - H <= 4:
-        left, top = (im.width - W) // 2, (im.height - H) // 2
-        im = im.crop((left, top, left + W, top + H))
-    else:
-        im = im.resize((W, H), Image.LANCZOS)
-im.save(path, optimize=True)
-print(f"* {path.rsplit('/', 1)[-1]}  {im.width}x{im.height}")
-PYEOF
+  echo "* $name.png  $("$HELPER" flatten "$OUT/$name.png" "$TARGET_W" "$TARGET_H")"
 }
 
 base='"fontSize":19,"columnWidth":720,"sidebarVisible":true,"sidebarWidth":270,"expandedFolders":["Essays","Notes","Ideas","Daily"],"starred":["Essays/On Writing Slowly.md","Notes/Launch Checklist.md"],"typewriterMode":false,"focusMode":false,"reviewStyle":"glass","showCounter":true,"appearanceMode":"fixed"'
 
-shot 1-editor   '{'"$base"',"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md","caretPositions":{"Essays/On Writing Slowly.md":0}}'
-shot 2-focus    '{'"$base"',"themeID":"ocean","typewriterMode":true,"focusMode":true,"lastOpenedDocument":"Essays/On Writing Slowly.md","caretPositions":{"Essays/On Writing Slowly.md":'"$MID"'}}'
+shot 1-editor   '{'"$base"',"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md"}'
+shot 2-focus    '{'"$base"',"themeID":"ocean","typewriterMode":true,"focusMode":true,"lastOpenedDocument":"Essays/On Writing Slowly.md"}'
 shot 3-review   '{'"$base"',"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md"}' review
 shot 4-library  '{'"$base"',"themeID":"ocean","lastOpenedDocument":null}'
 shot 5-daily    '{'"$base"',"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily
-shot 6-light    '{'"$base"',"themeID":"paper","lastOpenedDocument":"Notes/Launch Checklist.md","caretPositions":{"Notes/Launch Checklist.md":0}}'
+shot 6-light    '{'"$base"',"themeID":"paper","lastOpenedDocument":"Notes/Launch Checklist.md"}'
 
 echo "* Done: six shots in $OUT"
 open "$OUT"
