@@ -54,9 +54,12 @@ cp "$BIN_DIR/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-# Icon: build .icns from the iconset if needed.
-if [[ ! -f Resources/AppIcon.icns && -d Resources/AppIcon.iconset ]]; then
-  iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
+# Icon: build .icns from the iconset when it is missing or older than any of
+# the iconset's files, so a regenerated icon is picked up without a manual rm.
+if [[ -d Resources/AppIcon.iconset ]]; then
+  if [[ ! -f Resources/AppIcon.icns || -n "$(find Resources/AppIcon.iconset -newer Resources/AppIcon.icns -print -quit)" ]]; then
+    iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns
+  fi
 fi
 if [[ -f Resources/AppIcon.icns ]]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"

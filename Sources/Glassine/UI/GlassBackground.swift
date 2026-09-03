@@ -96,6 +96,8 @@ struct WindowConfigurator: NSViewRepresentable {
     final class ConfiguratorView: NSView {
         var theme: Theme?
         private var configured = false
+        /// Watches the window's first resizes after launch; see configureIfPossible.
+        private var frameGuard: NSObjectProtocol?
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -112,12 +114,25 @@ struct WindowConfigurator: NSViewRepresentable {
                 window.isMovableByWindowBackground = true
                 window.titlebarSeparatorStyle = .none
                 window.toolbarStyle = .unifiedCompact
+                // Naming the frame restores the saved one at once, but SwiftUI then sizes
+                // the window to its content before it is shown, and the autosave dutifully
+                // records that over what you had. So put the saved frame back the moment
+                // SwiftUI's pass changes it. Without this the app forgot its window size
+                // on every launch.
                 window.setFrameAutosaveName("GlassineMainWindow")
-                // Naming the frame only arranges for it to be saved. Without asking
-                // for it back, the window opens at whatever size the layout wants and
-                // then overwrites the saved frame on quit — so the app forgets how big
-                // you like it, every time.
-                window.setFrameUsingName("GlassineMainWindow")
+                if UserDefaults.standard.string(forKey: "NSWindow Frame GlassineMainWindow") != nil {
+                    let saved = window.frame
+                    let until = Date().addingTimeInterval(1.5)
+                    frameGuard = NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak self, weak window] _ in
+                        guard let self, let window else { return }
+                        let done = Date() > until || window.frame != saved
+                        if window.frame != saved, Date() <= until { window.setFrame(saved, display: false) }
+                        if done, let guardToken = self.frameGuard {
+                            NotificationCenter.default.removeObserver(guardToken)
+                            self.frameGuard = nil
+                        }
+                    }
+                }
                 window.minSize = NSSize(width: 620, height: 400)
                 window.tabbingMode = .disallowed
                 window.acceptsMouseMovedEvents = true
