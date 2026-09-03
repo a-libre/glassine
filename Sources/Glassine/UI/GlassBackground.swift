@@ -113,6 +113,11 @@ struct WindowConfigurator: NSViewRepresentable {
                 window.titlebarSeparatorStyle = .none
                 window.toolbarStyle = .unifiedCompact
                 window.setFrameAutosaveName("GlassineMainWindow")
+                // Naming the frame only arranges for it to be saved. Without asking
+                // for it back, the window opens at whatever size the layout wants and
+                // then overwrites the saved frame on quit — so the app forgets how big
+                // you like it, every time.
+                window.setFrameUsingName("GlassineMainWindow")
                 window.minSize = NSSize(width: 620, height: 400)
                 window.tabbingMode = .disallowed
                 window.acceptsMouseMovedEvents = true

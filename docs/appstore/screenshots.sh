@@ -37,6 +37,15 @@ if pgrep -f "$BIN" >/dev/null; then
   exit 1
 fi
 
+# Stage Manager parks the window of whatever app is not on the current stage as a
+# thumbnail at the edge of the screen, which is no use to photograph and is the
+# hardest failure here to recognise from a log.
+if [[ "$(defaults read com.apple.WindowManager GloballyEnabled 2>/dev/null)" == "1" ]]; then
+  echo "Stage Manager is on, and it shrinks the window this script needs to photograph." >&2
+  echo "Turn it off in Control Centre (menu bar, top right), run this, turn it back on." >&2
+  exit 1
+fi
+
 # Screen capture is a permission, and the failure is silent enough to waste an
 # entire run, so ask for eight pixels before touching anything.
 if ! screencapture -x -R 0,0,8,8 /tmp/glassine-capture-test.png 2>/dev/null \
@@ -146,27 +155,59 @@ PY
 ESSAY="$DOCS/Essays/On Writing Slowly.md"
 MID=$(offset_of "$ESSAY" "A slow writer reads")
 
+# Preferences are held by cfprefsd, which flushes an app's cached values a moment
+# after it exits — long enough to overwrite a write made right after a kill. So
+# wait for the process to be gone before writing, and check the write landed.
+quit_app() {
+  local pid=$1
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 40); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.25
+  done
+  sleep 1.5
+}
+
+write_prefs() {
+  local json=$1 got=""
+  for _ in $(seq 1 6); do
+    defaults write "$PREFS" glassine.settings.v1 -data "$(printf '%s' "$json" | xxd -p | tr -d '\n')"
+    defaults write "$PREFS" "NSWindow Frame GlassineMainWindow" -string "$FRAME"
+    got=$(defaults read "$PREFS" "NSWindow Frame GlassineMainWindow" 2>/dev/null || true)
+    # $(echo $x) unquoted collapses runs of spaces and trims the ends, which is
+    # the only difference between what AppKit stores and what defaults prints.
+    [[ "$(echo $got)" == "$(echo $FRAME)" ]] && return 0
+    sleep 1
+  done
+  echo "The window frame will not stay written (it reads back as '$got')." >&2
+  echo "Quit Glassine everywhere, then run this again." >&2
+  exit 1
+}
+
 # --- One shot -------------------------------------------------------------------------------------
 # shot <name> <settings json> [applescript keystroke]
 shot() {
   local name=$1 json=$2 keys=${3:-}
-  defaults write "$PREFS" glassine.settings.v1 -data "$(printf '%s' "$json" | xxd -p | tr -d '\n')"
-  defaults write "$PREFS" "NSWindow Frame GlassineMainWindow" -string "$FRAME"
+  write_prefs "$json"
   open -n "$APP"
   local pid="" bounds="" w=0
-  for _ in $(seq 1 60); do
+  for i in $(seq 1 60); do
     sleep 0.5
     pid=$(pgrep -n -f "$BIN" || true)
     [[ -z "$pid" ]] && continue
     bounds=$("$HELPER" "$pid" || true)
     [[ -z "$bounds" ]] && continue
     w=$(awk '{print $3}' <<<"$bounds")
-    # Wait for the real window, not a panel or a frame still being restored.
     (( w >= win_w - 4 )) && break
+    # Under Stage Manager an app that is not the active one is parked in the
+    # strip as a thumbnail, which is what a tiny window means. Activating it
+    # brings it back to full size; `open` on a running app does that without
+    # needing permission to send Apple events.
+    (( i % 6 == 0 )) && open "$APP"
   done
   if (( w < win_w - 4 )); then
     echo "The window came up as '${bounds:-nothing}', not ${win_w} points wide." >&2
-    echo "Something else is setting its size; check the saved frame in the app's preferences." >&2
+    echo "If Stage Manager is on, turn it off in Control Centre and run this again." >&2
     exit 1
   fi
   sleep 2.5                                   # library scan, first layout, caret settle
@@ -174,8 +215,7 @@ shot() {
     if ! osascript -e "tell application \"System Events\" to $keys" 2>/tmp/glassine-keys.err; then
       echo "* $name skipped: $(tr -d '\n' < /tmp/glassine-keys.err | tail -c 120)" >&2
       SKIPPED+=("$name")
-      kill "$pid" 2>/dev/null || true
-      sleep 1
+      quit_app "$pid"
       rm -f "$OUT/$name.png"
       return 0
     fi
@@ -183,8 +223,7 @@ shot() {
   fi
   read -r x y _ h <<<"$bounds"
   screencapture -x -R "$x,$y,$win_w,$h" "$OUT/$name.png"
-  kill "$pid" 2>/dev/null || true
-  sleep 1
+  quit_app "$pid"
   # A region capture is opaque by construction, so there is no alpha to flatten —
   # only a few extra pixels to trim. Refuse to "crop" an image that is too small,
   # since sips would pad it rather than fail.
