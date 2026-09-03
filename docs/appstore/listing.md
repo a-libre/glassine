@@ -83,9 +83,9 @@ Apple accepts 1280×800, 1440×900, 2560×1600 or 2880×1800, no alpha channel.
 
 - App Information → Privacy Policy URL: https://github.com/a-libre/glassine/blob/main/PRIVACY.md
 - App Information → Category: Productivity
-- App Privacy: Data Not Collected (no analytics, no accounts; the App Store
-  build has no network entitlement at all; iCloud sync is Apple's, on the
-  user's own account — see PRIVACY.md)
+- App Privacy: Data Not Collected (no analytics, no accounts; the network
+  entitlement exists only so the Review web view can start; iCloud sync is
+  Apple's, on the user's own account — see PRIVACY.md)
 - Age Rating: answer None to everything → 4+
 - Pricing: your call
 - App Review → Sign-in required: No

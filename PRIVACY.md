@@ -13,8 +13,10 @@ iCloud account under Apple's terms, exactly as any file in iCloud Drive does.
 Glassine never sees them in transit and has no way to. Apple's iCloud privacy
 terms: https://www.apple.com/legal/privacy/
 
-The Mac App Store version of Glassine runs in the App Sandbox with no network
-access at all.
+The Mac App Store version of Glassine runs in the App Sandbox. It holds the
+sandbox's permission for outgoing connections only because Review, which draws
+the page with the system's web view, cannot start without it. The app never
+opens a connection of its own, and there is nothing it would send.
 
 ## Checking for updates (direct download only)
 

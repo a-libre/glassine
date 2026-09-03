@@ -120,7 +120,7 @@ struct WindowConfigurator: NSViewRepresentable {
                 // SwiftUI's pass changes it. Without this the app forgot its window size
                 // on every launch.
                 window.setFrameAutosaveName("GlassineMainWindow")
-                if UserDefaults.standard.string(forKey: "NSWindow Frame GlassineMainWindow") != nil {
+                if UserDefaults.standard.string(forKey: "NSWindow Frame GlassineMainWindow") != nil, !ScreenshotMode.isActive {
                     let saved = window.frame
                     let until = Date().addingTimeInterval(1.5)
                     frameGuard = NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak self, weak window] _ in

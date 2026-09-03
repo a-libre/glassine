@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = nil
         NSWindow.allowsAutomaticWindowTabbing = false
+        ScreenshotMode.runIfRequested()
         // ⌘\ toggles the sidebar as well as ⌘S; menu items can carry only one shortcut.
         // ⌘F searches the library; the system's Find… item would otherwise claim it.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in

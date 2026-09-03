@@ -205,9 +205,11 @@ struct ReviewWebView: NSViewRepresentable {
                 web.animator().alphaValue = 0
             }
             web.loadHTMLString(html, baseURL: baseURL)
+            ScreenshotMode.note("load: \(html.count) chars, base \(baseURL.path)")
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            ScreenshotMode.note("didFinish")
             if let f = pendingScrollFraction, f > 0 {
                 pendingScrollFraction = nil
                 let js = "window.scrollTo(0, \(f) * Math.max(0, document.documentElement.scrollHeight - window.innerHeight));"
@@ -216,8 +218,9 @@ struct ReviewWebView: NSViewRepresentable {
             reveal(webView)
         }
 
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { reveal(webView) }
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { reveal(webView) }
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { ScreenshotMode.note("didFail \(error)"); reveal(webView) }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { ScreenshotMode.note("didFailProvisional \(error)"); reveal(webView) }
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { ScreenshotMode.note("content process terminated") }
 
         private func reveal(_ webView: WKWebView) {
             NSAnimationContext.runAnimationGroup { ctx in

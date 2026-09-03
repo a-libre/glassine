@@ -336,8 +336,11 @@ final class AppState: ObservableObject {
 
     /// Documents open with the caret at the end — where the writing continues.
     /// (Positions are still recorded, in case restoring them becomes an option.)
+    /// docs/appstore/screenshots.sh can ask for a particular spot instead:
+    ///   open Glassine.app --args -glassine.launchCaret 412
     func savedCaret(for relPath: String) -> Int? {
-        nil
+        if let s = UserDefaults.standard.string(forKey: "glassine.launchCaret"), let n = Int(s) { return n }
+        return nil
     }
 
     // MARK: - Undo (the library kind)

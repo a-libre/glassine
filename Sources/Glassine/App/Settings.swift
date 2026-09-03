@@ -201,8 +201,24 @@ final class AppSettings: ObservableObject {
     }
 
     private let saveDebouncer = Debouncer(delay: 0.3)
+    /// Settings that arrived as a launch argument are for this run only and
+    /// never written back — see ScreenshotMode.
+    private let transient: Bool
 
     init() {
+        if let encoded = UserDefaults.standard.string(forKey: "glassine.launchSettings"),
+           let raw = Data(base64Encoded: encoded) {
+            do {
+                let decoded = try JSONDecoder().decode(SettingsData.self, from: raw)
+                data = decoded
+                transient = true
+                ScreenshotMode.note("launch settings: focus=\(decoded.focusMode) dim=\(decoded.focusDimming) typewriter=\(decoded.typewriterMode) font=\(decoded.fontSize) theme=\(decoded.themeID)")
+                return
+            } catch {
+                ScreenshotMode.note("launch settings failed to decode: \(error)")
+            }
+        }
+        transient = false
         if let raw = UserDefaults.standard.data(forKey: AppSettings.defaultsKey),
            let decoded = try? JSONDecoder().decode(SettingsData.self, from: raw) {
             data = decoded
@@ -220,6 +236,7 @@ final class AppSettings: ObservableObject {
     }
 
     func saveNow() {
+        guard !transient else { return }
         if let raw = try? JSONEncoder().encode(data) {
             UserDefaults.standard.set(raw, forKey: AppSettings.defaultsKey)
         }
