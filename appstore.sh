@@ -114,6 +114,35 @@ for key in $(grep -oE '<key>com\.apple\.(developer|security)\.[^<]+</key>' Resou
              | sed 's/<\/*key>//g' | grep -v '^com\.apple\.security\.' || true); do
   /usr/libexec/PlistBuddy -c "Print :Entitlements:$key" "$PP" >/dev/null 2>&1 || missing+=("$key")
 done
+
+# The profile also names the certificate it was generated for, and the upload is
+# rejected if the app is signed with any other — including a second certificate
+# with the same name, which is easy to end up with. So pick the identity by
+# matching fingerprints against the profile, not by name. An explicit
+# APP_SIGN_HASH still wins.
+if [[ -z "${APP_SIGN_HASH:-}" ]]; then
+  in_keychain="$(security find-identity -v -p codesigning 2>/dev/null \
+    | grep -E '"(Apple Distribution|3rd Party Mac Developer Application): ' | awk '{print $2}' || true)"
+  matched=""
+  i=0
+  while fp="$(plutil -extract "DeveloperCertificates.$i" raw -o - "$PP" 2>/dev/null | base64 -d 2>/dev/null \
+             | openssl x509 -inform DER -noout -fingerprint -sha1 2>/dev/null | sed 's/.*=//; s/://g')" \
+        && [[ -n "$fp" ]]; do
+    if grep -qx "$fp" <<<"$in_keychain"; then matched="$fp"; break; fi
+    i=$((i + 1)); (( i > 20 )) && break
+  done
+  if [[ -z "$matched" ]]; then
+    echo "None of the certificates in the provisioning profile is in your keychain with its private key." >&2
+    echo "Either import the certificate the profile was made for (./newcert.sh app --import …)," >&2
+    echo "or regenerate the profile choosing one you have: developer.apple.com → Profiles → Edit." >&2
+    rm -f "$PP"
+    exit 1
+  fi
+  if [[ "$matched" != "$APP_HASH" ]]; then
+    echo "▸ Signing with $matched — the certificate the profile was generated for" >&2
+    APP_HASH="$matched"
+  fi
+fi
 rm -f "$PP"
 if (( ${#missing[@]} )); then
   echo "The provisioning profile does not grant:" >&2
