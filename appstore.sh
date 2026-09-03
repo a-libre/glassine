@@ -38,12 +38,21 @@ PKG="$DIST/$APP_NAME-$VERSION-AppStore.pkg"
 # --- Preflight --------------------------------------------------------------------------
 # Each lookup ends in `|| true`: nothing found is an answer, not a failure, and
 # the checks below turn it into a message worth reading.
-find_identity() {
-  # $1: a pattern like "Apple Distribution|3rd Party Mac Developer Application"
-  security find-identity -v -p codesigning 2>/dev/null | grep -oE "\"($1): [^\"]*\"" | head -1 | tr -d '"' || true
+#
+# Signing uses the certificate's fingerprint (the hex before the name), not the
+# name: two certificates with the same name — easy to end up with — make the
+# name ambiguous, and codesign refuses to guess. The name is kept for display
+# and for reading the Team ID off the certificate.
+identity_line() {
+  # $1: a pattern like "Apple Distribution|3rd Party Mac Developer Application"; $2: policy
+  security find-identity -v -p "$2" 2>/dev/null | grep -E "\"($1): " | head -1 || true
 }
-APP_IDENTITY="${APP_SIGN_IDENTITY:-$(find_identity 'Apple Distribution|3rd Party Mac Developer Application' || true)}"
-INSTALLER_IDENTITY="${INSTALLER_SIGN_IDENTITY:-$(security find-identity -v 2>/dev/null | grep -oE '"(Mac Installer Distribution|3rd Party Mac Developer Installer): [^"]*"' | head -1 | tr -d '"' || true)}"
+APP_LINE="$(identity_line 'Apple Distribution|3rd Party Mac Developer Application' codesigning)"
+INSTALLER_LINE="$(identity_line 'Mac Installer Distribution|3rd Party Mac Developer Installer' basic)"
+APP_IDENTITY="${APP_SIGN_IDENTITY:-$(echo "$APP_LINE" | grep -oE '"[^"]*"' | tr -d '"' || true)}"
+APP_HASH="${APP_SIGN_HASH:-$(echo "$APP_LINE" | awk '{print $2}' || true)}"
+INSTALLER_IDENTITY="${INSTALLER_SIGN_IDENTITY:-$(echo "$INSTALLER_LINE" | grep -oE '"[^"]*"' | tr -d '"' || true)}"
+INSTALLER_HASH="${INSTALLER_SIGN_HASH:-$(echo "$INSTALLER_LINE" | awk '{print $2}' || true)}"
 # Certificates can be made from a signing request in the browser, which is the
 # only way when Xcode's UI will not launch (it refuses on a macOS newer than it
 # shipped for, though its command line tools — all this build needs — still work).
@@ -85,8 +94,8 @@ if [[ ! -f "$PROFILE" ]]; then
   echo "developer.apple.com → Profiles → + → Mac App Store Connect → App ID $BUNDLE_ID → download, then save it there." >&2
   exit 1
 fi
-echo "▸ App identity:       $APP_IDENTITY"
-echo "▸ Installer identity: $INSTALLER_IDENTITY"
+echo "▸ App identity:       $APP_IDENTITY  [$APP_HASH]"
+echo "▸ Installer identity: $INSTALLER_IDENTITY  [$INSTALLER_HASH]"
 echo "▸ Team ID:            $TEAM_ID"
 
 # The profile has to be for this app and this team, and it has to grant every
@@ -143,7 +152,7 @@ sed "s/TEAM_ID_PLACEHOLDER/$TEAM_ID/g" Resources/Glassine-AppStore.entitlements 
 # --- Sign ----------------------------------------------------------------------------------
 echo "▸ Signing"
 codesign --force --deep --options runtime --timestamp \
-  --entitlements "$ENT" --sign "$APP_IDENTITY" --identifier "$BUNDLE_ID" "$APP"
+  --entitlements "$ENT" --sign "$APP_HASH" --identifier "$BUNDLE_ID" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 echo "▸ Entitlements as signed:"
 codesign -d --entitlements :- "$APP" 2>/dev/null | grep -E 'sandbox|icloud|ubiquity|team-identifier|application-identifier' || true
@@ -153,7 +162,7 @@ rm -f "$ENT"
 mkdir -p "$DIST"
 rm -f "$PKG"
 echo "▸ Building installer package"
-productbuild --component "$APP" /Applications --sign "$INSTALLER_IDENTITY" "$PKG"
+productbuild --component "$APP" /Applications --sign "$INSTALLER_HASH" "$PKG"
 pkgutil --check-signature "$PKG" | head -3
 echo "▸ $PKG is ready"
 
