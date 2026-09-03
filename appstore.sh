@@ -199,7 +199,7 @@ if [[ -n "$unreadable" ]]; then
   echo "$unreadable" >&2
   exit 1
 fi
-quarantined="$(xattr -lr "$APP" 2>/dev/null | grep -B1 'com.apple.quarantine' | grep -v quarantine || true)"
+quarantined="$(xattr -lr "$APP" 2>/dev/null | grep 'com.apple.quarantine' | cut -d: -f1 | sort -u || true)"
 if [[ -n "$quarantined" ]]; then
   echo "These files still carry com.apple.quarantine:" >&2
   echo "$quarantined" >&2
