@@ -7,8 +7,9 @@
 # request instead, which is all this does: generate the request here, you upload
 # it in a browser, then import what comes back.
 #
-#   ./newcert.sh app                       signing request for the app certificate
-#   ./newcert.sh installer                 signing request for the installer certificate
+#   ./newcert.sh app                       signing request for the app certificate (App Store)
+#   ./newcert.sh installer                 signing request for the installer certificate (App Store)
+#   ./newcert.sh developerid               signing request for the Developer ID certificate (direct download)
 #   ./newcert.sh app --import ~/Downloads/foo.cer     import the issued certificate
 #
 # The private keys live in ~/GlassineSigning (mode 700) and never leave this Mac.
@@ -21,7 +22,8 @@ KIND="${1:-}"
 case "$KIND" in
   app)       WANT="Apple Distribution" ;;
   installer) WANT="Mac Installer Distribution" ;;
-  *) echo "usage: ./newcert.sh app|installer [--import <file.cer>]" >&2; exit 1 ;;
+  developerid) WANT="Developer ID Application" ;;
+  *) echo "usage: ./newcert.sh app|installer|developerid [--import <file.cer>]" >&2; exit 1 ;;
 esac
 
 # Whatever the certificate is issued to, it belongs to the Apple ID that uploads
@@ -78,7 +80,7 @@ Next:
   3. Download the .cer, then:
        ./newcert.sh $KIND --import ~/Downloads/<the file>.cer
 
-Upload the right .csr for each certificate — app.csr and installer.csr have
-different keys, and a mismatch only shows up later, at signing time.
+Upload the right .csr for each certificate — each kind has its own key, and a
+mismatch only shows up later, at signing time.
 EOF
 command -v open >/dev/null && open 'https://developer.apple.com/account/resources/certificates/add' 2>/dev/null || true

@@ -1,10 +1,27 @@
-# Glassine
+<p align="center">
+  <img src="Resources/AppIcon-1024.png" width="176" alt="Glassine's icon: the wordmark's lowercase g on a sheet of paper, with ruled lines running in from the left">
+</p>
+
+<h1 align="center">Glassine</h1>
 
 A quiet Markdown writing app for macOS. A translucent glass window, a caret that glides instead of jumps, a library that lives in iCloud Drive, autosave that never asks, and a Craft-style sidebar you can hide with one key.
 
 Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift package and a build script. MIT licensed.
 
-![Glassine in Review mode, Glass style, over a blurred desktop](docs/screenshot.jpg)
+![Glassine: an essay open on a sheet of dark glass, the library in a sidebar on the left](docs/screenshots/editor.jpg)
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/focus.jpg" alt="Focus mode with typewriter scrolling: the paragraph being written stays put, everything else dims"></td>
+    <td><img src="docs/screenshots/review.jpg" alt="Review: the same document rendered as a finished page in the Glass style"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/library.jpg" alt="All Documents: the library laid out as a wall of cards"></td>
+    <td><img src="docs/screenshots/daily.jpg" alt="Daily: today's note in front, earlier days receding behind it"></td>
+  </tr>
+</table>
+
+Focus mode and Review; All Documents and the Daily timeline.
 
 There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well.
 
@@ -26,11 +43,11 @@ The first launch asks for permission to access iCloud Drive. Say yes — that's 
 
 You can also open `Package.swift` in Xcode and press Run, which is handy for debugging; the assembled `.app` from `build.sh` is what you want for daily use (it has the icon and a stable identity for macOS permissions).
 
-There is no signed download yet, so building from source is the only way to run it for now. Two release routes are ready to go, both described in [RELEASING.md](RELEASING.md): a notarized `.dmg` for direct download (`release.sh`) and a Mac App Store build (`appstore.sh`, listed as "Glassine Writer"). `./build.sh --appstore` builds the store flavor locally: sandboxed, with its own iCloud folder instead of reading iCloud Drive directly.
+**Glassine Writer**, the same app built for the Mac App Store, was submitted for review on September 3, 2026; the link goes here when it is live. A notarized `.dmg` for direct download follows. Until then, building from source is the way to run it. Both routes are described in [RELEASING.md](RELEASING.md): `release.sh` makes the `.dmg`, `appstore.sh` the store package. `./build.sh --appstore` builds the store flavor locally: sandboxed, with its own iCloud folder instead of reading iCloud Drive directly.
 
 ## What it does
 
-- **Glass.** The window is a blur of whatever is behind it, tinted by the theme. Six built-in themes, dark by default; make your own in Settings with live preview, and export them as JSON.
+- **Glass.** The window is a blur of whatever is behind it, tinted by the theme. Seven built-in themes, dark by default; make your own in Settings with live preview, and export them as JSON.
 - **Smooth caret.** The insertion point glides between positions instead of jumping. Speed, blink style and width are adjustable.
 - **A library, not a file picker.** Documents live in `iCloud Drive/Glassine` as plain `.md` files and folders. New document is ⌘N; the file takes its name from the first line as you write.
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
@@ -102,7 +119,7 @@ Settings → Caret. Smooth movement on or off, glide time (default 110 ms), whet
 
 ## Themes
 
-Six built in: Graphite (default), Sepia Night, Midnight, Moss, Frost and Paper. Pick one under View → Theme.
+Seven built in: Ocean (default), Graphite, Sepia Night, Midnight, Moss, Frost and Paper. Pick one under View → Theme.
 
 To make your own: Settings → Themes, select the one closest to what you want, press **+** to duplicate it, then edit. Everything is live in the main window while you tweak. A theme controls the glass material, the tint color and how strongly it covers the blur, an optional paper grain, and the colors for text, headings, accent, Markdown syntax, quotes, code, links, caret and selection. Themes export as small JSON files (the ••• menu), so they're easy to share or keep in a dotfiles repo.
 
@@ -136,6 +153,8 @@ Headings are centered by default, in the editor and in Review alike; Settings �
 
 Settings → Themes can follow the system: pick one light theme and one dark theme and Glassine switches with macOS. Otherwise the chosen theme stays put.
 
+![Glassine in the Paper theme: a launch checklist on light glass](docs/screenshots/light.jpg)
+
 ## Dates
 
 Type `@today`, `@yesterday` or `@tomorrow` followed by a space (or punctuation, or Return) and it becomes the actual date — `@September 1, 2026` in the file, drawn as a small capsule in the editor and in Review. Typing an ISO date like `@2026-09-01` gets the capsule too. Made for daily notes; the file stays plain text that any other app can read.
@@ -156,8 +175,9 @@ Sources/Glassine/
   Library/    Library (iCloud folder scanning + file operations), Document (autosave, renaming)
   Editor/     GlassineTextView (smooth caret, layout, typewriter, focus), MarkdownStyler, StyleConfig, EditorView bridge
   UI/         ContentView, SidebarView, EditorContainerView, SettingsView, GlassBackground
-  Support/    Distribution (sandbox / App Store differences), HexColor, small extensions
-Resources/    Info.plist, icon, entitlements for each build flavor
+  Support/    Distribution (sandbox / App Store differences), ScreenshotMode (the app photographs itself for the store), HexColor, small extensions
+Resources/    Info.plist, icon (make_icon.py draws it), entitlements for each build flavor
+docs/appstore/  the store listing, a showcase library, and the script that takes the screenshots
 build.sh      assembles and signs Glassine.app (--appstore for the sandboxed flavor)
 release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for the Mac App Store
 ```

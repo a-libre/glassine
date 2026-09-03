@@ -11,7 +11,8 @@
 # window without any permission, so this runs from anywhere, with no prompts.
 #
 # Output: dist/screenshots/*.png at 2880×1800, one of the four sizes App Store
-# Connect accepts for macOS, opaque, straight from the window server.
+# Connect accepts for macOS, opaque, straight from the window server — and
+# log.txt, whatever the app noted while taking them, for this run only.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -69,6 +70,7 @@ for rel in "Ideas/Names for the Boat.md" "Notes/Reading List.md" "Ideas/Small Ri
 done
 xattr -cr "$DOCS" 2>/dev/null || true
 mkdir -p "$OUT" "$SHOTS"
+: > "$OUT/log.txt"
 
 # Where a phrase starts in a document, counted the way the editor counts
 # (UTF-16 units), for parking the caret. Pure Swift, so nothing to install.
