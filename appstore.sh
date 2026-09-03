@@ -48,9 +48,19 @@ if [[ -z "$INSTALLER_IDENTITY" ]]; then
   echo "No 'Mac Installer Distribution' certificate in your keychain. Xcode → Settings → Accounts → Manage Certificates → + → Mac Installer Distribution." >&2
   exit 1
 fi
-TEAM_ID="$(echo "$APP_IDENTITY" | grep -oE '\(([A-Z0-9]+)\)$' | tr -d '()')"
-if [[ -z "$TEAM_ID" ]]; then
-  echo "Couldn't read the Team ID from the identity '$APP_IDENTITY'." >&2
+# The Team ID is the certificate's Organizational Unit. The parenthetical in
+# the certificate's name looks the same on distribution certificates but is the
+# certificate's own ID on others, so read the OU and only fall back to the name.
+read_team_id() {
+  local cn="${APP_IDENTITY#\"}"; cn="${cn%\"}"
+  security find-certificate -c "$cn" -p 2>/dev/null \
+    | openssl x509 -noout -subject 2>/dev/null \
+    | grep -oE 'OU ?= ?[A-Z0-9]+' | grep -oE '[A-Z0-9]{10}' | head -1
+}
+TEAM_ID="${TEAM_ID:-$(read_team_id)}"
+[[ -z "$TEAM_ID" ]] && TEAM_ID="$(echo "$APP_IDENTITY" | grep -oE '\(([A-Z0-9]+)\)$' | tr -d '()')"
+if [[ ! "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]; then
+  echo "Couldn't read the Team ID from '$APP_IDENTITY'. Set it by hand: TEAM_ID=XXXXXXXXXX ./appstore.sh $VERSION" >&2
   exit 1
 fi
 if [[ ! -f "$PROFILE" ]]; then
@@ -61,6 +71,13 @@ fi
 echo "▸ App identity:       $APP_IDENTITY"
 echo "▸ Installer identity: $INSTALLER_IDENTITY"
 echo "▸ Team ID:            $TEAM_ID"
+
+# The profile has to be for this app and this team, or the upload is rejected
+# after the fact — cheaper to notice now.
+if ! security cms -D -i "$PROFILE" 2>/dev/null | grep -q "$TEAM_ID"; then
+  echo "The provisioning profile at $PROFILE is not for team $TEAM_ID." >&2
+  exit 1
+fi
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Working tree has uncommitted changes. Commit or stash them first." >&2
