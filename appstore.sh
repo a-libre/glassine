@@ -8,8 +8,9 @@
 # One-time setup (see RELEASING.md, "The App Store"):
 #   1. developer.apple.com → Identifiers → com.alexlibre.glassine → enable iCloud with the
 #      container iCloud.com.alexlibre.glassine.
-#   2. Xcode → Settings → Accounts → Manage Certificates → + → "Apple Distribution"
-#      and + → "Mac Installer Distribution".
+#   2. Certificates: ./newcert.sh app  and  ./newcert.sh installer, which make the
+#      signing requests; upload each at developer.apple.com and import the result.
+#      (Xcode's Accounts pane does the same thing, when Xcode will launch.)
 #   3. developer.apple.com → Profiles → + → "Mac App Store Connect" for the App ID;
 #      download it and save it as Resources/Glassine-AppStore.provisionprofile
 #      (git-ignored), or point PROVISIONING_PROFILE at it.
@@ -27,6 +28,7 @@ fi
 
 APP_NAME="Glassine"
 BUNDLE_ID="com.alexlibre.glassine"
+CONTAINER_ID="iCloud.com.alexlibre.glassine"
 PLIST="Resources/Info.plist"
 PROFILE="${PROVISIONING_PROFILE:-Resources/Glassine-AppStore.provisionprofile}"
 DIST="dist"
@@ -34,18 +36,33 @@ APP="build/$APP_NAME.app"
 PKG="$DIST/$APP_NAME-$VERSION-AppStore.pkg"
 
 # --- Preflight --------------------------------------------------------------------------
+# Each lookup ends in `|| true`: nothing found is an answer, not a failure, and
+# the checks below turn it into a message worth reading.
 find_identity() {
   # $1: a pattern like "Apple Distribution|3rd Party Mac Developer Application"
-  security find-identity -v -p codesigning 2>/dev/null | grep -oE "\"($1): [^\"]*\"" | head -1 | tr -d '"'
+  security find-identity -v -p codesigning 2>/dev/null | grep -oE "\"($1): [^\"]*\"" | head -1 | tr -d '"' || true
 }
-APP_IDENTITY="${APP_SIGN_IDENTITY:-$(find_identity 'Apple Distribution|3rd Party Mac Developer Application')}"
-INSTALLER_IDENTITY="${INSTALLER_SIGN_IDENTITY:-$(security find-identity -v 2>/dev/null | grep -oE '"(Mac Installer Distribution|3rd Party Mac Developer Installer): [^"]*"' | head -1 | tr -d '"')}"
+APP_IDENTITY="${APP_SIGN_IDENTITY:-$(find_identity 'Apple Distribution|3rd Party Mac Developer Application' || true)}"
+INSTALLER_IDENTITY="${INSTALLER_SIGN_IDENTITY:-$(security find-identity -v 2>/dev/null | grep -oE '"(Mac Installer Distribution|3rd Party Mac Developer Installer): [^"]*"' | head -1 | tr -d '"' || true)}"
+# Certificates can be made from a signing request in the browser, which is the
+# only way when Xcode's UI will not launch (it refuses on a macOS newer than it
+# shipped for, though its command line tools — all this build needs — still work).
+certificate_help() {
+  echo "" >&2
+  echo "To make one without Xcode:" >&2
+  echo "  1. ./newcert.sh $1     (writes a signing request to ~/GlassineSigning)" >&2
+  echo "  2. developer.apple.com/account/resources/certificates/add → $2" >&2
+  echo "     → upload the .csr it names → download the .cer" >&2
+  echo "  3. ./newcert.sh $1 --import ~/Downloads/<the file>.cer" >&2
+}
 if [[ -z "$APP_IDENTITY" ]]; then
-  echo "No 'Apple Distribution' certificate in your keychain. Xcode → Settings → Accounts → Manage Certificates → + → Apple Distribution." >&2
+  echo "No 'Apple Distribution' certificate in your keychain." >&2
+  certificate_help app "Apple Distribution"
   exit 1
 fi
 if [[ -z "$INSTALLER_IDENTITY" ]]; then
-  echo "No 'Mac Installer Distribution' certificate in your keychain. Xcode → Settings → Accounts → Manage Certificates → + → Mac Installer Distribution." >&2
+  echo "No 'Mac Installer Distribution' certificate in your keychain." >&2
+  certificate_help installer "Mac Installer Distribution"
   exit 1
 fi
 # The Team ID is the certificate's Organizational Unit. The parenthetical in
@@ -55,10 +72,10 @@ read_team_id() {
   local cn="${APP_IDENTITY#\"}"; cn="${cn%\"}"
   security find-certificate -c "$cn" -p 2>/dev/null \
     | openssl x509 -noout -subject 2>/dev/null \
-    | grep -oE 'OU ?= ?[A-Z0-9]+' | grep -oE '[A-Z0-9]{10}' | head -1
+    | grep -oE 'OU ?= ?[A-Z0-9]+' | grep -oE '[A-Z0-9]{10}' | head -1 || true
 }
-TEAM_ID="${TEAM_ID:-$(read_team_id)}"
-[[ -z "$TEAM_ID" ]] && TEAM_ID="$(echo "$APP_IDENTITY" | grep -oE '\(([A-Z0-9]+)\)$' | tr -d '()')"
+TEAM_ID="${TEAM_ID:-$(read_team_id || true)}"
+[[ -z "$TEAM_ID" ]] && TEAM_ID="$(echo "$APP_IDENTITY" | grep -oE '\(([A-Z0-9]+)\)$' | tr -d '()' || true)"
 if [[ ! "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]; then
   echo "Couldn't read the Team ID from '$APP_IDENTITY'. Set it by hand: TEAM_ID=XXXXXXXXXX ./appstore.sh $VERSION" >&2
   exit 1
@@ -72,12 +89,36 @@ echo "▸ App identity:       $APP_IDENTITY"
 echo "▸ Installer identity: $INSTALLER_IDENTITY"
 echo "▸ Team ID:            $TEAM_ID"
 
-# The profile has to be for this app and this team, or the upload is rejected
-# after the fact — cheaper to notice now.
-if ! security cms -D -i "$PROFILE" 2>/dev/null | grep -q "$TEAM_ID"; then
+# The profile has to be for this app and this team, and it has to grant every
+# entitlement we are about to sign with. A profile only carries the capabilities
+# the App ID had switched on when it was generated, so enabling iCloud after the
+# fact silently leaves it out — and the build is not rejected until it has been
+# uploaded. Check it here, where the fix is one page on developer.apple.com.
+PP="$(mktemp -t glassine-profile).plist"
+security cms -D -i "$PROFILE" > "$PP" 2>/dev/null || { echo "Couldn't read $PROFILE." >&2; exit 1; }
+if ! grep -q "$TEAM_ID" "$PP"; then
   echo "The provisioning profile at $PROFILE is not for team $TEAM_ID." >&2
   exit 1
 fi
+missing=()
+for key in $(grep -oE '<key>com\.apple\.(developer|security)\.[^<]+</key>' Resources/Glassine-AppStore.entitlements \
+             | sed 's/<\/*key>//g' | grep -v '^com\.apple\.security\.' || true); do
+  /usr/libexec/PlistBuddy -c "Print :Entitlements:$key" "$PP" >/dev/null 2>&1 || missing+=("$key")
+done
+rm -f "$PP"
+if (( ${#missing[@]} )); then
+  echo "The provisioning profile does not grant:" >&2
+  printf '  %s\n' "${missing[@]}" >&2
+  echo "" >&2
+  echo "Turn the matching capability on for the App ID, then generate a NEW profile:" >&2
+  echo "  1. developer.apple.com → Identifiers → $BUNDLE_ID → enable iCloud," >&2
+  echo "     container $CONTAINER_ID (create it under Identifiers → iCloud Containers first)." >&2
+  echo "  2. Profiles → the Glassine profile → Edit → Save (this regenerates it) → Download." >&2
+  echo "  3. Replace $PROFILE with the new download." >&2
+  echo "An existing profile is NOT updated when the App ID changes; it must be regenerated." >&2
+  exit 1
+fi
+echo "▸ Profile grants every entitlement the app declares"
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Working tree has uncommitted changes. Commit or stash them first." >&2
