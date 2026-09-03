@@ -65,6 +65,13 @@ if [[ -f Resources/wordmark.png ]]; then
   cp Resources/wordmark.png "$APP/Contents/Resources/wordmark.png"
 fi
 
+# Everything in the bundle must be readable by any user, or the code signature
+# cannot be verified at launch and the App Store refuses the package. cp keeps
+# the source's mode, so a resource that arrived with owner-only permissions
+# would otherwise carry them straight in. Directories and the executable keep
+# their execute bit; nothing else gains one.
+chmod -R a+rX "$APP"
+
 # Ad-hoc signature so macOS treats it as a proper local app (stable identity for
 # permissions). The App Store flavor also gets the sandbox, so it behaves here as
 # it will in the store.
