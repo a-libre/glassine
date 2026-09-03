@@ -161,6 +161,14 @@ final class AppState: ObservableObject {
         } else {
             showingGallery = true
         }
+        // Review and the Daily view are not remembered between launches, so
+        // docs/appstore/screenshots.sh asks for them by launch argument:
+        //   open Glassine.app --args -glassine.launchView review
+        switch UserDefaults.standard.string(forKey: "glassine.launchView") {
+        case "review": if document != nil { reviewMode = true }
+        case "daily": showDaily()
+        default: break
+        }
     }
 
     private func startPolling() {
