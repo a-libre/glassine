@@ -129,7 +129,7 @@ Glass materials, roughly: *Soft glass* is the standard window blur, *Deep glass*
 
 ## All Documents
 
-The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the editor, or automatically when nothing is open) lays every document out as a card with its title and a small rendered preview, Craft-style. Cards are arranged shortest-column-first so the grid stays balanced; the current document gets a thin accent outline. The arrow keys move a selection between cards (left/right jump to the nearest card in the next column), Return opens the selected one and ⌘↩ opens it in Review. Search, tag filters and the sort order apply here too, and the right-click menu is the same as in the sidebar.
+The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the editor, or automatically when nothing is open) lays every document out as a card with its title and a small rendered preview, Craft-style. Cards are arranged shortest-column-first so the grid stays balanced; the current document gets a thin accent outline. The arrow keys move a selection between cards (left/right jump to the nearest card in the next column), Return opens the selected one and ⌘↩ opens it in Review. Search, tag filters and the sort order apply here too, and the right-click menu is the same as in the sidebar. The sidebar's own Documents tree starts collapsed for the same reason — this is the better way to browse — and remembers it if you open it.
 
 ## Review
 

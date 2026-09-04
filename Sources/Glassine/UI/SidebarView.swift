@@ -8,7 +8,10 @@ struct SidebarView: View {
     @State private var recentsExpanded = true
     @State private var starredExpanded = true
     @State private var tagsExpanded = true
-    @State private var documentsExpanded = true
+    /// The folder tree starts closed: All Documents is the better way to
+    /// browse, and a closed tree is most of what keeps the sidebar short.
+    /// Opening it is remembered, under a key no folder can be called.
+    private static let documentsKey = "*documents"
 
     private var theme: Theme { state.theme }
 
@@ -51,8 +54,14 @@ struct SidebarView: View {
                                 }
                             }
                         }
-                        SectionHeader(title: "Documents", expanded: $documentsExpanded, trailing: {
+                        SectionHeader(title: "Documents", expanded: documentsExpanded, trailing: {
                             AnyView(HStack(spacing: 2) {
+                                if !documentsExpanded.wrappedValue {
+                                    Text("\(state.activeDocuments.count)")
+                                        .font(.system(size: 10.5, design: .rounded))
+                                        .opacity(0.3)
+                                        .padding(.trailing, 4)
+                                }
                                 SidebarIconButton(systemName: "folder.badge.plus", help: "New Folder (⌘⇧N)") {
                                     state.promptNewFolder(in: "")
                                 }
@@ -60,7 +69,7 @@ struct SidebarView: View {
                             })
                         })
                         .padding(.top, 10)
-                        if documentsExpanded {
+                        if documentsExpanded.wrappedValue {
                             FolderContents(folder: state.library.root, depth: 0)
                         }
                         if let shelf = state.library.folder(withID: Shelf.folder),
@@ -100,6 +109,11 @@ struct SidebarView: View {
         .onAppear { takeSearchFocusIfAsked() }
         .onChange(of: state.searchFocusRequest) { _, _ in takeSearchFocusIfAsked() }
         .background(sidebarBackground)
+    }
+
+    private var documentsExpanded: Binding<Bool> {
+        Binding(get: { state.settings.isExpanded(Self.documentsKey) },
+                set: { state.settings.setExpanded(Self.documentsKey, $0) })
     }
 
     /// Closed unless opened, and remembered like a folder — the Shelf is
