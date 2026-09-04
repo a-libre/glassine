@@ -45,7 +45,7 @@ REVIEW
 • Export to PDF, or copy the whole document as Markdown or rich text with one shortcut
 
 MADE TO BE YOURS
-• Themes: Ocean by default, a light and dark pair that follows the system, and an editor for making your own
+• Themes: Dusk by default, a light and dark pair that follows the system, and an editor for making your own
 • Choose the font and size, the caret's width and speed, how much focus mode dims, whether headings center
 • Every shortcut on one sheet (Command-/), and a command bar (Command-K) for everything else
 

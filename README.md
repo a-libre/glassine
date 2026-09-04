@@ -47,7 +47,7 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 
 ## What it does
 
-- **Glass.** The window is a blur of whatever is behind it, tinted by the theme. Seven built-in themes, dark by default; make your own in Settings with live preview, and export them as JSON.
+- **Glass.** The window is a blur of whatever is behind it, tinted by the theme. Nine built-in themes, dark by default; make your own in Settings with live preview, and export them as JSON.
 - **Smooth caret.** The insertion point glides between positions instead of jumping. Speed, blink style and width are adjustable.
 - **A library, not a file picker.** Documents live in `iCloud Drive/Glassine` as plain `.md` files and folders. New document is ⌘N; the file takes its name from the first line as you write.
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
@@ -121,7 +121,7 @@ Settings → Caret. Smooth movement on or off, glide time (default 110 ms), whet
 
 ## Themes
 
-Seven built in: Ocean (default), Graphite, Sepia Night, Midnight, Moss, Frost and Paper. Pick one under View → Theme.
+Nine built in: Dusk (default), Ocean, Lavender, Graphite, Sepia Night, Midnight, Moss, Frost and Paper. Pick one under View → Theme.
 
 To make your own: Settings → Themes, select the one closest to what you want, press **+** to duplicate it, then edit. Everything is live in the main window while you tweak. A theme controls the glass material, the tint color and how strongly it covers the blur, an optional paper grain, and the colors for text, headings, accent, Markdown syntax, quotes, code, links, caret and selection. Themes export as small JSON files (the ••• menu), so they're easy to share or keep in a dotfiles repo.
 

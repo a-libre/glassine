@@ -120,11 +120,11 @@ ESSAY="$DOCS/Essays/On Writing Slowly.md"
 TOP=$(offset_of "$ESSAY" "Most tools for writing")          # end of the opening paragraph
 MID=$(offset_of "$ESSAY" "A slow writer reads")             # the paragraph focus mode lights
 
-shot 1-editor   '{'"$base"','"$plain"',"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP"
-shot 2-focus    '{'"$base"',"typewriterMode":true,"focusMode":true,"focusDimming":0.35,"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$MID"
-shot 3-review   '{'"$base"','"$plain"',"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md"}' review "" 8
-shot 4-library  '{'"$base"','"$plain"',"themeID":"ocean","lastOpenedDocument":null}'
-shot 5-daily    '{'"$base"','"$plain"',"themeID":"ocean","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily
+shot 1-editor   '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP"
+shot 2-focus    '{'"$base"',"typewriterMode":true,"focusMode":true,"focusDimming":0.35,"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$MID"
+shot 3-review   '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' review "" 8
+shot 4-library  '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":null}'
+shot 5-daily    '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily
 shot 6-light    '{'"$base"','"$plain"',"themeID":"paper","lastOpenedDocument":"Notes/Launch Checklist.md"}'
 
 echo "* Done: six pictures in $OUT"

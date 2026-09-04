@@ -126,10 +126,10 @@ struct SettingsData: Codable, Equatable {
     var caretPositions: [String: Int] = [:]
 
     // Theme
-    var themeID: String = "ocean"
+    var themeID: String = "dusk"
     var appearanceMode: AppearanceMode = .fixed
     var lightThemeID: String = "paper"
-    var darkThemeID: String = "ocean"
+    var darkThemeID: String = "dusk"
 
     // Review mode
     var reviewStyle: ReviewStyle = .glass

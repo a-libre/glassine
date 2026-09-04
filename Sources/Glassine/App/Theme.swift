@@ -75,6 +75,16 @@ struct Theme: Codable, Identifiable, Hashable {
 }
 
 extension Theme {
+    /// The default: a violet dusk behind deep glass, with a cool blue-white page.
+    static let dusk = Theme(
+        id: "dusk", name: "Dusk", isBuiltIn: true, isDark: true,
+        material: .hud, tint: HexColor("#42316A"), tintOpacity: 0.6, grain: 0.04,
+        text: HexColor("#DFE5F4"), accent: HexColor("#01B6E9"), syntax: HexColor("#4E5A78"),
+        heading: HexColor("#F0F4FF"), quote: HexColor("#A7B3CF"), code: HexColor("#CFE0FF"),
+        codeBackground: HexColor("#FFFFFF12"), link: HexColor("#8DBBFF"), caret: HexColor("#6FA8FF"),
+        selection: HexColor("#6FA8FF4D"), sidebarTint: HexColor("#060914"), sidebarOpacity: 0.42
+    )
+
     static let ocean = Theme(
         id: "ocean", name: "Ocean", isBuiltIn: true, isDark: true,
         material: .hud, tint: HexColor("#263152"), tintOpacity: 0.15, grain: 0.05,
@@ -82,6 +92,16 @@ extension Theme {
         heading: HexColor("#F0F4FF"), quote: HexColor("#A7B3CF"), code: HexColor("#CFE0FF"),
         codeBackground: HexColor("#FFFFFF12"), link: HexColor("#8DBBFF"), caret: HexColor("#6FA8FF"),
         selection: HexColor("#6FA8FF4D"), sidebarTint: HexColor("#0A1120"), sidebarOpacity: 0.42
+    )
+
+    /// Warm cream text on a brown-violet glass, with lavender accents.
+    static let lavender = Theme(
+        id: "lavender", name: "Lavender", isBuiltIn: true, isDark: true,
+        material: .hud, tint: HexColor("#4D3C34"), tintOpacity: 0.62, grain: 0.03,
+        text: HexColor("#FFF2DE"), accent: HexColor("#BA88E7"), syntax: HexColor("#8E64A0"),
+        heading: HexColor("#F6E9D6"), quote: HexColor("#C4B09A"), code: HexColor("#E5D3BA"),
+        codeBackground: HexColor("#FFFFFF10"), link: HexColor("#00E1FF"), caret: HexColor("#AB89DF"),
+        selection: HexColor("#C64B2155"), sidebarTint: HexColor("#120E0C"), sidebarOpacity: 0.4
     )
 
     static let graphite = Theme(
@@ -138,7 +158,7 @@ extension Theme {
         selection: HexColor("#C64B2138"), sidebarTint: HexColor("#F3F0EC"), sidebarOpacity: 0.7
     )
 
-    static let builtIns: [Theme] = [ocean, graphite, sepiaNight, midnight, moss, frost, paper]
+    static let builtIns: [Theme] = [dusk, ocean, lavender, graphite, sepiaNight, midnight, moss, frost, paper]
 }
 
 final class ThemeStore: ObservableObject {
@@ -164,7 +184,7 @@ final class ThemeStore: ObservableObject {
     var all: [Theme] { Theme.builtIns + custom }
 
     func theme(id: String) -> Theme {
-        all.first(where: { $0.id == id }) ?? Theme.ocean
+        all.first(where: { $0.id == id }) ?? Theme.dusk
     }
 
     func update(_ theme: Theme) {
