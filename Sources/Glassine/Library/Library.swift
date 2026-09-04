@@ -439,6 +439,28 @@ final class LibraryStore: ObservableObject {
     func revealInFinder(_ rel: String) {
         NSWorkspace.shared.activateFileViewerSelecting([url(forRelativePath: rel)])
     }
+
+    /// Removes folders under `rel` (and `rel` itself) that hold nothing but
+    /// other empty folders or a .DS_Store. The Shelf is made of these once the
+    /// last document has come back off it.
+    func pruneEmptyFolders(under rel: String) {
+        let fm = FileManager.default
+        func prune(_ url: URL) -> Bool {   // true when `url` is gone afterwards
+            guard let items = try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: []) else { return false }
+            var remaining = 0
+            for item in items {
+                if item.lastPathComponent == ".DS_Store" { continue }
+                if (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true, prune(item) { continue }
+                remaining += 1
+            }
+            guard remaining == 0 else { return false }
+            return (try? fm.removeItem(at: url)) != nil
+        }
+        let top = url(forRelativePath: rel)
+        guard !rel.isEmpty, fm.fileExists(atPath: top.path) else { return }
+        _ = prune(top)
+        scanNow()
+    }
 }
 
 enum LibraryError: LocalizedError {

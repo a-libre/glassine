@@ -63,6 +63,21 @@ struct SidebarView: View {
                         if documentsExpanded {
                             FolderContents(folder: state.library.root, depth: 0)
                         }
+                        if let shelf = state.library.folder(withID: Shelf.folder),
+                           !shelf.documents.isEmpty || !shelf.folders.isEmpty {
+                            SectionHeader(title: "Shelf", expanded: shelfExpanded, trailing: {
+                                AnyView(Text("\(shelf.allDocuments.count)")
+                                    .font(.system(size: 10.5, design: .rounded))
+                                    .opacity(0.3)
+                                    .padding(.trailing, 6))
+                            })
+                            .padding(.top, 10)
+                            .help("Documents set aside. Still here, still searchable; Unshelve puts one back where it was.")
+                            if shelfExpanded.wrappedValue {
+                                FolderContents(folder: shelf, depth: 0)
+                                    .opacity(0.72)
+                            }
+                        }
                         if !state.library.tags.isEmpty {
                             SectionHeader(title: "Tags", expanded: $tagsExpanded)
                                 .padding(.top, 10)
@@ -85,6 +100,13 @@ struct SidebarView: View {
         .onAppear { takeSearchFocusIfAsked() }
         .onChange(of: state.searchFocusRequest) { _, _ in takeSearchFocusIfAsked() }
         .background(sidebarBackground)
+    }
+
+    /// Closed unless opened, and remembered like a folder — the Shelf is
+    /// there to be out of the way.
+    private var shelfExpanded: Binding<Bool> {
+        Binding(get: { state.settings.isExpanded(Shelf.folder) },
+                set: { state.settings.setExpanded(Shelf.folder, $0) })
     }
 
     /// ⌘F lands here unless the mosaic is showing (it has its own box).
@@ -366,14 +388,19 @@ struct FolderContents: View {
     let folder: LibraryFolder
     let depth: Int
 
+    /// The Shelf is a folder on disk but a section of its own in the sidebar.
+    private var subfolders: [LibraryFolder] {
+        folder.isRoot ? folder.folders.filter { $0.id != Shelf.folder } : folder.folders
+    }
+
     var body: some View {
-        ForEach(folder.folders) { sub in
+        ForEach(subfolders) { sub in
             FolderRow(folder: sub, depth: depth)
         }
         ForEach(keyed(state.sorted(folder.documents), "tree")) { item in
             DocumentRow(doc: item.doc, depth: depth)
         }
-        if folder.isRoot && folder.folders.isEmpty && folder.documents.isEmpty {
+        if folder.isRoot && subfolders.isEmpty && folder.documents.isEmpty {
             Text("No documents yet")
                 .font(.system(size: 12)).italic().opacity(0.4)
                 .padding(.horizontal, 8).frame(height: 26)
@@ -434,6 +461,7 @@ struct FolderRow: View {
             Button("Rename…") { state.promptRename(folder.id, isFolder: true) }
             Button("Reveal in Finder") { state.library.revealInFinder(folder.id) }
             Divider()
+            Button(Shelf.holds(folder.id) ? "Unshelve" : "Shelve") { state.toggleShelved(folder.id) }
             Button("Move to Trash", role: .destructive) { state.trash(folder.id) }
         }
         if expanded {
@@ -497,10 +525,11 @@ struct DocumentRow: View {
             Divider()
             Menu("Move To") {
                 Button("Documents (top level)") { state.move(doc.id, toFolder: "") }
-                ForEach(state.library.root.allFolders) { f in
+                ForEach(state.moveTargets) { f in
                     Button(f.id.replacingOccurrences(of: "/", with: " / ")) { state.move(doc.id, toFolder: f.id) }
                 }
             }
+            Button(Shelf.holds(doc.id) ? "Unshelve" : "Shelve") { state.toggleShelved(doc.id) }
             Divider()
             Button("Reveal in Finder") { state.library.revealInFinder(doc.id) }
             Button("Copy Path") {

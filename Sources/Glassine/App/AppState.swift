@@ -182,17 +182,28 @@ final class AppState: ObservableObject {
 
     // MARK: - Derived lists
 
+    /// Everything that is not on the Shelf — what Recents, Starred and All
+    /// Documents draw from. Search still looks at the whole library.
+    var activeDocuments: [DocumentRef] {
+        library.allDocuments.filter { !Shelf.holds($0.id) }
+    }
+
     var recentDocuments: [DocumentRef] {
         let recents = settings.data.recents
-        return library.allDocuments
+        return activeDocuments
             .filter { recents[$0.id] != nil }
             .sorted { (recents[$0.id] ?? .distantPast) > (recents[$1.id] ?? .distantPast) }
     }
 
     var starredDocuments: [DocumentRef] {
         let starred = settings.data.starred
-        return library.allDocuments.filter { starred.contains($0.id) }
+        return activeDocuments.filter { starred.contains($0.id) }
             .sorted { starred.firstIndex(of: $0.id)! < starred.firstIndex(of: $1.id)! }
+    }
+
+    /// Folders a document can be moved into by hand; the Shelf has its own commands.
+    var moveTargets: [LibraryFolder] {
+        library.root.allFolders.filter { !Shelf.holds($0.id) }
     }
 
     func sorted(_ docs: [DocumentRef]) -> [DocumentRef] {
@@ -562,6 +573,9 @@ final class AppState: ObservableObject {
         do {
             let wasOpen = document?.relativePath == rel
             if wasOpen { document?.saveNow() }
+            // The folder may be gone — undoing an unshelve, say, after the
+            // empty Shelf folders were swept up — so make it if need be.
+            try FileManager.default.createDirectory(at: library.url(forRelativePath: folder), withIntermediateDirectories: true)
             let newRel = try library.move(rel, toFolder: folder)
             settings.renamePath(rel, to: newRel)
             pathDidMove(rel, to: newRel)
@@ -579,9 +593,45 @@ final class AppState: ObservableObject {
                 }
                 libraryUndo.setActionName("Move")
             }
+            // The last thing off the Shelf takes the empty folders with it.
+            if Shelf.holds(oldFolder), !Shelf.holds(folder) { library.pruneEmptyFolders(under: Shelf.folder) }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - The Shelf
+
+    /// Puts a document or folder on the Shelf: out of Recents, Starred, the
+    /// folder tree and All Documents, keeping its place in the structure
+    /// underneath Shelf/ so that unshelving returns it exactly there.
+    func shelve(_ rel: String) {
+        guard !Shelf.holds(rel) else { return }
+        let parent = Shelf.parent(of: rel)
+        move(rel, toFolder: parent.isEmpty ? Shelf.folder : Shelf.folder + "/" + parent)
+        libraryUndo.setActionName("Shelve")
+        // New documents keep going where they went before, not onto the Shelf.
+        if Shelf.holds(selectedFolder) { selectedFolder = parent }
+    }
+
+    /// Back to where it came from; the folder is recreated if it is gone.
+    func unshelve(_ rel: String) {
+        guard Shelf.holds(rel), rel != Shelf.folder else { return }
+        move(rel, toFolder: Shelf.parent(of: Shelf.home(of: rel)))
+        libraryUndo.setActionName("Unshelve")
+    }
+
+    func toggleShelved(_ rel: String) {
+        if Shelf.holds(rel) { unshelve(rel) } else { shelve(rel) }
+    }
+
+    var currentDocumentIsShelved: Bool {
+        document.map { Shelf.holds($0.relativePath) } ?? false
+    }
+
+    func toggleShelvedCurrentDocument() {
+        guard let rel = document?.relativePath else { return }
+        toggleShelved(rel)
     }
 
     func duplicate(_ rel: String) {
@@ -802,6 +852,7 @@ final class AppState: ObservableObject {
             add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
             add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
             add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
+            add("shelve", currentDocumentIsShelved ? "Unshelve" : "Shelve", keys: "⌘⇧⌫") { [weak self] in self?.toggleShelvedCurrentDocument() }
             add("search", "Search", keys: "⌘F") { [weak self] in self?.focusSearch() }
         }
 

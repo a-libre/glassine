@@ -18,6 +18,7 @@ struct ShortcutSheet: View {
             ("⌘⇧N", "New folder"),
             ("⌥⌘D", "Today's note"),
             ("⌘R", "Rename"),
+            ("⌘⇧⌫", "Shelve — out of the way, not gone"),
             ("⌘⌫", "Move to Trash"),
             ("⌘Z", "Undo — files too"),
             ("⌘⇧E", "Export as PDF"),

@@ -51,7 +51,7 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 - **Smooth caret.** The insertion point glides between positions instead of jumping. Speed, blink style and width are adjustable.
 - **A library, not a file picker.** Documents live in `iCloud Drive/Glassine` as plain `.md` files and folders. New document is ⌘N; the file takes its name from the first line as you write.
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
-- **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘S.
+- **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘S — and a Shelf at the bottom for what isn't current, out of the way without being archived.
 - **All Documents** (⌘P): a mosaic of every document with rendered previews, navigable with the arrow keys.
 - **Review** (⌘↩): the document rendered as HTML in one of five styles — Glass, GitHub, Book, Editorial, Mono.
 - **Typewriter scrolling, focus mode, word count and reading time.**
@@ -102,6 +102,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘⇧F | Find in the open document (⌘G for next) |
 | ⇥ / ⇧⇥ | Nest or un-nest a list item — bullets, numbers, and tasks; numbered items renumber to fit, and Return on an empty nested item steps back out |
 | ⌘R | Rename |
+| ⌘⇧⌫ | Shelve — out of the sidebar, Recents and All Documents, into the Shelf section at the bottom; Unshelve puts it back where it was |
 | ⌘⌫ | Move to Trash (it goes to the macOS Trash, so it's recoverable) |
 | — | Check a task (click its box in the editor or in Review) and, a moment later, it sinks below the last unfinished item in its list, nested items in tow; uncheck it and it rises back to where it was. Settings → Editor turns that off |
 | — | Drag a task box or a list bullet or number up or down to reorder the list, nested items in tow |
@@ -167,6 +168,12 @@ Type `@today`, `@yesterday` or `@tomorrow` followed by a space (or punctuation, 
 ## Tags
 
 Write `#tag` anywhere in a document and it appears under Tags in the sidebar. Click a tag to filter the list. Hex colors like `#FFF` are ignored.
+
+## Shelf
+
+For documents that aren't current but aren't finished with either. Right-click one (or a folder) → Shelve, or ⌘⇧⌫ on the open document. It leaves Recents, Starred, the folder tree and All Documents, and appears in a Shelf section at the bottom of the sidebar, collapsed, with a count. Search still finds it. Unshelve puts it back exactly where it was.
+
+On disk it's a plain move into a `Shelf` folder at the top of the library that mirrors the structure underneath (`Essays/Draft.md` becomes `Shelf/Essays/Draft.md`), so it syncs like everything else and nothing about the file changes but where it sits. Undo works on it like any other move.
 
 ## Project layout
 

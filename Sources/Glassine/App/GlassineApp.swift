@@ -190,6 +190,9 @@ struct GlassineCommands: Commands {
                 if let rel = state.document?.relativePath { state.duplicate(rel) }
             }
             .disabled(state.document == nil)
+            Button(state.currentDocumentIsShelved ? "Unshelve" : "Shelve") { state.toggleShelvedCurrentDocument() }
+                .keyboardShortcut(.delete, modifiers: [.command, .shift])
+                .disabled(state.document == nil)
             Button("Move to Trash") { state.trashCurrentDocument() }
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(state.document == nil)

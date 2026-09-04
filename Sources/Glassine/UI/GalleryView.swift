@@ -14,7 +14,7 @@ struct GalleryView: View {
 
     private var documents: [DocumentRef] {
         if let filtered = state.filteredDocuments { return filtered }
-        return state.sorted(state.library.allDocuments)
+        return state.sorted(state.activeDocuments)   // the Shelf stays off the wall; search still reaches it
     }
 
     private var headerTitle: String {
@@ -560,10 +560,11 @@ struct GalleryCard: View {
             Divider()
             Menu("Move To") {
                 Button("Documents (top level)") { state.move(doc.id, toFolder: "") }
-                ForEach(state.library.root.allFolders) { f in
+                ForEach(state.moveTargets) { f in
                     Button(f.id.replacingOccurrences(of: "/", with: " / ")) { state.move(doc.id, toFolder: f.id) }
                 }
             }
+            Button(Shelf.holds(doc.id) ? "Unshelve" : "Shelve") { state.toggleShelved(doc.id) }
             Button("Reveal in Finder") { state.library.revealInFinder(doc.id) }
             Divider()
             Button("Move to Trash", role: .destructive) { state.trash(doc.id) }
