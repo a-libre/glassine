@@ -709,12 +709,30 @@ final class AppState: ObservableObject {
     func toggleGallery() {
         if showingDaily { showingDaily = false; showingGallery = true; return }
         if document == nil { showingGallery = true; return }
-        showingGallery.toggle()
+        if showingGallery { showingGallery = false } else { zoomOutToGallery() }
     }
 
     /// Esc from the editor: zoom out to the mosaic.
     func escapeFromEditor() {
-        showingGallery = true
+        zoomOutToGallery()
+    }
+
+    /// The reverse of opening from a card: the page shrinks back into its
+    /// card. The plate goes over the page first, so there is a frame for the
+    /// card to come from; a beat later the mosaic comes in and its card takes
+    /// that frame and settles into place. From Review, or with Reduce Motion
+    /// on, the mosaic simply appears.
+    func zoomOutToGallery() {
+        guard let id = document?.relativePath, !reviewMode,
+              !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            showingGallery = true
+            return
+        }
+        zoomingCard = id
+        DispatchQueue.main.async { [weak self] in self?.showingGallery = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            if self?.zoomingCard == id { self?.zoomingCard = nil }
+        }
     }
 
     func toggleReview() {

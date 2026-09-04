@@ -90,7 +90,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘P | All Documents — the mosaic view of the whole library |
 | ⌘↩ | Review — the document rendered read-only in a chosen style (Esc or ⌘↩ leaves) |
 | ⌘⇧C / ⌥⌘C | Copy the whole document as Markdown / as rich text |
-| Esc | Zoom out one level: Review → editor → All Documents. Inside All Documents, Esc returns to the open document |
+| Esc | Zoom out one level: Review → editor → All Documents, the page shrinking back into its card. Inside All Documents, Esc returns to the open document |
 | ↑↓←→ and ↩ | In All Documents: move between cards and open the selected one (⌘↩ opens it in Review) |
 | ⌃⌘T | Typewriter scrolling |
 | ⌃⌘F | Focus mode (paragraph or sentence, pick in Settings). Scrolling lifts the dimming so you can read; the next click or keystroke brings it back where the caret lands |

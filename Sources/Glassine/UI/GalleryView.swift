@@ -516,6 +516,9 @@ struct GalleryCard: View {
                     )
                 }
             }
+            // While the card is flying — growing into the page or shrinking back
+            // out of it — it is a plain plate; the words return once it lands.
+            .opacity(state.zoomingCard == doc.id ? 0 : 1)
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(
@@ -547,6 +550,7 @@ struct GalleryCard: View {
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: hovering)
         .animation(.easeOut(duration: 0.12), value: isSelected)
+        .animation(.easeOut(duration: 0.2), value: state.zoomingCard)
         .contextMenu {
             Button("Open") { state.open(doc, fromCard: true) }
             Button("Open in Review") { state.openInReview(doc) }
