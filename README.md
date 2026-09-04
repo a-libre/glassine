@@ -93,7 +93,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | Esc | Zoom out one level: Review → editor → All Documents. Inside All Documents, Esc returns to the open document |
 | ↑↓←→ and ↩ | In All Documents: move between cards and open the selected one (⌘↩ opens it in Review) |
 | ⌃⌘T | Typewriter scrolling |
-| ⌃⌘F | Focus mode (paragraph or sentence, pick in Settings) |
+| ⌃⌘F | Focus mode (paragraph or sentence, pick in Settings). Scrolling lifts the dimming so you can read; the next click or keystroke brings it back where the caret lands |
 | ⌘B ⌘I ⌘E ⌘⇧K | Bold, italic, inline code, link (wraps the selection in Markdown) |
 | ⌘V over a selection | With a web address on the clipboard, links the selected words instead of replacing them |
 | ⌘⌥1 ⌘⌥2 ⌘⌥3 ⌘⌥0 | Heading level / body text |

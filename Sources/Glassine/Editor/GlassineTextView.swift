@@ -48,6 +48,9 @@ final class GlassineTextView: NSTextView {
     private var lastEditAt: CFTimeInterval = 0
     private var lastTypedWasKeyboard = false
     private var lastFocusRange = NSRange(location: NSNotFound, length: 0)
+    /// Focus mode steps aside while the reader scrolls — the whole page comes
+    /// back — and returns the moment the caret is placed or moved again.
+    private var focusLifted = false
     private var clipObserver: NSObjectProtocol?
     private var windowObservers: [NSObjectProtocol] = []
 
@@ -197,6 +200,7 @@ final class GlassineTextView: NSTextView {
             setSelectedRange(sel.clamped(to: storage.length))
         }
         updateInsets()
+        if config.focus != previous?.focus { focusLifted = false }
         updateFocusDimming(force: true)
         updateCaret(animated: false)
         if config.typewriter && previous?.typewriter == false {
@@ -334,6 +338,7 @@ final class GlassineTextView: NSTextView {
         lastTypedWasKeyboard = true
         lastEditAt = CACurrentMediaTime()
         onTextChanged?()
+        focusLifted = false
         updateFocusDimming(force: false)
         updateCaret(animated: config.smoothWhileTyping)
         if config.typewriter { typewriterScroll(animated: true) }
@@ -347,6 +352,8 @@ final class GlassineTextView: NSTextView {
         updateCaret(animated: !stillSelectingFlag && (config.smoothWhileTyping || !justEdited))
         if !stillSelectingFlag {
             onSelectionChanged?()
+            // A click or a caret move after scrolling brings focus back, there.
+            focusLifted = false
             updateFocusDimming(force: false)
             if config.typewriter && (byKeyboard || config.typewriterOnClick) {
                 typewriterScroll(animated: true)
@@ -766,10 +773,22 @@ final class GlassineTextView: NSTextView {
 
     // MARK: - Focus mode
 
+    /// Scrolling is reading, so the dimming lifts and the whole page is there
+    /// to read. It comes back with the next click or keystroke, wherever the
+    /// caret lands. Only a hand on the wheel or trackpad counts — the tail of
+    /// a flick doesn't re-lift focus that a keystroke just restored.
+    override func scrollWheel(with event: NSEvent) {
+        super.scrollWheel(with: event)
+        guard config.focus, !focusLifted, event.momentumPhase == [],
+              event.scrollingDeltaY != 0 || event.scrollingDeltaX != 0 else { return }
+        focusLifted = true
+        updateFocusDimming(force: true)
+    }
+
     func updateFocusDimming(force: Bool) {
         guard let lm = layoutManager, let storage = textStorage else { return }
         let full = NSRange(location: 0, length: storage.length)
-        guard config.focus else {
+        guard config.focus, !focusLifted else {
             if lastFocusRange.location != NSNotFound || force {
                 lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
                 lastFocusRange = NSRange(location: NSNotFound, length: 0)
