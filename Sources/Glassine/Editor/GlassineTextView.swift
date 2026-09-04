@@ -367,7 +367,41 @@ final class GlassineTextView: NSTextView {
     }
 
     override func paste(_ sender: Any?) {
+        if linkSelectionFromClipboard() { return }
         pasteAsPlainText(sender)
+    }
+
+    /// A URL pasted over selected words links them instead of replacing them:
+    /// select "the docs", paste, and the text reads [the docs](https://…).
+    /// Only when the clipboard is one address and nothing else, and the
+    /// selection is words on one line — an address pasted over an address,
+    /// or over text with brackets already in it, still replaces it.
+    private func linkSelectionFromClipboard() -> Bool {
+        guard let storage = textStorage else { return false }
+        let sel = selectedRange()
+        guard sel.length > 0,
+              let clip = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              Self.isBareURL(clip) else { return false }
+        let selected = (storage.string as NSString).substring(with: sel)
+        // Any spaces at the ends stay outside the link.
+        let core = selected.trimmingCharacters(in: .whitespaces)
+        let lead = String(selected.prefix(while: { $0 == " " || $0 == "\t" }))
+        let trail = String(selected.reversed().prefix(while: { $0 == " " || $0 == "\t" }).reversed())
+        guard !core.isEmpty, !core.contains("\n"), !core.contains("["), !core.contains("]"),
+              !Self.isBareURL(core) else { return false }
+        let text = "\(lead)[\(core)](\(clip))\(trail)"
+        guard shouldChangeText(in: sel, replacementString: text) else { return false }
+        storage.replaceCharacters(in: sel, with: text)
+        didChangeText()
+        setSelectedRange(NSRange(location: sel.location + text.nsLength - trail.nsLength, length: 0))
+        return true
+    }
+
+    /// One web or mail address, with nothing around it.
+    private static func isBareURL(_ s: String) -> Bool {
+        guard !s.isEmpty, s.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return false }
+        let lower = s.lowercased()
+        return lower.hasPrefix("http://") || lower.hasPrefix("https://") || lower.hasPrefix("mailto:")
     }
 
     /// Escape. NSTextView would start word completion here; ⌥Esc still does that.
@@ -638,7 +672,7 @@ final class GlassineTextView: NSTextView {
         let selected = sel.length > 0 ? ns.substring(with: sel) : "link text"
         var urlText = "https://"
         if let clip = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           clip.hasPrefix("http://") || clip.hasPrefix("https://") {
+           Self.isBareURL(clip) {
             urlText = clip
         }
         let text = "[\(selected)](\(urlText))"

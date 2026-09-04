@@ -459,10 +459,8 @@ final class AppState: ObservableObject {
 
     /// ⌘⇧D: today's note in the Daily folder, made on first use.
     func openTodaysNote() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        let title = formatter.string(from: Date())
-        let folder = "Daily"
+        let title = DailyNotes.title(for: Date())
+        let folder = DailyNotes.folder
         let rel = folder + "/" + title.sanitizedFileStem + ".md"
         if let existing = library.document(withID: rel) {
             open(existing)

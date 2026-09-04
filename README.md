@@ -95,6 +95,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌃⌘T | Typewriter scrolling |
 | ⌃⌘F | Focus mode (paragraph or sentence, pick in Settings) |
 | ⌘B ⌘I ⌘E ⌘⇧K | Bold, italic, inline code, link (wraps the selection in Markdown) |
+| ⌘V over a selection | With a web address on the clipboard, links the selected words instead of replacing them |
 | ⌘⌥1 ⌘⌥2 ⌘⌥3 ⌘⌥0 | Heading level / body text |
 | ⌘⇧L | Toggle a task checkbox (or click the `[ ]`) |
 | ⌘F | Search the library — titles, tags and full text |

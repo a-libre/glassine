@@ -13,34 +13,18 @@ struct DailyTimelineView: View {
 
     private var theme: Theme { state.theme }
 
-    private static let titleFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEEE, MMMM d, yyyy"
-        return f
-    }()
-
-    private static let tokenFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMMM d, yyyy"
-        return f
-    }()
-
     private static let shortFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE, MMM d"
         return f
     }()
 
-    private func date(fromTitle title: String) -> Date? {
-        var t = title.trimmingCharacters(in: .whitespaces)
-        if t.hasPrefix("@") { t.removeFirst() }
-        return DailyTimelineView.titleFormatter.date(from: t) ?? DailyTimelineView.tokenFormatter.date(from: t)
-    }
-
+    /// Only the notes named for a day. Anything else that lands in the Daily
+    /// folder stays in the sidebar and out of the corridor.
     private var notes: [(doc: DocumentRef, date: Date)] {
         state.library.allDocuments
-            .filter { $0.folder == "Daily" }
-            .map { ($0, date(fromTitle: $0.title) ?? $0.created) }
+            .filter { $0.folder == DailyNotes.folder }
+            .compactMap { doc in DailyNotes.date(fromTitle: doc.title).map { (doc, $0) } }
             .sorted { $0.1 > $1.1 }
     }
 

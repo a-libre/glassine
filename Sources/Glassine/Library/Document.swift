@@ -300,6 +300,9 @@ final class DocumentModel: ObservableObject, Identifiable {
     // MARK: - Renaming
 
     private var isAutoNamed: Bool {
+        // A day's note is its date. Whatever its first line becomes, the file
+        // keeps the name the Daily view and ⌥⌘D look for.
+        if DailyNotes.isDailyNote(relativePath: relativePath) { return false }
         let stem = title
         if stem == titleAtLoad { return true }
         return stem.range(of: "^Untitled( \\d+)?$", options: .regularExpression) != nil
