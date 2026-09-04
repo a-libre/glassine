@@ -810,12 +810,29 @@ final class GlassineTextView: NSTextView {
         }
         guard force || !NSEqualRanges(focusRange, lastFocusRange) else { return }
         lastFocusRange = focusRange
-        let dim = config.theme.text.withAlpha(max(0, min(1, config.focusDimming)))
+        let alpha = CGFloat(max(0, min(1, config.focusDimming)))
+        let body = config.theme.text.nsColor
         lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
+        // The rest of the page keeps its styling — headings, syntax marks, links,
+        // code, quotes — each colour going quiet in its own hue rather than all
+        // of them collapsing into one, so the shape of the document stays readable.
         let before = NSRange(location: 0, length: focusRange.location)
         let after = NSRange(location: focusRange.upperBoundValue, length: max(0, storage.length - focusRange.upperBoundValue))
-        if before.length > 0 { lm.addTemporaryAttribute(.foregroundColor, value: dim, forCharacterRange: before) }
-        if after.length > 0 { lm.addTemporaryAttribute(.foregroundColor, value: dim, forCharacterRange: after) }
+        for range in [before, after] where range.length > 0 {
+            storage.enumerateAttribute(.foregroundColor, in: range, options: []) { value, run, _ in
+                let color = (value as? NSColor) ?? body
+                lm.addTemporaryAttribute(.foregroundColor, value: Self.dimmed(color, to: alpha), forCharacterRange: run)
+            }
+        }
+    }
+
+    /// The same colour, stepped back: less saturated, and faded like the rest
+    /// of the dimmed page (over dark glass that reads as darker).
+    private static func dimmed(_ color: NSColor, to alpha: CGFloat) -> NSColor {
+        guard let c = color.usingColorSpace(.deviceRGB) else { return color.withAlphaComponent(alpha) }
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1
+        c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return NSColor(hue: h, saturation: s * 0.6, brightness: b, alpha: a * alpha)
     }
 
     // MARK: - Smooth caret
