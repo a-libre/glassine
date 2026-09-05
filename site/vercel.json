@@ -1,0 +1,24 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "glassinewriter.com" }], "destination": "https://glassine.ink/$1", "permanent": true },
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "www.glassinewriter.com" }], "destination": "https://glassine.ink/$1", "permanent": true },
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "www.glassine.ink" }], "destination": "https://glassine.ink/$1", "permanent": true },
+    { "source": "/docs", "destination": "https://docs.glassine.ink/", "permanent": false },
+    { "source": "/docs/(.*)", "destination": "https://docs.glassine.ink/$1", "permanent": false },
+    { "source": "/manual", "destination": "https://docs.glassine.ink/", "permanent": false },
+    { "source": "/privacy", "destination": "https://docs.glassine.ink/about/privacy", "permanent": false },
+    { "source": "/changelog", "destination": "https://docs.glassine.ink/about/changelog", "permanent": false },
+    { "source": "/support", "destination": "/#support", "permanent": false },
+    { "source": "/source", "destination": "https://github.com/a-libre/glassine", "permanent": false },
+    { "source": "/download", "destination": "https://github.com/a-libre/glassine/releases", "permanent": false }
+  ],
+  "headers": [
+    { "source": "/(.*)", "headers": [
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+    ] },
+    { "source": "/(.*)\\.(jpg|png)", "headers": [ { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" } ] }
+  ]
+}

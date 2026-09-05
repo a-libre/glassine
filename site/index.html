@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glassine — a quiet Markdown writing app for macOS</title>
+<meta name="description" content="Glassine is a Markdown writing app for the Mac: a sheet of translucent glass, a caret that glides, plain files in iCloud Drive, saved as you type. Free and open source.">
+<meta name="theme-color" content="#1a1430">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="canonical" href="https://glassine.ink/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Glassine">
+<meta property="og:description" content="A quiet Markdown writing app for macOS. Glass, a caret that glides, and files that stay yours.">
+<meta property="og:url" content="https://glassine.ink/">
+<meta property="og:image" content="https://glassine.ink/editor.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #14101f;
+    --tint: #42316a;
+    --text: #dfe5f4;
+    --heading: #f0f4ff;
+    --muted: #a7b3cf;
+    --dim: #7d88a6;
+    --accent: #01b6e9;
+    --link: #8dbbff;
+    --line: rgba(223, 229, 244, 0.10);
+    --glass: rgba(255, 255, 255, 0.045);
+    --max: 1040px;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    color: var(--text);
+    font-family: "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(1100px 700px at 18% -10%, rgba(120, 88, 190, 0.42), transparent 60%),
+      radial-gradient(900px 600px at 92% 12%, rgba(1, 182, 233, 0.16), transparent 55%),
+      radial-gradient(1200px 900px at 50% 110%, rgba(66, 49, 106, 0.55), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  /* A little paper grain, the way the app's themes carry one. */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='1'/></svg>");
+    mix-blend-mode: overlay;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .wrap { position: relative; z-index: 1; max-width: var(--max); margin: 0 auto; padding: 0 28px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; height: 76px; }
+  header .mark { display: flex; align-items: center; gap: 12px; }
+  header .mark img.icon { width: 30px; height: 30px; border-radius: 7px; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
+  header .mark img.word { height: 15px; opacity: 0.72; }
+  nav { display: flex; gap: 26px; font-size: 14px; }
+  nav a { color: var(--muted); }
+  nav a:hover { color: var(--heading); text-decoration: none; }
+
+  .hero { padding: 64px 0 40px; text-align: center; }
+  .hero h1 {
+    margin: 0 auto 18px; max-width: 760px;
+    font-size: clamp(38px, 6vw, 62px); line-height: 1.04; letter-spacing: -0.02em;
+    font-weight: 600; color: var(--heading);
+  }
+  .hero p.lead {
+    margin: 0 auto 30px; max-width: 640px;
+    font-size: clamp(17px, 2.2vw, 20px); color: var(--muted);
+  }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px; border-radius: 999px; font-size: 15px; font-weight: 500;
+    border: 1px solid var(--line); background: var(--glass); color: var(--heading);
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(223,229,244,0.2); text-decoration: none; transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #061018; }
+  .btn.primary:hover { background: #24c4f2; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 18px;
+    font-size: 13px; color: var(--dim);
+  }
+  .status b { color: var(--muted); font-weight: 600; }
+  .status .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(1,182,233,0.15); }
+
+  .shot {
+    margin: 44px auto 0; border-radius: 14px; overflow: hidden;
+    border: 1px solid rgba(223,229,244,0.12);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.35);
+    background: #1c1733;
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+
+  section { padding: 72px 0 0; }
+  h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+  .intro { max-width: 640px; margin: 0 0 28px; color: var(--muted); font-size: 18px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
+  .card { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--glass); }
+  .card img { display: block; width: 100%; height: auto; }
+  .card figcaption { padding: 12px 16px 14px; font-size: 14px; color: var(--muted); }
+  .card figcaption b { color: var(--heading); font-weight: 600; }
+
+  .list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 40px; margin: 0; padding: 0; list-style: none; }
+  .list li { padding-left: 18px; position: relative; color: var(--muted); font-size: 16px; }
+  .list li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.8; }
+  .list b { color: var(--heading); font-weight: 600; }
+
+  .routes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .route { min-width: 0; padding: 20px 20px 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); }
+  .route h3 { margin: 0 0 6px; font-size: 16px; color: var(--heading); font-weight: 600; display: flex; align-items: baseline; gap: 10px; }
+  .route h3 small { font-size: 12px; font-weight: 500; color: var(--dim); letter-spacing: 0.04em; }
+  .route p { margin: 0; font-size: 14px; color: var(--muted); }
+  code, pre { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+  pre {
+    margin: 12px 0 0; padding: 12px 14px; border-radius: 9px; font-size: 12.5px; line-height: 1.6;
+    background: rgba(0,0,0,0.35); border: 1px solid var(--line); color: #cfe0ff; white-space: pre-wrap; word-break: break-all;
+  }
+  .kbd { display: inline-block; padding: 0 6px; border-radius: 5px; font-size: 13px; font-family: inherit; background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--heading); }
+
+  .support p { max-width: 640px; color: var(--muted); margin: 0; }
+
+  footer { margin-top: 84px; padding: 28px 0 44px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--dim); }
+  footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; justify-content: space-between; }
+  footer nav { gap: 20px; font-size: 13.5px; }
+  footer em { color: var(--dim); }
+
+  @media (max-width: 720px) {
+    .grid, .list, .routes { grid-template-columns: 1fr; }
+    header { height: 64px; }
+    nav { gap: 18px; }
+    .hero { padding-top: 40px; }
+    footer .row { flex-direction: column; align-items: flex-start; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero, .shot { animation: rise .7s ease-out both; }
+    .shot { animation-delay: .12s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="mark" href="/" aria-label="Glassine">
+      <img class="icon" src="/icon.png" alt="" width="30" height="30">
+      <img class="word" src="/wordmark.png" alt="glassine" height="15">
+    </a>
+    <nav>
+      <a href="https://docs.glassine.ink">Manual</a>
+      <a href="#get">Get it</a>
+      <a href="https://github.com/a-libre/glassine">Source</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>A quiet place to write.</h1>
+    <p class="lead">Glassine is a Markdown writing app for the Mac. A window of translucent glass, a caret that glides instead of jumps, and files that are plain text in iCloud Drive — saved as you type, yours to keep.</p>
+    <div class="cta">
+      <a class="btn primary" href="#get">Get Glassine</a>
+      <a class="btn" href="https://docs.glassine.ink">Read the manual</a>
+    </div>
+    <div class="status"><span class="dot"></span><span>On the Mac App Store soon, as <b>Glassine Writer</b> — in review.</span></div>
+  </div>
+
+  <figure class="shot">
+    <img src="/editor.jpg" alt="An essay open on a sheet of dark glass, with the library in a sidebar on the left" width="1440" height="900">
+  </figure>
+
+  <section>
+    <h2>What it is</h2>
+    <p class="intro">Fewer features than most writing apps, and fewer interruptions. Everything it does is on one screen or one key away.</p>
+    <div class="grid">
+      <figure class="card">
+        <img src="/focus.jpg" alt="Focus mode with typewriter scrolling" width="720" height="450" loading="lazy">
+        <figcaption><b>Focus mode and typewriter scrolling.</b> The paragraph you are writing stays put and lit; the rest steps back, Markdown styling intact.</figcaption>
+      </figure>
+      <figure class="card">
+        <img src="/review.jpg" alt="Review mode in the Glass style" width="720" height="450" loading="lazy">
+        <figcaption><b>Review.</b> <span class="kbd">⌘↩</span> renders the document as a finished page in one of five styles, then puts you back where you were.</figcaption>
+      </figure>
+      <figure class="card">
+        <img src="/library.jpg" alt="All Documents, the mosaic view of the library" width="720" height="450" loading="lazy">
+        <figcaption><b>All Documents.</b> The library as a wall of cards with live previews; a click grows the card into the page.</figcaption>
+      </figure>
+      <figure class="card">
+        <img src="/daily.jpg" alt="Timelapse, the corridor of daily notes" width="720" height="450" loading="lazy">
+        <figcaption><b>Timelapse.</b> Today's note in front, earlier days receding behind it. Scroll to walk back.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>And the rest</h2>
+    <ul class="list">
+      <li><b>Glass.</b> The window is a blur of whatever is behind it, tinted by the theme. Nine built in, dark by default; make your own with live preview.</li>
+      <li><b>A caret that glides.</b> Speed, blink and width are yours to set. Off under Reduce Motion.</li>
+      <li><b>A library, not a file picker.</b> Plain <code>.md</code> files and folders in iCloud Drive, named from the first line as you write.</li>
+      <li><b>Autosave that never asks.</b> Half a second after you stop typing, and every few seconds while you keep going.</li>
+      <li><b>Tasks that behave.</b> Click a box; the strike sweeps across; a moment later the item settles below the unfinished ones.</li>
+      <li><b>Dates as you type.</b> <code>@today</code> becomes the date, drawn as a capsule, kept as text.</li>
+      <li><b>Markdown, lightly styled.</b> Syntax stays visible but steps back — headings, emphasis, code, quotes, lists, links, tags.</li>
+      <li><b>Nothing sent anywhere.</b> No accounts, no analytics, no servers. The <a href="https://docs.glassine.ink/about/privacy">privacy page</a> is one paragraph.</li>
+    </ul>
+  </section>
+
+  <section id="get">
+    <h2>Get it</h2>
+    <p class="intro">Requires macOS 14 or later. Free, open source, MIT.</p>
+    <div class="routes">
+      <div class="route">
+        <h3>Mac App Store <small>IN REVIEW</small></h3>
+        <p>Listed as <b>Glassine Writer</b> — the plain name was already reserved there. The app itself is Glassine everywhere. The link goes here when it is live.</p>
+      </div>
+      <div class="route">
+        <h3>Direct download <small>SOON</small></h3>
+        <p>A notarized <code>.dmg</code> under <a href="https://github.com/a-libre/glassine/releases">Releases</a> on GitHub, with a built-in check for new versions.</p>
+      </div>
+      <div class="route">
+        <h3>Build from source <small>NOW</small></h3>
+        <p>Xcode's tools, three lines, a minute.</p>
+        <pre>git clone https://github.com/a-libre/glassine
+cd glassine
+./build.sh --install</pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="support" class="support">
+    <h2>Support</h2>
+    <p>The <a href="https://docs.glassine.ink">manual</a> covers every feature, key and setting. For a bug or a question, <a href="https://github.com/a-libre/glassine/issues">open an issue on GitHub</a>; Help → Copy Debug Info in the app puts everything useful on your clipboard to paste in.</p>
+  </section>
+
+  <footer>
+    <div class="row">
+      <nav>
+        <a href="https://docs.glassine.ink">Manual</a>
+        <a href="https://docs.glassine.ink/about/changelog">Changelog</a>
+        <a href="https://docs.glassine.ink/about/privacy">Privacy</a>
+        <a href="https://github.com/a-libre/glassine">Source</a>
+        <a href="https://github.com/a-libre/glassine/blob/main/LICENSE">MIT</a>
+      </nav>
+      <em>Glassine is the thin, translucent paper used to protect prints.</em>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

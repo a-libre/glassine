@@ -4,6 +4,8 @@
 
 <h1 align="center">Glassine</h1>
 
+<p align="center"><a href="https://glassine.ink">glassine.ink</a> · <a href="https://docs.glassine.ink">the manual</a></p>
+
 A quiet Markdown writing app for macOS. A translucent glass window, a caret that glides instead of jumps, a library that lives in iCloud Drive, autosave that never asks, and a Craft-style sidebar you can hide with one key.
 
 Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift package and a build script. MIT licensed.
@@ -23,7 +25,7 @@ Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift p
 
 Focus mode and Review; All Documents and Timelapse.
 
-There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well, and the full manual is at [glassine.mintlify.site](https://glassine.mintlify.site).
+There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well, and the full manual is at [docs.glassine.ink](https://docs.glassine.ink).
 
 *Glassine is the thin, translucent paper used to protect prints.*
 
@@ -179,7 +181,7 @@ On disk it's a plain move into a `Shelf` folder at the top of the library that m
 
 ## Documentation
 
-The full manual — every feature, setting, key and small delight — is at **[glassine.mintlify.site](https://glassine.mintlify.site)**. It lives in [`docs/site`](docs/site) and is published by Mintlify on every push. `docs/site/docs.json` is the navigation, the pages are `.mdx`, and `mint dev` in that folder previews it. A change someone using Glassine would notice updates the page it belongs to and the changelog in the same commit.
+The full manual — every feature, setting, key and small delight — is at **[docs.glassine.ink](https://docs.glassine.ink)**. It lives in [`docs/site`](docs/site) and is published by Mintlify on every push. `docs/site/docs.json` is the navigation, the pages are `.mdx`, and `mint dev` in that folder previews it. A change someone using Glassine would notice updates the page it belongs to and the changelog in the same commit.
 
 ## Project layout
 
@@ -193,6 +195,7 @@ Sources/Glassine/
 Resources/    Info.plist, icon (make_icon.py draws it), entitlements for each build flavor
 docs/appstore/  the store listing, a showcase library, and the script that takes the screenshots
 docs/site/    the documentation site (Mintlify): docs.json plus one .mdx per page
+site/         glassine.ink, the one-page site (static HTML, served by Vercel; vercel.json holds the redirects)
 build.sh      assembles and signs Glassine.app (--appstore for the sandboxed flavor)
 release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for the Mac App Store
 ```

@@ -45,6 +45,7 @@ docs/
   appstore/   The store listing, a showcase library, and the script that takes the screenshots
   screenshots/ The pictures the README uses
   site/       This site
+site/         glassine.ink, the one-page front door (static HTML on Vercel; vercel.json holds the redirects)
 build.sh      Assembles and signs Glassine.app (--appstore for the sandboxed flavor)
 release.sh    Notarized .dmg for direct download
 appstore.sh   Signed .pkg for the Mac App Store
@@ -60,9 +61,13 @@ Help → Copy Debug Info (⌘⌥⇧D) snapshots the caret's geometry, the text v
 
 The app can also photograph itself: launched with `-glassine.shoot name.png` and a few companion arguments (see `Support/ScreenshotMode.swift`), it opens at a fixed size with the settings, view and caret position you name, waits for layout, captures its own window and quits. `docs/appstore/screenshots.sh` uses this to take the store pictures, and it is how visual changes are checked without anyone sitting at the Mac.
 
+## The front door
+
+[glassine.ink](https://glassine.ink) is one static page in `site/`, served by Vercel from the same repository; a push to `main` publishes it too. `site/vercel.json` carries the redirects: `glassinewriter.com` and `www.` to `glassine.ink`, and short paths like `/docs`, `/privacy`, `/changelog`, `/support` and `/download` to where those live. Nothing on it changes often — everything that does lives here, in the manual.
+
 ## This site
 
-This site, [glassine.mintlify.site](https://glassine.mintlify.site), lives in `docs/site` in the same repository and is built by [Mintlify](https://mintlify.com): `docs.json` is the navigation and `*.mdx` are the pages. A push to `main` publishes it within a minute or two. To preview locally:
+This site, [docs.glassine.ink](https://docs.glassine.ink), lives in `docs/site` in the same repository and is built by [Mintlify](https://mintlify.com): `docs.json` is the navigation and `*.mdx` are the pages. A push to `main` publishes it within a minute or two. To preview locally:
 
 ```bash
 npm i -g mint
