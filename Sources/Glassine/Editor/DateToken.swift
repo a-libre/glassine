@@ -38,6 +38,12 @@ enum DateToken {
 /// for inline code — and the strikethrough of finished tasks as a gradient.
 /// Everything else is inherited.
 final class GlassineLayoutManager: NSLayoutManager {
+    /// Strikes still being drawn in, by the character index where the struck
+    /// text begins: how far across it the line has got, 0 to 1.
+    var strikeProgress: [Int: CGFloat] = [:]
+    /// Strikes fading with their line, by the same key: the alpha to draw at.
+    var strikeAlpha: [Int: CGFloat] = [:]
+
     override func fillBackgroundRectArray(_ rectArray: UnsafePointer<NSRect>, count rectCount: Int,
                                           forCharacterRange charRange: NSRange, color: NSColor) {
         let isDate = charRange.location < (textStorage?.length ?? 0)
@@ -97,9 +103,19 @@ final class GlassineLayoutManager: NSLayoutManager {
         // The glyph location's y is the baseline, measured from the top of the line fragment.
         let baseline = lineRect.minY + containerOrigin.y + location(forGlyphAt: glyphRange.location).y
         let y = (baseline - font.xHeight * 0.55).rounded() - thickness / 2
-        let band = NSRect(x: extent.minX, y: y, width: extent.width, height: thickness)
+        var band = NSRect(x: extent.minX, y: y, width: extent.width, height: thickness)
+        if let p = strikeProgress[doneRange.location] {
+            // The sweep runs over the whole struck text, glyph by glyph; this
+            // line draws its share of wherever the front has got to.
+            let front = CGFloat(doneGlyphs.location) + p * CGFloat(doneGlyphs.length)
+            let a = CGFloat(lineDone.location), b = CGFloat(lineDone.upperBoundValue)
+            let share = max(0, min(1, (front - a) / max(1, b - a)))
+            guard share > 0 else { return }
+            band.size.width = extent.width * share
+        }
 
         NSGraphicsContext.saveGraphicsState()
+        if let alpha = strikeAlpha[doneRange.location] { NSGraphicsContext.current?.cgContext.setAlpha(alpha) }
         NSBezierPath(rect: NSRect(x: run.minX, y: y - 1, width: run.width, height: thickness + 2)).addClip()
         gradient.draw(in: band, angle: 0)
         NSGraphicsContext.restoreGraphicsState()

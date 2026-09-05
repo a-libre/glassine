@@ -61,6 +61,9 @@ struct SidebarView: View {
                                         .font(.system(size: 10.5, design: .rounded))
                                         .opacity(0.3)
                                         .padding(.trailing, 4)
+                                        .contentTransition(.numericText())
+                                        .animation(.easeOut(duration: 0.25), value: state.activeDocuments.count)
+                                        .transition(.opacity)
                                 }
                                 SidebarIconButton(systemName: "folder.badge.plus", help: "New Folder (⌘⇧N)") {
                                     state.promptNewFolder(in: "")
@@ -78,7 +81,9 @@ struct SidebarView: View {
                                 AnyView(Text("\(shelf.allDocuments.count)")
                                     .font(.system(size: 10.5, design: .rounded))
                                     .opacity(0.3)
-                                    .padding(.trailing, 6))
+                                    .padding(.trailing, 6)
+                                    .contentTransition(.numericText())
+                                    .animation(.easeOut(duration: 0.25), value: shelf.allDocuments.count))
                             })
                             .padding(.top, 10)
                             .help("Documents set aside. Still here, still searchable; Unshelve puts one back where it was.")
@@ -100,6 +105,10 @@ struct SidebarView: View {
                     Spacer(minLength: 24)
                 }
                 .padding(.horizontal, 8)
+                // Rows arriving and leaving — a new document, a shelved one, a
+                // finished search — slide rather than blink.
+                .animation(.easeOut(duration: 0.22), value: state.library.generation)
+                .animation(.easeOut(duration: 0.18), value: state.searchText.isEmpty && state.tagFilter == nil)
             }
             footer
         }
@@ -196,8 +205,9 @@ struct SidebarView: View {
         .help("Search titles, tags and text (⌘F)")
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05))
+                .fill(theme.text.color.opacity(searchFocused ? (theme.isDark ? 0.12 : 0.09) : (theme.isDark ? 0.07 : 0.05)))
         )
+        .animation(.easeOut(duration: 0.15), value: searchFocused)
     }
 
     private var allDocumentsRow: some View {
@@ -276,6 +286,7 @@ struct SidebarView: View {
                 Text("#\(tag)")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.accent.color)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
                 Button {
                     state.tagFilter = nil
                 } label: {
@@ -315,6 +326,8 @@ struct SidebarView: View {
             Text("\(state.library.allDocuments.count)")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .opacity(0.35)
+                .contentTransition(.numericText())
+                .animation(.easeOut(duration: 0.25), value: state.library.allDocuments.count)
             SettingsLink {
                 Image(systemName: "gearshape")
                     .font(.system(size: 12))
@@ -455,10 +468,13 @@ struct FolderRow: View {
                 Text("\(folder.allDocuments.count)")
                     .font(.system(size: 10.5, design: .rounded))
                     .opacity(hovering ? 0 : 0.3)
+                    .contentTransition(.numericText())
+                    .animation(.easeOut(duration: 0.25), value: folder.allDocuments.count)
                 if hovering {
                     SidebarIconButton(systemName: "plus", help: "New Document in \(folder.name)") {
                         state.newDocument(in: folder.id)
                     }
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
                 }
             }
             .padding(.leading, CGFloat(depth) * 14 + 6)
@@ -468,6 +484,8 @@ struct FolderRow: View {
         }
         .buttonStyle(HoverRowStyle(theme: state.theme, selected: false, emphasized: isTarget))
         .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.14), value: hovering)
+        .transition(.opacity.combined(with: .offset(y: -4)))
         .contextMenu {
             Button("New Document Here") { state.newDocument(in: folder.id) }
             Button("New Subfolder…") { state.promptNewFolder(in: folder.id) }
@@ -519,8 +537,10 @@ struct DocumentRow: View {
                     Image(systemName: "star.fill")
                         .font(.system(size: 9))
                         .foregroundStyle(state.theme.accent.color.opacity(0.8))
+                        .transition(.scale(scale: 0.3).combined(with: .opacity))
                 }
             }
+            .animation(.spring(response: 0.32, dampingFraction: 0.55), value: starred)
             .padding(.leading, CGFloat(depth) * 14 + (depth > 0 ? 22 : 8))
             .padding(.trailing, 8)
             .frame(height: showsFolder && !doc.folder.isEmpty ? 34 : 27)
@@ -528,6 +548,7 @@ struct DocumentRow: View {
         }
         .buttonStyle(HoverRowStyle(theme: state.theme, selected: selected))
         .onHover { hovering = $0 }
+        .transition(.opacity.combined(with: .offset(y: -4)))
         .help(doc.modified.shortRelative)
         .contextMenu {
             Button(starred ? "Unstar" : "Star") { state.toggleStar(doc.id) }
@@ -576,12 +597,15 @@ struct TagRow: View {
                 Text("\(tag.count)")
                     .font(.system(size: 10.5, design: .rounded))
                     .opacity(0.3)
+                    .contentTransition(.numericText())
+                    .animation(.easeOut(duration: 0.25), value: tag.count)
             }
             .padding(.horizontal, 8)
             .frame(height: 26)
             .contentShape(Rectangle())
         }
         .buttonStyle(HoverRowStyle(theme: state.theme, selected: false))
+        .transition(.opacity.combined(with: .offset(y: -4)))
     }
 }
 

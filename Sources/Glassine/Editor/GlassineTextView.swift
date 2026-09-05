@@ -165,6 +165,7 @@ final class GlassineTextView: NSTextView {
     deinit {
         if let o = clipObserver { NotificationCenter.default.removeObserver(o) }
         for o in windowObservers { NotificationCenter.default.removeObserver(o) }
+        motionTimer?.invalidate()
     }
 
     // MARK: - Config
@@ -200,8 +201,13 @@ final class GlassineTextView: NSTextView {
             setSelectedRange(sel.clamped(to: storage.length))
         }
         updateInsets()
-        if config.focus != previous?.focus { focusLifted = false }
-        updateFocusDimming(force: true)
+        if let p = previous, p.focus != config.focus {
+            // Focus mode coming on settles over the page; going off, it lifts.
+            focusLifted = false
+            if config.focus { updateFocusDimming(force: false, fadeIn: true) } else { fadeOutFocusDimming() }
+        } else {
+            updateFocusDimming(force: true)
+        }
         updateCaret(animated: false)
         if config.typewriter && previous?.typewriter == false {
             typewriterScroll(animated: true)
@@ -338,8 +344,9 @@ final class GlassineTextView: NSTextView {
         lastTypedWasKeyboard = true
         lastEditAt = CACurrentMediaTime()
         onTextChanged?()
+        let wasLifted = focusLifted
         focusLifted = false
-        updateFocusDimming(force: false)
+        updateFocusDimming(force: false, fadeIn: wasLifted)
         updateCaret(animated: config.smoothWhileTyping)
         if config.typewriter { typewriterScroll(animated: true) }
     }
@@ -353,8 +360,9 @@ final class GlassineTextView: NSTextView {
         if !stillSelectingFlag {
             onSelectionChanged?()
             // A click or a caret move after scrolling brings focus back, there.
+            let wasLifted = focusLifted
             focusLifted = false
-            updateFocusDimming(force: false)
+            updateFocusDimming(force: false, fadeIn: wasLifted)
             if config.typewriter && (byKeyboard || config.typewriterOnClick) {
                 typewriterScroll(animated: true)
             }
@@ -401,6 +409,8 @@ final class GlassineTextView: NSTextView {
         storage.replaceCharacters(in: sel, with: text)
         didChangeText()
         setSelectedRange(NSRange(location: sel.location + text.nsLength - trail.nsLength, length: 0))
+        pulse(charRange: NSRange(location: sel.location + lead.nsLength, length: text.nsLength - lead.nsLength - trail.nsLength),
+              color: config.theme.linkColor, scale: 1.1, duration: 0.45)
         return true
     }
 
@@ -456,6 +466,7 @@ final class GlassineTextView: NSTextView {
         storage.replaceCharacters(in: range, with: token)
         didChangeText()
         setSelectedRange(NSRange(location: range.location + token.nsLength, length: 0))
+        pulse(charRange: NSRange(location: range.location, length: token.nsLength), color: config.theme.accent.nsColor, scale: 1.25, duration: 0.4)
         return true
     }
 
@@ -782,14 +793,20 @@ final class GlassineTextView: NSTextView {
         guard config.focus, !focusLifted, event.momentumPhase == [],
               event.scrollingDeltaY != 0 || event.scrollingDeltaX != 0 else { return }
         focusLifted = true
-        updateFocusDimming(force: true)
+        fadeOutFocusDimming()
     }
 
-    func updateFocusDimming(force: Bool) {
+    /// Applies the dimming for the caret's position. `force` redoes everything
+    /// at once (a theme change, a new document); `fadeIn` settles the dimming
+    /// over the page gradually (focus mode just turned on, or returning after a
+    /// scroll); otherwise only the paragraph the caret left and the one it
+    /// entered change, crossfading.
+    func updateFocusDimming(force: Bool, fadeIn: Bool = false) {
         guard let lm = layoutManager, let storage = textStorage else { return }
         let full = NSRange(location: 0, length: storage.length)
         guard config.focus, !focusLifted else {
             if lastFocusRange.location != NSNotFound || force {
+                cancelMotions(.focus)
                 lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
                 lastFocusRange = NSRange(location: NSNotFound, length: 0)
             }
@@ -808,31 +825,275 @@ final class GlassineTextView: NSTextView {
             }
             if let f = found { focusRange = f }
         }
-        guard force || !NSEqualRanges(focusRange, lastFocusRange) else { return }
+        guard force || fadeIn || !NSEqualRanges(focusRange, lastFocusRange) else { return }
+        let previous = lastFocusRange
         lastFocusRange = focusRange
-        let alpha = CGFloat(max(0, min(1, config.focusDimming)))
-        let body = config.theme.text.nsColor
-        lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
-        // The rest of the page keeps its styling — headings, syntax marks, links,
-        // code, quotes — each colour going quiet in its own hue rather than all
-        // of them collapsing into one, so the shape of the document stays readable.
+        cancelMotions(.focus)
         let before = NSRange(location: 0, length: focusRange.location)
         let after = NSRange(location: focusRange.upperBoundValue, length: max(0, storage.length - focusRange.upperBoundValue))
-        for range in [before, after] where range.length > 0 {
-            storage.enumerateAttribute(.foregroundColor, in: range, options: []) { value, run, _ in
-                let color = (value as? NSColor) ?? body
-                lm.addTemporaryAttribute(.foregroundColor, value: Self.dimmed(color, to: alpha), forCharacterRange: run)
+        if fadeIn {
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
+            run(.focus, duration: 0.28, step: { [weak self] k in
+                self?.applyDim(k, to: before)
+                self?.applyDim(k, to: after)
+            })
+        } else if force || previous.location == NSNotFound {
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
+            applyDim(1, to: before)
+            applyDim(1, to: after)
+        } else {
+            // The caret moved: what it left goes quiet, what it entered lights up,
+            // and the rest of the page stays as it was.
+            let newlyDimmed = Self.subtract(previous, focusRange).map { $0.clamped(to: storage.length) }.filter { $0.length > 0 }
+            let newlyLit = Self.subtract(focusRange, previous).map { $0.clamped(to: storage.length) }.filter { $0.length > 0 }
+            guard !newlyDimmed.isEmpty else {
+                for r in newlyLit { lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: r) }
+                return
             }
+            run(.focus, duration: 0.22, step: { [weak self] k in
+                for r in newlyDimmed { self?.applyDim(k, to: r) }
+                for r in newlyLit { self?.applyDim(1 - k, to: r) }
+            }, finish: { [weak self] in
+                guard let self, let lm = self.layoutManager, let storage = self.textStorage else { return }
+                for r in newlyLit { lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: r.clamped(to: storage.length)) }
+            })
         }
     }
 
-    /// The same colour, stepped back: less saturated, and faded like the rest
-    /// of the dimmed page (over dark glass that reads as darker).
-    private static func dimmed(_ color: NSColor, to alpha: CGFloat) -> NSColor {
-        guard let c = color.usingColorSpace(.deviceRGB) else { return color.withAlphaComponent(alpha) }
+    /// The dimming lifts from the whole page — after a scroll, or when focus
+    /// mode is turned off — over a beat rather than at once.
+    private func fadeOutFocusDimming() {
+        guard let lm = layoutManager, let storage = textStorage else { return }
+        cancelMotions(.focus)
+        let full = NSRange(location: 0, length: storage.length)
+        guard lastFocusRange.location != NSNotFound else {
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: full)
+            return
+        }
+        let focus = lastFocusRange.clamped(to: storage.length)
+        let before = NSRange(location: 0, length: focus.location)
+        let after = NSRange(location: focus.upperBoundValue, length: max(0, storage.length - focus.upperBoundValue))
+        lastFocusRange = NSRange(location: NSNotFound, length: 0)
+        run(.focus, duration: 0.28, step: { [weak self] k in
+            self?.applyDim(1 - k, to: before)
+            self?.applyDim(1 - k, to: after)
+        }, finish: { [weak self] in
+            guard let self, let lm = self.layoutManager, let storage = self.textStorage else { return }
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: NSRange(location: 0, length: storage.length))
+        })
+    }
+
+    /// Dims a range by `k`: 0 leaves it as styled, 1 is fully dimmed. The rest
+    /// of the page keeps its styling — headings, syntax marks, links, code,
+    /// quotes — each colour going quiet in its own hue rather than all of them
+    /// collapsing into one, so the shape of the document stays readable.
+    private func applyDim(_ k: CGFloat, to range: NSRange) {
+        guard let lm = layoutManager, let storage = textStorage else { return }
+        let range = range.clamped(to: storage.length)
+        guard range.length > 0 else { return }
+        if k <= 0 {
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: range)
+            return
+        }
+        let floor = CGFloat(max(0, min(1, config.focusDimming)))
+        let body = config.theme.text.nsColor
+        storage.enumerateAttribute(.foregroundColor, in: range, options: []) { value, run, _ in
+            let color = (value as? NSColor) ?? body
+            lm.addTemporaryAttribute(.foregroundColor, value: Self.dimmed(color, amount: k, floor: floor), forCharacterRange: run)
+        }
+    }
+
+    /// The same colour, stepped back by `amount`: at 1, saturation down to 60%
+    /// and alpha down to the focus-dimming setting (over dark glass that reads
+    /// as darker; over paper, lighter).
+    private static func dimmed(_ color: NSColor, amount k: CGFloat, floor: CGFloat) -> NSColor {
+        let alphaScale = 1 - k * (1 - floor)
+        guard let c = color.usingColorSpace(.deviceRGB) else { return color.withAlphaComponent(color.alphaComponent * alphaScale) }
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1
         c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-        return NSColor(hue: h, saturation: s * 0.6, brightness: b, alpha: a * alpha)
+        return NSColor(hue: h, saturation: s * (1 - 0.4 * k), brightness: b, alpha: a * alphaScale)
+    }
+
+    /// The parts of `a` that are not in `b`.
+    private static func subtract(_ a: NSRange, _ b: NSRange) -> [NSRange] {
+        guard a.length > 0 else { return [] }
+        let inter = NSIntersectionRange(a, b)
+        guard inter.length > 0 else { return [a] }
+        var out: [NSRange] = []
+        if inter.location > a.location { out.append(NSRange(location: a.location, length: inter.location - a.location)) }
+        if inter.upperBoundValue < a.upperBoundValue { out.append(NSRange(location: inter.upperBoundValue, length: a.upperBoundValue - inter.upperBoundValue)) }
+        return out
+    }
+
+    // MARK: - Motion
+
+    /// The small animations the text system cannot do on its own — a strike
+    /// sweeping across a finished task, a paragraph going quiet as the caret
+    /// leaves it, a line fading out and back in as it sinks — driven by one
+    /// timer, eased out, and skipped altogether under Reduce Motion.
+    private enum MotionKind { case focus, task }
+    private struct Motion {
+        let kind: MotionKind
+        let start: CFTimeInterval
+        let duration: CFTimeInterval
+        let step: (CGFloat) -> Void
+        let finish: () -> Void
+    }
+    private var motions: [Motion] = []
+    private var motionTimer: Timer?
+
+    private func run(_ kind: MotionKind, duration: CFTimeInterval, step: @escaping (CGFloat) -> Void, finish: @escaping () -> Void = {}) {
+        if GlassineTextView.reduceMotion { step(1); finish(); return }
+        step(0)
+        motions.append(Motion(kind: kind, start: CACurrentMediaTime(), duration: duration, step: step, finish: finish))
+        if motionTimer == nil {
+            let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tickMotions() }
+            RunLoop.main.add(timer, forMode: .common)
+            motionTimer = timer
+        }
+    }
+
+    private func cancelMotions(_ kind: MotionKind) {
+        motions.removeAll { $0.kind == kind }
+        if motions.isEmpty { motionTimer?.invalidate(); motionTimer = nil }
+    }
+
+    private func tickMotions() {
+        let now = CACurrentMediaTime()
+        var live: [Motion] = []
+        var done: [Motion] = []
+        for m in motions {
+            let t = CGFloat(min(1, max(0, (now - m.start) / m.duration)))
+            m.step(1 - pow(1 - t, 3))
+            if t >= 1 { done.append(m) } else { live.append(m) }
+        }
+        motions = live
+        done.forEach { $0.finish() }
+        if motions.isEmpty { motionTimer?.invalidate(); motionTimer = nil }
+    }
+
+    /// A soft ring that swells out from a range and fades — a checkbox toggled,
+    /// a date capsule appearing, a link made — then removes itself.
+    private func pulse(charRange: NSRange, color: NSColor, scale: CGFloat, duration: CFTimeInterval) {
+        guard !GlassineTextView.reduceMotion, let lm = layoutManager, let tc = textContainer, let host = layer,
+              let storage = textStorage else { return }
+        let range = charRange.clamped(to: storage.length)
+        guard range.length > 0 else { return }
+        let glyphs = lm.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+        var rect = lm.boundingRect(forGlyphRange: glyphs, in: tc)
+        rect.origin.x += textContainerOrigin.x
+        rect.origin.y += textContainerOrigin.y
+        rect = rect.insetBy(dx: -3, dy: -2)
+        let ring = CALayer()
+        ring.frame = rect
+        ring.cornerRadius = min(7, rect.height / 2)
+        ring.borderColor = color.withAlphaComponent(0.9).cgColor
+        ring.borderWidth = 1.5
+        ring.backgroundColor = color.withAlphaComponent(0.14).cgColor
+        ring.zPosition = 8
+        host.addSublayer(ring)
+        let grow = CABasicAnimation(keyPath: "transform.scale")
+        grow.fromValue = 1
+        grow.toValue = scale
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = 0
+        let group = CAAnimationGroup()
+        group.animations = [grow, fade]
+        group.duration = duration
+        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        group.isRemovedOnCompletion = false
+        group.fillMode = .forwards
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { ring.removeFromSuperlayer() }
+        ring.add(group, forKey: "pulse")
+        CATransaction.commit()
+    }
+
+    /// Fades the words in a range between visible and not, by way of the
+    /// temporary colour the layout manager draws with.
+    private func fade(_ range: NSRange, from: CGFloat, to: CGFloat, duration: CFTimeInterval, finish: @escaping () -> Void = {}) {
+        run(.task, duration: duration, step: { [weak self] p in
+            guard let self, let lm = self.layoutManager, let storage = self.textStorage else { return }
+            let r = range.clamped(to: storage.length)
+            guard r.length > 0 else { return }
+            let alpha = from + (to - from) * p
+            let body = self.config.theme.text.nsColor
+            storage.enumerateAttribute(.foregroundColor, in: r, options: []) { value, run, _ in
+                let c = (value as? NSColor) ?? body
+                lm.addTemporaryAttribute(.foregroundColor, value: c.withAlphaComponent(c.alphaComponent * alpha), forCharacterRange: run)
+            }
+            // A finished task's strike fades with its words.
+            if let glm = lm as? GlassineLayoutManager {
+                storage.enumerateAttribute(TaskBox.doneKey, in: r, options: []) { value, run, _ in
+                    if value != nil { glm.strikeAlpha[run.location] = alpha }
+                }
+                glm.invalidateDisplay(forCharacterRange: r)
+            }
+        }, finish: { [weak self] in
+            if let self, let lm = self.layoutManager, let storage = self.textStorage {
+                let r = range.clamped(to: storage.length)
+                lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: r)
+                if let glm = lm as? GlassineLayoutManager {
+                    glm.strikeAlpha.removeAll()
+                    glm.invalidateDisplay(forCharacterRange: r)
+                }
+            }
+            finish()
+        })
+    }
+
+    /// A task checked off: the box pulses, and the strike sweeps across the
+    /// words over half a second while they fade to the muted colour.
+    private func animateCompletion(boxAt boxRange: NSRange) {
+        guard let storage = textStorage else { return }
+        pulse(charRange: boxRange, color: config.theme.accent.nsColor, scale: 1.7, duration: 0.45)
+        // The struck text begins after the box and its space; the styler marks it.
+        let paragraph = (storage.string as NSString).paragraphRange(for: boxRange)
+        var probe = boxRange.upperBoundValue
+        var doneRange = NSRange(location: NSNotFound, length: 0)
+        while probe < paragraph.upperBoundValue {
+            var r = NSRange(location: 0, length: 0)
+            if storage.attribute(TaskBox.doneKey, at: probe, longestEffectiveRange: &r, in: paragraph) != nil { doneRange = r; break }
+            probe += 1
+        }
+        guard doneRange.location != NSNotFound, doneRange.length > 0 else { return }
+        let start = doneRange.location
+        let from = config.theme.text.nsColor
+        let muted = config.theme.syntax.nsColor
+        run(.task, duration: 0.5, step: { [weak self] p in
+            guard let self, let lm = self.layoutManager as? GlassineLayoutManager, let storage = self.textStorage else { return }
+            let r = doneRange.clamped(to: storage.length)
+            lm.strikeProgress[start] = p
+            lm.addTemporaryAttribute(.foregroundColor, value: from.blended(withFraction: p, of: muted) ?? muted, forCharacterRange: r)
+            lm.invalidateDisplay(forCharacterRange: r)
+        }, finish: { [weak self] in
+            guard let self, let lm = self.layoutManager as? GlassineLayoutManager, let storage = self.textStorage else { return }
+            let r = doneRange.clamped(to: storage.length)
+            lm.strikeProgress[start] = nil
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: r)
+            lm.invalidateDisplay(forCharacterRange: r)
+            self.updateFocusDimming(force: true)
+        })
+    }
+
+    /// A task reopened: a quieter pulse, and the words brighten back.
+    private func animateReopen(boxAt boxRange: NSRange) {
+        guard let storage = textStorage else { return }
+        pulse(charRange: boxRange, color: config.theme.syntax.nsColor, scale: 1.4, duration: 0.3)
+        let paragraph = (storage.string as NSString).paragraphRange(for: boxRange)
+        let rest = NSRange(location: boxRange.upperBoundValue, length: max(0, paragraph.upperBoundValue - boxRange.upperBoundValue))
+        guard rest.length > 0 else { return }
+        let muted = config.theme.syntax.nsColor
+        let body = config.theme.text.nsColor
+        run(.task, duration: 0.3, step: { [weak self] p in
+            guard let self, let lm = self.layoutManager, let storage = self.textStorage else { return }
+            lm.addTemporaryAttribute(.foregroundColor, value: muted.blended(withFraction: p, of: body) ?? body, forCharacterRange: rest.clamped(to: storage.length))
+        }, finish: { [weak self] in
+            guard let self, let lm = self.layoutManager, let storage = self.textStorage else { return }
+            lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: rest.clamped(to: storage.length))
+            self.updateFocusDimming(force: true)
+        })
     }
 
     // MARK: - Smooth caret
@@ -1094,6 +1355,7 @@ final class GlassineTextView: NSTextView {
         storage.replaceCharacters(in: range, with: replacement)
         didChangeText()
         setSelectedRange(selection.clamped(to: storage.length))
+        if checked { animateReopen(boxAt: range) } else { animateCompletion(boxAt: range) }
         guard config.moveCompletedTasks else { return }
         if checked { riseUncheckedTask(boxAt: range.location) } else { scheduleSink(ofTaskAt: range.location) }
     }
@@ -1116,6 +1378,31 @@ final class GlassineTextView: NSTextView {
     }
 
     private func sinkTask(reading text: String, near line: Int) {
+        guard config.moveCompletedTasks, let storage = textStorage else { return }
+        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let index: Int
+        if line < lines.count, lines[line] == text { index = line }
+        else if let found = lines.firstIndex(of: text) { index = found }
+        else { return }
+        guard let result = TaskReorder.afterToggle(lines: lines, at: index) else { return }
+        guard result.movedTo != index else { return }
+        // The line fades where it is, moves, and fades back in where it landed.
+        let oldLine = NSRange(location: Self.charOffset(ofLine: index, in: lines), length: (text as NSString).length)
+        let snapshot = storage.string
+        fade(oldLine, from: 1, to: 0, duration: 0.16) { [weak self] in
+            guard let self, let storage = self.textStorage else { return }
+            guard storage.string == snapshot else { self.sinkTaskNow(reading: text, near: line); return }
+            let caret = self.selectedRange().location
+            guard self.apply(result, from: lines) else { return }
+            self.setSelectedRange(NSRange(location: Self.carriedCaret(caret, from: lines, to: result), length: 0))
+            let newLine = NSRange(location: Self.charOffset(ofLine: result.movedTo, in: result.lines),
+                                  length: (result.lines[result.movedTo] as NSString).length)
+            self.fade(newLine, from: 0, to: 1, duration: 0.32) { [weak self] in self?.updateFocusDimming(force: true) }
+        }
+    }
+
+    /// The move without the fades, for when the text changed under them.
+    private func sinkTaskNow(reading text: String, near line: Int) {
         guard config.moveCompletedTasks, let storage = textStorage else { return }
         let lines = (storage.string as NSString).components(separatedBy: "\n")
         let index: Int

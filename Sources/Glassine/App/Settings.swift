@@ -80,7 +80,7 @@ struct SettingsData: Codable, Equatable {
     var lastOpenedDocument: String? = nil
 
     // Typography
-    var fontFamily: String = SystemFontChoice.rounded
+    var fontFamily: String = "Helvetica Neue"
     var fontSize: Double = 16
     var lineHeight: Double = 1.55
     var paragraphSpacing: Double = 0.65

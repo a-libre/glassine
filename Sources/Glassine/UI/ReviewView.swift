@@ -337,11 +337,15 @@ enum ReviewHTML {
     li.task { list-style: none; margin-left: -1.5em; }
     li.task > ul, li.task > ol { margin-left: 1.5em; }
     li.task input { margin: 0 0.5em 0 0; vertical-align: -1px; cursor: pointer; accent-color: var(--accent); }
+    li.task { transition: opacity 0.45s ease-out; }
     li.task.done { opacity: 0.6; }
     li.task.done:not(:has(.task-text)) { text-decoration: line-through; }
-    li.task.done .task-text { background-image: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 30%, var(--syntax))); \
-    background-repeat: no-repeat; background-size: 100% 1.5px; background-position: 0 57%; \
+    li.task .task-text { background-image: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 30%, var(--syntax))); \
+    background-repeat: no-repeat; background-size: 0% 1.5px; background-position: 0 57%; \
+    transition: background-size 0.45s cubic-bezier(0.2, 0.7, 0.2, 1); \
     -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+    li.task.done .task-text { background-size: 100% 1.5px; }
+    @media (prefers-reduced-motion: reduce) { li.task, li.task .task-text { transition: none; } }
     a { color: var(--link); text-decoration: none; } a:hover { text-decoration: underline; }
     img { max-width: 100%; height: auto; border-radius: 6px; }
     code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.86em; padding: 0.12em 0.35em; border-radius: 4px; }

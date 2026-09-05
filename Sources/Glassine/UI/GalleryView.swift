@@ -38,10 +38,11 @@ struct GalleryView: View {
                             HStack(alignment: .top, spacing: 14) {
                                 ForEach(plan.columns.indices, id: \.self) { c in
                                     LazyVStack(spacing: 14) {
-                                        ForEach(plan.columns[c]) { doc in
+                                        ForEach(Array(plan.columns[c].enumerated()), id: \.element.id) { row, doc in
                                             GalleryCard(doc: doc, isSelected: nav.selectedID == doc.id, zoom: zoom)
                                                 .id(doc.id)
                                                 .background(CardFrameReporter(id: doc.id))
+                                                .modifier(CardEntrance(id: doc.id, row: row))
                                         }
                                     }
                                     .frame(maxWidth: .infinity)
@@ -486,6 +487,7 @@ struct GalleryCard: View {
                             .font(.system(size: 10))
                             .foregroundStyle(theme.accent.color)
                             .padding(.top, 3)
+                            .transition(.scale(scale: 0.3).combined(with: .opacity))
                     }
                 }
                 if lines.isEmpty {
@@ -530,7 +532,7 @@ struct GalleryCard: View {
                     .strokeBorder(borderColor, lineWidth: isSelected ? 2 : (isCurrent ? 1.5 : 1))
             )
             .shadow(color: shadowColor, radius: isSelected ? 12 : 10, y: isSelected ? 2 : 4)
-            .offset(y: hovering && !isSelected ? -1 : 0)
+            .offset(y: hovering && !isSelected ? -2 : 0)
             .overlay(alignment: .bottomTrailing) {
                 if hovering || isSelected {
                     Text(caption)
@@ -548,9 +550,10 @@ struct GalleryCard: View {
         .buttonStyle(.plain)
         .matchedGeometryEffect(id: doc.id, in: zoom)
         .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: hovering)
+        .animation(.spring(response: 0.28, dampingFraction: 0.72), value: hovering)
         .animation(.easeOut(duration: 0.12), value: isSelected)
         .animation(.easeOut(duration: 0.2), value: state.zoomingCard)
+        .animation(.spring(response: 0.32, dampingFraction: 0.55), value: starred)
         .contextMenu {
             Button("Open") { state.open(doc, fromCard: true) }
             Button("Open in Review") { state.openInReview(doc) }
@@ -744,5 +747,31 @@ struct PreviewLineView: View {
                 .font(.system(size: 10.5))
                 .lineLimit(3)
         }
+    }
+}
+
+// MARK: - Card entrance
+
+/// Cards arrive in a soft cascade, each a beat after the one above it, the
+/// first time they show; after that they stay put. The card a page is
+/// shrinking back into skips the cascade — it is already on its way.
+private struct CardEntrance: ViewModifier {
+    @EnvironmentObject var state: AppState
+    let id: String
+    let row: Int
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .offset(y: shown ? 0 : 8)
+            .onAppear {
+                guard !shown else { return }
+                if state.zoomingCard == id || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                    shown = true
+                    return
+                }
+                withAnimation(.easeOut(duration: 0.32).delay(min(0.24, Double(row) * 0.04))) { shown = true }
+            }
     }
 }

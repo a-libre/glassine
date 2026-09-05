@@ -83,6 +83,9 @@ struct SettingsOverlay: View {
             }
             .scrollContentBackground(.hidden)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .id(tab)
+            .transition(.opacity.combined(with: .offset(y: 6)))
+            .animation(.easeOut(duration: 0.18), value: tab)
         }
         .frame(width: 580)
         .frame(maxHeight: 760)

@@ -157,6 +157,7 @@ struct CommandBar: View {
                                         .fill(i == state.commandSelection ? theme.accent.color.opacity(0.24) : Color.clear)
                                 )
                                 .contentShape(Rectangle())
+                                .animation(.easeOut(duration: 0.12), value: state.commandSelection)
                             }
                             .buttonStyle(.plain)
                             .id(cmd.id)

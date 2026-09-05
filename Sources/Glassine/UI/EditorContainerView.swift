@@ -15,6 +15,7 @@ struct EditorContainerView: View {
             } else if let doc = state.document, state.reviewMode {
                 ReviewView(document: doc, initialScrollFraction: state.reviewEntryScrollFraction)
                     .id(doc.id)
+                    .transition(.opacity.combined(with: .scale(scale: 0.992)))
             } else if let doc = state.document {
                 if let card = state.zoomingCard {
                     // Picks up the card's frame and grows to fill the page, then fades.
@@ -89,13 +90,16 @@ struct FooterBar: View {
             } label: {
                 Text(counterText)
                     .monospacedDigit()
+                    .contentTransition(.numericText())
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Click to change what's counted")
+            .animation(.easeOut(duration: 0.2), value: counterText)
             copyButton
         }
         .animation(.easeInOut(duration: 0.15), value: state.transientNotice)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: document.saveState)
         .font(.system(size: 11, weight: .regular, design: .rounded))
         .foregroundStyle(theme.text.color.opacity(0.45))
         .padding(.horizontal, 16)
@@ -140,7 +144,7 @@ struct FooterBar: View {
                 Text("Saved")
             }
             .foregroundStyle(theme.accent.color.opacity(0.9))
-            .transition(.opacity)
+            .transition(.scale(scale: 0.7, anchor: .leading).combined(with: .opacity))
         case .failed(let message):
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10))
