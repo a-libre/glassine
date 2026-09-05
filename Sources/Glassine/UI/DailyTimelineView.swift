@@ -13,6 +13,9 @@ struct DailyTimelineView: View {
 
     private var theme: Theme { state.theme }
 
+    /// Every day shows this much of itself, so the corridor's distances hold.
+    static let previewCap: CGFloat = 120
+
     private static let shortFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE, MMM d"
@@ -67,7 +70,7 @@ struct DailyTimelineView: View {
         let width: CGFloat = min(470, size.width - 120)
         let frontY = size.height - 200
         // Steps up the corridor shrink geometrically and never pass the header.
-        let travelTotal = max(220, frontY - 170)
+        let travelTotal = max(240, frontY - 150)
 
         return ZStack {
             if !hasToday {
@@ -82,7 +85,7 @@ struct DailyTimelineView: View {
                      centerX: size.width / 2,
                      label: label(for: item.date),
                      labelColor: depth < 0.5 ? theme.accent.color : theme.text.color.opacity(0.5)) {
-                    GalleryCard(doc: item.doc, zoom: zoom)
+                    GalleryCard(doc: item.doc, zoom: zoom, previewCap: DailyTimelineView.previewCap)
                 }
             }
 
@@ -103,11 +106,17 @@ struct DailyTimelineView: View {
                       centerX: CGFloat, label: String, labelColor: Color,
                       @ViewBuilder content: () -> some View) -> some View {
         if depth > -1, depth < 8.5 {
-            let r = 0.72
+            let r = 0.70
             let travel = travelTotal * (1 - pow(r, depth))         // asymptotic march to the vanishing point
             let scale = pow(0.84, max(-0.6, depth))
-            let tilt = max(0, min(56, 10 + depth * 11))
+            let tilt = max(0, min(54, 10 + depth * 10))
             let fade = depth < 0 ? max(0, 1 + depth) : max(0.12, 1 - depth * 0.13)
+            // A day behind another dissolves before it reaches the one in front:
+            // its lower part fades to nothing, so no two days touch. The front
+            // day is whole; a day sliding back picks up the fade as it goes.
+            let haze = min(1, max(0, depth))
+            let solidUntil = 0.42 + 0.58 * (1 - haze)
+            let clearAt = 0.62 + 0.38 * (1 - haze)
 
             VStack(alignment: .leading, spacing: 7) {
                 Text(label)
@@ -116,6 +125,19 @@ struct DailyTimelineView: View {
                     .foregroundStyle(labelColor)
                     .padding(.leading, 4)
                 content()
+                    // Its own height, not the corridor's: a short day is a short card.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .mask(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .black, location: 0),
+                                .init(color: .black, location: solidUntil),
+                                .init(color: .clear, location: clearAt),
+                                .init(color: .clear, location: 1),
+                            ],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
             }
             .frame(width: width)
             .rotation3DEffect(.degrees(tilt), axis: (x: 1, y: 0, z: 0), perspective: 0.62)

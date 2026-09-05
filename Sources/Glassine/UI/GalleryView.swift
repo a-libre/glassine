@@ -438,6 +438,8 @@ struct GalleryCard: View {
     let doc: DocumentRef
     var isSelected: Bool = false
     let zoom: Namespace.ID
+    /// How much of the preview to show before it fades; the mosaic uses the default.
+    var previewCap: CGFloat = GalleryCard.previewCap
     @State private var hovering = false
 
     static let previewCap: CGFloat = 280
@@ -455,7 +457,7 @@ struct GalleryCard: View {
     }
 
     private var previewOverflows: Bool {
-        lines.reduce(CGFloat(0)) { $0 + $1.estimatedHeight } > GalleryCard.previewCap
+        lines.reduce(CGFloat(0)) { $0 + $1.estimatedHeight } > previewCap
     }
 
     private var shadowColor: Color {
@@ -504,7 +506,7 @@ struct GalleryCard: View {
                         }
                     }
                     .foregroundStyle(theme.text.color.opacity(0.74))
-                    .frame(maxWidth: .infinity, maxHeight: GalleryCard.previewCap, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, maxHeight: previewCap, alignment: .topLeading)
                     .clipped()
                     .mask(
                         LinearGradient(

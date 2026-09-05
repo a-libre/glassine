@@ -230,7 +230,7 @@ struct SidebarView: View {
             .frame(height: 28)
             .contentShape(Rectangle())
         }
-        .buttonStyle(HoverRowStyle(theme: theme, selected: state.showingGallery))
+        .buttonStyle(HoverRowStyle(theme: theme, selected: state.galleryOnScreen))
     }
 
     private var todayRow: some View {
