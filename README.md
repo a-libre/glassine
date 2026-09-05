@@ -23,7 +23,7 @@ Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift p
 
 Focus mode and Review; All Documents and Timelapse.
 
-There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well.
+There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well, and the full manual is at [glassine.mintlify.site](https://glassine.mintlify.site).
 
 *Glassine is the thin, translucent paper used to protect prints.*
 
@@ -179,7 +179,7 @@ On disk it's a plain move into a `Shelf` folder at the top of the library that m
 
 ## Documentation
 
-The full manual — every feature, setting, key and small delight — lives in [`docs/site`](docs/site) and is published with Mintlify; the link goes here when the site is connected. `docs/site/docs.json` is the navigation, the pages are `.mdx`, and `mint dev` in that folder previews it. A change someone using Glassine would notice updates the page it belongs to and the changelog in the same commit.
+The full manual — every feature, setting, key and small delight — is at **[glassine.mintlify.site](https://glassine.mintlify.site)**. It lives in [`docs/site`](docs/site) and is published by Mintlify on every push. `docs/site/docs.json` is the navigation, the pages are `.mdx`, and `mint dev` in that folder previews it. A change someone using Glassine would notice updates the page it belongs to and the changelog in the same commit.
 
 ## Project layout
 
