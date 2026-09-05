@@ -13,8 +13,10 @@ struct DailyTimelineView: View {
 
     private var theme: Theme { state.theme }
 
-    /// Every day shows this much of itself, so the corridor's distances hold.
+    /// Every day is the same size in the corridor, whatever it holds: this much
+    /// preview, on a plate this tall.
     static let previewCap: CGFloat = 120
+    static let cardHeight: CGFloat = 184
 
     private static let shortFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -85,7 +87,7 @@ struct DailyTimelineView: View {
                      centerX: size.width / 2,
                      label: label(for: item.date),
                      labelColor: depth < 0.5 ? theme.accent.color : theme.text.color.opacity(0.5)) {
-                    GalleryCard(doc: item.doc, zoom: zoom, previewCap: DailyTimelineView.previewCap)
+                    GalleryCard(doc: item.doc, zoom: zoom, previewCap: DailyTimelineView.previewCap, fixedHeight: DailyTimelineView.cardHeight)
                 }
             }
 

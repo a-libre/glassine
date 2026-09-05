@@ -59,7 +59,7 @@ appstore.sh   Signed .pkg for the Mac App Store
 
 Help → Copy Debug Info (⌘⌥⇧D) snapshots the caret's geometry, the text view's frame and insets, and every setting, ready to paste into an issue.
 
-The app can also photograph itself: launched with `-glassine.shoot name.png` and a few companion arguments (see `Support/ScreenshotMode.swift`), it opens at a fixed size with the settings, view and caret position you name, waits for layout, captures its own window and quits. `docs/appstore/screenshots.sh` uses this to take the store pictures, and it is how visual changes are checked without anyone sitting at the Mac.
+The app can also photograph itself: launched with `-glassine.shoot name.png` and a few companion arguments (see `Support/ScreenshotMode.swift`), it opens at a fixed size with the settings, view and caret position you name, waits for layout, asks the window server for a picture of its own window — that window only, so nothing needs the Screen Recording permission — and quits. `-glassine.shootCapture 1` asks for the fuller composite with the backdrop beneath, which the store pictures use; macOS counts that as screen recording and says so with a notice. `docs/appstore/screenshots.sh` uses this to take the store pictures, and it is how visual changes are checked without anyone sitting at the Mac.
 
 ## The front door
 

@@ -9,12 +9,20 @@ import ImageIO
 ///         -glassine.launchSettings <base64 JSON> -glassine.launchView review \
 ///         -glassine.launchCaret 224 -glassine.shootDelay 3
 ///
-/// The app then sizes its window, waits for the view to settle, captures its
-/// own window straight from the window server — so the glass comes out as the
-/// glass, not a flat approximation — writes an opaque PNG into its own tmp
-/// folder, and quits. An app may capture its own windows without the Screen
-/// Recording permission, which is the whole point: nothing on the machine
-/// needs granting, and no other app's window is ever touched.
+/// The app then sizes its window, waits for the view to settle, asks the
+/// window server for a picture of that one window — named by its number, and
+/// nothing else — so the glass comes out as the glass, writes an opaque PNG
+/// into its own tmp folder, and quits. Only the app's own window is ever
+/// named in the request, which is what keeps it clear of the Screen Recording
+/// permission: nothing on the machine needs granting, and no other app's
+/// window is ever touched.
+///
+/// The store pictures pass `-glassine.shootCapture 1` and get the fuller
+/// composite instead — the window and everything beneath it, the backdrop
+/// included, so the glass carries the backdrop's colour the way it does on
+/// screen. macOS treats that request as screen recording and says so with a
+/// notice each time, which is why it is not the default: the layout checks
+/// that run all day never need it.
 ///
 /// The glass needs something behind it to be glass, and a window captured on its
 /// own has nothing behind it. So a backdrop window — a soft, generated wallpaper
@@ -39,6 +47,7 @@ enum ScreenshotMode {
         guard let name = defaults.string(forKey: "glassine.shoot") else { return }
         let size = parseSize(defaults.string(forKey: "glassine.launchWindow")) ?? NSSize(width: 1440, height: 900)
         let delay = defaults.string(forKey: "glassine.shootDelay").flatMap(Double.init) ?? 3
+        let composite = defaults.bool(forKey: "glassine.shootCapture")
         // Two beats: one for SwiftUI to finish sizing the window, then the
         // real wait for the content — a web view in Review, a scan of the library.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -48,18 +57,30 @@ enum ScreenshotMode {
             window.makeKeyAndOrderFront(nil)
             showBackdrop(behind: window, dark: AppState.shared.theme.isDark)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                // The window and everything of ours beneath it, in one composite,
-                // clipped to the window's frame. Screen coordinates here have their
-                // origin at the top left of the main display.
+                // The window alone, asked for by its number: the one window of ours,
+                // and nothing else. The backdrop beneath it is still on screen, so the
+                // glass has it to blur. Screen coordinates here have their origin at
+                // the top left of the main display.
                 let id = CGWindowID(window.windowNumber)
                 let screenHeight = NSScreen.screens.first?.frame.height ?? 0
                 let f = window.frame
                 let rect = CGRect(x: f.minX, y: screenHeight - f.maxY, width: f.width, height: f.height)
-                let composite = CGWindowListCreateImage(rect, [.optionOnScreenBelowWindow, .optionIncludingWindow], id, [.bestResolution])
-                // A window floating above the others (⌘.) has nothing beneath it the
-                // server will composite; take the window on its own then.
-                let image = composite ?? CGWindowListCreateImage(rect, .optionIncludingWindow, id, [.bestResolution])
-                guard let image, image.width > 1, image.height > 1 else {
+                if composite {
+                    let below = CGWindowListCreateImage(rect, [.optionOnScreenBelowWindow, .optionIncludingWindow], id, [.bestResolution])
+                    guard let image = below ?? CGWindowListCreateImage(rect, .optionIncludingWindow, id, [.bestResolution]),
+                          image.width > 1, image.height > 1 else {
+                        finish(name: name, error: "the window server returned no image for window \(id)"); return
+                    }
+                    write(image, name: name)
+                    return
+                }
+                // The array holds the window number itself, pointer-sized, not a boxed number.
+                let slot = UnsafeMutablePointer<UnsafeRawPointer?>.allocate(capacity: 1)
+                defer { slot.deallocate() }
+                slot[0] = UnsafeRawPointer(bitPattern: UInt(id))
+                guard let array = CFArrayCreate(kCFAllocatorDefault, slot, 1, nil),
+                      let image = CGImage(windowListFromArrayScreenBounds: rect, windowArray: array, imageOption: [.bestResolution]),
+                      image.width > 1, image.height > 1 else {
                     finish(name: name, error: "the window server returned no image for window \(id)"); return
                 }
                 write(image, name: name)

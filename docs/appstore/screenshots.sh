@@ -89,7 +89,8 @@ SWIFT
 shot() {
   local name=$1 json=$2 view=${3:-} caret=${4:-} settle=${5:-3}
   [[ -n "${ONLY:-}" && "$ONLY" != "$name" ]] && return 0        # ONLY=2-focus ./screenshots.sh
-  local args=(-glassine.shoot "$name.png" -glassine.launchWindow "$WINDOW" -glassine.shootDelay "$settle"
+  # shootCapture: the full composite with the backdrop, for the real glass. macOS calls it screen recording and says so.
+  local args=(-glassine.shoot "$name.png" -glassine.launchWindow "$WINDOW" -glassine.shootDelay "$settle" -glassine.shootCapture 1
               -glassine.launchSettings "$(printf '%s' "$json" | base64 | tr -d '\n')")
   [[ -n "$view" && "$view" != "-" ]] && args+=(-glassine.launchView "$view")
   [[ -n "$caret" ]] && args+=(-glassine.launchCaret "$caret")

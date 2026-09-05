@@ -440,6 +440,8 @@ struct GalleryCard: View {
     let zoom: Namespace.ID
     /// How much of the preview to show before it fades; the mosaic uses the default.
     var previewCap: CGFloat = GalleryCard.previewCap
+    /// A set height for the plate, whatever the document holds; the corridor uses it.
+    var fixedHeight: CGFloat? = nil
     @State private var hovering = false
 
     static let previewCap: CGFloat = 280
@@ -524,7 +526,7 @@ struct GalleryCard: View {
             // out of it — it is a plain plate; the words return once it lands.
             .opacity(state.zoomingCard == doc.id ? 0 : 1)
             .padding(16)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: fixedHeight, maxHeight: fixedHeight, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(theme.text.color.opacity(isSelected ? 0.09 : (hovering ? 0.075 : 0.05)))
