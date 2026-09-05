@@ -13,7 +13,7 @@ The quietest way to write
 
 ## Promotional text (170)
 
-A quiet place to write. Markdown, iCloud, nothing in the way — with a caret that glides, typewriter scrolling, and a Daily view for the notes you take every day.
+A quiet place to write. Markdown, iCloud, nothing in the way — with a caret that glides, typewriter scrolling, and Timelapse, a view of the notes you take every day.
 
 ## Description (4,000)
 
@@ -36,7 +36,7 @@ YOUR LIBRARY
 • Folders, tags (#like-this), starred documents and recents in a sidebar that hides when you want the room
 • All Documents lays your writing out as a wall of cards
 • Search looks inside every document, not just at titles
-• A Daily view: today's note is one keystroke away, and past days recede behind it in a timeline
+• Timelapse: today's note is one keystroke away, and past days recede behind it in a corridor
 • @today, @yesterday and @tomorrow turn into dates as you type
 
 REVIEW

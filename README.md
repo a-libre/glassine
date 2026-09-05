@@ -21,7 +21,7 @@ Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift p
   </tr>
 </table>
 
-Focus mode and Review; All Documents and the Daily timeline.
+Focus mode and Review; All Documents and Timelapse.
 
 There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well.
 
@@ -81,7 +81,8 @@ New documents start as "Untitled" and take their file name from the first line a
 | | |
 |---|---|
 | ⌘N / ⌘⇧N | New document / new folder |
-| ⌘D | The Daily timeline — today in front, earlier days receding behind it |
+| ⌘1 ⌘2 ⌘3 | The three rows at the top of the sidebar — All Documents, Timelapse, New Document — for the left hand alone while the right is on the mouse |
+| ⌘D | Timelapse — today in front, earlier days receding behind it |
 | ⌥⌘D | Today's note (in a Daily folder, created on first use) |
 | ⌘⇧E | Export the document as a PDF in the current Review style |
 | ⌘/ | The shortcut sheet |
@@ -145,7 +146,7 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Daily notes
 
-⌘D (or the Today row in the sidebar) opens the Daily timeline: today's note lying readable at the front, earlier days receding up the corridor behind it — tilted back, smaller and fainter toward the vanishing point. Scroll to walk back through the days; click a card to open it. ⌥⌘D skips the corridor and opens today's note directly, titled with the date and kept in a `Daily` folder created on first use. Press it again tomorrow and you get tomorrow's.
+⌘D, ⌘2, or the Timelapse row in the sidebar opens Timelapse: today's note lying readable at the front, earlier days receding up the corridor behind it — tilted back, smaller and fainter toward the vanishing point. Scroll to walk back through the days; click a card to open it. ⌥⌘D skips the corridor and opens today's note directly, titled with the date and kept in a `Daily` folder created on first use. Press it again tomorrow and you get tomorrow's.
 
 ## Headings
 

@@ -25,8 +25,8 @@ struct SidebarView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 1) {
                     allDocumentsRow
-                    newDocumentRow
                     todayRow
+                    newDocumentRow
                         .padding(.bottom, 8)
                     if let filtered = state.filteredDocuments {
                         filterHeader
@@ -222,7 +222,7 @@ struct SidebarView: View {
                 Text("All Documents")
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text("⌘P")
+                Text("⌘1")
                     .font(.system(size: 11))
                     .opacity(0.35)
             }
@@ -242,10 +242,10 @@ struct SidebarView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(theme.accent.color)
                     .frame(width: 18)
-                Text("Today")
+                Text("Timelapse")
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text("⌘D")
+                Text("⌘2")
                     .font(.system(size: 11))
                     .opacity(0.35)
             }
@@ -254,7 +254,7 @@ struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(HoverRowStyle(theme: theme, selected: state.showingDaily))
-        .help("The Daily timeline — today in front, earlier days behind. ⌥⌘D opens today's note directly.")
+        .help("Timelapse — today's note in front, earlier days receding behind it (⌘2 or ⌘D). ⌥⌘D opens today's note directly.")
     }
 
     private var newDocumentRow: some View {
@@ -269,7 +269,7 @@ struct SidebarView: View {
                 Text("New Document")
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text("⌘N")
+                Text("⌘3")
                     .font(.system(size: 11))
                     .opacity(0.35)
             }

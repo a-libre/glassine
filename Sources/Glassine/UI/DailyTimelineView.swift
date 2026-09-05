@@ -128,7 +128,7 @@ struct DailyTimelineView: View {
 
     private func header(count: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text("Daily")
+            Text("Timelapse")
                 .font(.system(size: 22, weight: .semibold, design: .rounded))
             if count > 0 {
                 Text("\(count)")

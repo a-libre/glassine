@@ -92,6 +92,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "\\":
                 state.toggleSidebar()
                 return nil
+            // The three rows at the top of the sidebar, in order, for the left
+            // hand alone while the right is on the mouse. ⌘P, ⌘D and ⌘N still work.
+            case "1":
+                state.toggleGallery()
+                return nil
+            case "2":
+                state.showDaily()
+                return nil
+            case "3":
+                state.newDocument()
+                return nil
             case "f":
                 state.focusSearch()
                 return nil
@@ -255,7 +266,7 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("f", modifiers: .command)
             Button("Command Bar") { state.toggleCommandBar() }
                 .keyboardShortcut("k", modifiers: .command)
-            Button("Daily Timeline") { state.showDaily() }
+            Button("Timelapse") { state.showDaily() }
                 .keyboardShortcut("d", modifiers: .command)
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)

@@ -24,8 +24,9 @@ struct ShortcutSheet: View {
             ("⌘⇧E", "Export as PDF"),
         ]),
         Group(title: "Around the app", rows: [
-            ("⌘P", "All documents"),
-            ("⌘D", "Daily timeline"),
+            ("⌘1  ⌘P", "All documents"),
+            ("⌘2  ⌘D", "Timelapse — the days, receding"),
+            ("⌘3  ⌘N", "New document"),
             ("⌘K", "Command bar"),
             ("⌘F", "Search the library"),
             ("⌘S", "Show or hide the sidebar"),

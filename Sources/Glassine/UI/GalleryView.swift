@@ -761,17 +761,21 @@ private struct CardEntrance: ViewModifier {
     let row: Int
     @State private var shown = false
 
+    private var immediate: Bool {
+        state.zoomingCard == id || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
+
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
             .offset(y: shown ? 0 : 8)
+            // The animation stays with the card: a global withAnimation with a
+            // delay can outlive a mosaic that is removed before the delay is up
+            // and leave it half-faded on screen.
+            .animation(immediate ? nil : .easeOut(duration: 0.32).delay(min(0.24, Double(row) * 0.04)), value: shown)
             .onAppear {
                 guard !shown else { return }
-                if state.zoomingCard == id || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-                    shown = true
-                    return
-                }
-                withAnimation(.easeOut(duration: 0.32).delay(min(0.24, Double(row) * 0.04))) { shown = true }
+                if immediate { shown = true } else { DispatchQueue.main.async { shown = true } }
             }
     }
 }

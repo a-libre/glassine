@@ -46,31 +46,57 @@ final class GlassineLayoutManager: NSLayoutManager {
 
     override func fillBackgroundRectArray(_ rectArray: UnsafePointer<NSRect>, count rectCount: Int,
                                           forCharacterRange charRange: NSRange, color: NSColor) {
-        let isDate = charRange.location < (textStorage?.length ?? 0)
-            && textStorage?.attribute(DateToken.attributeKey, at: charRange.location, effectiveRange: nil) != nil
+        guard rectCount > 0 else { return }
+        // Copy these out before asking the layout manager anything else: the
+        // buffer they live in is shared, and the queries below write into it.
+        let rects = (0..<rectCount).map { rectArray[$0] }
+        var tokenRange = NSRange(location: 0, length: 0)
+        let isDate = textStorage.map { charRange.location < $0.length
+            && $0.attribute(DateToken.attributeKey, at: charRange.location, longestEffectiveRange: &tokenRange,
+                            in: NSRange(location: 0, length: $0.length)) != nil } ?? false
         color.setFill()
-        for i in 0..<rectCount {
-            var rect = rectArray[i]
-            if isDate {
-                // A capsule lit from the top, with a hairline edge: enough to read as a chip.
-                rect = rect.insetBy(dx: -4, dy: -1.5)
-                let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-                let alpha = color.alphaComponent
-                if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),
-                                             ending: color.withAlphaComponent(alpha * 0.8)) {
-                    gradient.draw(in: path, angle: 90)
-                } else {
-                    path.fill()
-                }
-                color.withAlphaComponent(min(1, alpha * 1.1)).setStroke()
-                let edge = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: rect.height / 2, yRadius: rect.height / 2)
-                edge.lineWidth = 1
-                edge.stroke()
-                color.setFill()
-            } else {
-                rect = rect.insetBy(dx: -1, dy: 0)
-                NSBezierPath(roundedRect: rect, xRadius: 3.5, yRadius: 3.5).fill()
+        guard isDate else {
+            for rect in rects {
+                NSBezierPath(roundedRect: rect.insetBy(dx: -1, dy: 0), xRadius: 3.5, yRadius: 3.5).fill()
             }
+            return
+        }
+
+        // A date token can come through here in more than one run — the "@" is
+        // dimmer than the date, so it can be a run of its own — and each would
+        // get a capsule. The first run draws the whole token; the rest draw nothing.
+        guard charRange.location == tokenRange.location else { return }
+        var capsules = rects
+        if charRange.length < tokenRange.length,
+           let container = textContainer(forGlyphAt: glyphIndexForCharacter(at: charRange.location), effectiveRange: nil) {
+            let none = NSRange(location: NSNotFound, length: 0)
+            var n = 0
+            let runFirst = self.rectArray(forCharacterRange: charRange, withinSelectedCharacterRange: none,
+                                          in: container, rectCount: &n).flatMap { n > 0 ? $0[0] : nil }
+            let token = self.rectArray(forCharacterRange: tokenRange, withinSelectedCharacterRange: none,
+                                       in: container, rectCount: &n).map { p in (0..<n).map { p[$0] } } ?? []
+            // Those are container coordinates; the run's own first rect, which we
+            // hold in both systems, says how far the view has moved them.
+            if let runFirst, !token.isEmpty {
+                let dx = rects[0].minX - runFirst.minX, dy = rects[0].minY - runFirst.minY
+                capsules = token.map { $0.offsetBy(dx: dx, dy: dy) }
+            }
+        }
+        for var rect in capsules {
+            // A capsule lit from the top, with a hairline edge: enough to read as a chip.
+            rect = rect.insetBy(dx: -4, dy: -1.5)
+            let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+            let alpha = color.alphaComponent
+            if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),
+                                         ending: color.withAlphaComponent(alpha * 0.8)) {
+                gradient.draw(in: path, angle: 90)
+            } else {
+                path.fill()
+            }
+            color.withAlphaComponent(min(1, alpha * 1.1)).setStroke()
+            let edge = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: rect.height / 2, yRadius: rect.height / 2)
+            edge.lineWidth = 1
+            edge.stroke()
         }
     }
 
