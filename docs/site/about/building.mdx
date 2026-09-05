@@ -1,0 +1,75 @@
+---
+title: "Building from source"
+description: "The repository, the build script, the two flavors, and how this site is kept."
+icon: "hammer"
+---
+
+Glassine is a Swift package — SwiftUI for the chrome, AppKit for the editor — with no dependencies and no Xcode project. A shell script assembles the app. The source is at [github.com/a-libre/glassine](https://github.com/a-libre/glassine) under the MIT license.
+
+## Build
+
+You need Xcode (free, from the App Store) for its toolchain; the Xcode app itself never has to open.
+
+```bash
+git clone https://github.com/a-libre/glassine.git
+cd glassine
+./build.sh --install     # compiles, copies Glassine.app to /Applications, opens it
+```
+
+| Command | |
+|---|---|
+| `./build.sh` | Build only, into `build/Glassine.app` |
+| `./build.sh --run` | Build and open it from there, without installing |
+| `./build.sh --install` | Build, copy to `/Applications` (asking a running copy to quit first), open |
+| `./build.sh --debug` | A faster, unoptimised compile while you are changing things |
+| `./build.sh --appstore` | The sandboxed App Store flavor, locally |
+
+Edit anything under `Sources/Glassine/` and run `./build.sh --run`; incremental builds take a few seconds. Opening `Package.swift` in Xcode and pressing Run works for debugging, but the assembled app from `build.sh` is the one to use day to day — it has the icon and a stable identity for macOS permissions.
+
+The minimum deployment target is macOS 14. It is developed on macOS 26 and 27 with Xcode 26.
+
+## Layout
+
+```
+Sources/Glassine/
+  App/        GlassineApp (scenes, menus, the key monitor), AppState, Settings, Theme
+  Library/    Library (folder scanning and file operations), Document (autosave, renaming)
+  Editor/     GlassineTextView (smooth caret, layout, typewriter, focus, motion),
+              MarkdownStyler, StyleConfig, DateToken (the layout manager), TaskReorder
+  UI/         ContentView, SidebarView, GalleryView, DailyTimelineView, ReviewView,
+              SettingsView, ShortcutSheet, Overlays, GlassBackground
+  Support/    Distribution (sandbox / App Store differences), DailyNotes, Shelf,
+              ScreenshotMode (the app photographs itself for the store), small extensions
+Resources/    Info.plist, the icon (make_icon.py draws it), entitlements per flavor, the wordmark
+docs/
+  appstore/   The store listing, a showcase library, and the script that takes the screenshots
+  screenshots/ The pictures the README uses
+  site/       This site
+build.sh      Assembles and signs Glassine.app (--appstore for the sandboxed flavor)
+release.sh    Notarized .dmg for direct download
+appstore.sh   Signed .pkg for the Mac App Store
+```
+
+## Two flavors
+
+`./build.sh --appstore` compiles with `APPSTORE` set, which turns on the App Sandbox, gives the app its own iCloud container instead of direct access to iCloud Drive, remembers chosen folders with security-scoped bookmarks, and leaves out the GitHub update check. `Support/Distribution.swift` is where the differences are decided at run time. [RELEASING.md](https://github.com/a-libre/glassine/blob/main/RELEASING.md) in the repository has the whole pipeline for both — certificates, notarization, the store package.
+
+## Debugging
+
+Help → Copy Debug Info (⌘⌥⇧D) snapshots the caret's geometry, the text view's frame and insets, and every setting, ready to paste into an issue.
+
+The app can also photograph itself: launched with `-glassine.shoot name.png` and a few companion arguments (see `Support/ScreenshotMode.swift`), it opens at a fixed size with the settings, view and caret position you name, waits for layout, captures its own window and quits. `docs/appstore/screenshots.sh` uses this to take the store pictures, and it is how visual changes are checked without anyone sitting at the Mac.
+
+## This site
+
+The documentation lives in `docs/site` in the same repository and is built by [Mintlify](https://mintlify.com): `docs.json` is the navigation and `*.mdx` are the pages. A push to `main` publishes it. To preview locally:
+
+```bash
+npm i -g mint
+cd docs/site
+mint dev
+```
+
+`mint validate` and `mint broken-links` check a change before it goes up.
+
+The rule for keeping it current is simple: a change that a person using Glassine would notice — a new key, a setting, a behaviour, a small delight — updates the page it belongs to and adds a line to the [changelog](/about/changelog) in the same commit.

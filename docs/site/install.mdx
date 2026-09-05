@@ -1,0 +1,65 @@
+---
+title: "Install"
+description: "Three ways to get Glassine onto a Mac, and what to expect on first launch."
+icon: "download"
+---
+
+Glassine needs macOS 14 (Sonoma) or later. There is one app, built two ways: a sandboxed version for the Mac App Store, and a direct version that reads iCloud Drive itself. They look and behave the same; the differences are listed at the bottom of this page.
+
+## Mac App Store
+
+The App Store listing is called **Glassine Writer** — the name "Glassine" alone was already reserved there. The app itself, its window, its icon and its files are all still Glassine.
+
+The first version, 0.2.3, was submitted to App Review on September 3, 2026. When it is live, the link will be here and in the [README](https://github.com/a-libre/glassine#install).
+
+## Direct download
+
+A notarized `.dmg` for the direct version will be published under [Releases](https://github.com/a-libre/glassine/releases) on GitHub. The direct version checks GitHub once a day for a newer release and tells you under Help → Check for Updates…; you can turn that off under Settings → General.
+
+## Build from source
+
+You need Xcode, free from the App Store. Its command-line tools are all the build uses; the Xcode app itself never has to open.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/a-libre/glassine.git
+    cd glassine
+    ```
+  </Step>
+  <Step title="Build and install">
+    ```bash
+    ./build.sh --install
+    ```
+    This compiles Glassine, copies `Glassine.app` into `/Applications`, and opens it. If a copy is already running it is asked to quit first.
+  </Step>
+  <Step title="Update later">
+    ```bash
+    git pull && ./build.sh --install
+    ```
+  </Step>
+</Steps>
+
+Other options: `./build.sh` builds into `build/Glassine.app` without installing, `./build.sh --run` builds and opens it from there, `./build.sh --debug` compiles faster while you are changing the code, and `./build.sh --appstore` builds the sandboxed App Store flavor locally. Opening `Package.swift` in Xcode and pressing Run works too and is handy for debugging, but the assembled app from `build.sh` is the one to use day to day: it has the icon and a stable identity for macOS permissions.
+
+## First launch
+
+The direct version asks for permission to reach iCloud Drive. Say yes; that is where the library lives. A **Glassine** folder appears at the top level of iCloud Drive with a welcome document inside it, and you are in the editor.
+
+The App Store version cannot read iCloud Drive directly, so it keeps its documents in an iCloud folder of its own. Finder shows that folder as **Glassine** in iCloud Drive as well, with the app's icon. If you would rather it used the same folder as the direct version, or any other folder, point it there under Settings → General; the permission is remembered.
+
+<Note>
+If iCloud Drive is turned off on the Mac, documents stay local. Everything else works.
+</Note>
+
+## What differs between the two versions
+
+| | App Store | Direct |
+|---|---|---|
+| Sandbox | Yes | No |
+| Default library | The app's own iCloud folder, shown as "Glassine" in iCloud Drive | `iCloud Drive/Glassine` |
+| Other folders | Chosen through a file dialog; remembered with a security-scoped bookmark | Any path |
+| Updates | Through the App Store | Help → Check for Updates…, and a daily check you can turn off |
+| Network | Holds the sandbox's outgoing-connection permission only because Review's web view cannot start without it; never opens a connection of its own | The daily update check asks GitHub for the latest release, nothing more |
+
+The [privacy page](/about/privacy) says the same in more detail.

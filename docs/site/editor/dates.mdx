@@ -1,0 +1,27 @@
+---
+title: "Dates"
+description: "@today, @tomorrow and @yesterday become real dates, drawn as capsules."
+icon: "calendar"
+---
+
+Type `@today`, `@yesterday` or `@tomorrow` and then a space, a punctuation mark or Return, and the word becomes the actual date:
+
+```markdown
+Call the printer @today.          →   Call the printer @September 5, 2026.
+```
+
+In the editor the date is drawn as a small capsule, lit from the top, with the `@` stepped back inside it. The capsule pulses once as it appears. Review draws the same capsule on the rendered page.
+
+The file holds plain text — `@September 5, 2026` — so it reads correctly in any other app and survives a round trip through anything.
+
+## ISO dates
+
+Typing a date in the form `@2026-09-05` gets the capsule as well, without expansion. Both forms are recognised anywhere in a line, though a shortcut word only expands when it stands on its own, at the start of a line or after a space, a parenthesis or a bracket.
+
+## Why
+
+Daily notes. `@today` at the top of a note, or `@tomorrow` next to a task, is faster than looking at a calendar, and the result is legible forever. The [Timelapse](/library/timelapse) is built on the same idea from the other direction: a note per day, named for its date.
+
+## Inside code
+
+Dates inside inline code or a code block are left as plain text, without the capsule. The shortcut words still expand there, since expansion happens as you type; if you want a literal `@today` in a code sample, type the date form or paste the word in.

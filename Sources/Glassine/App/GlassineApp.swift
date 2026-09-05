@@ -292,6 +292,11 @@ struct GlassineCommands: Commands {
                 get: { state.settings.data.showCounter },
                 set: { state.settings.data.showCounter = $0 }
             ))
+            Toggle("Float on Top", isOn: Binding(
+                get: { state.settings.data.floatOnTop },
+                set: { _ in state.toggleFloating() }
+            ))
+            .keyboardShortcut(".", modifiers: .command)
             Divider()
             Picker("Theme", selection: Binding(
                 get: { state.theme.id },

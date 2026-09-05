@@ -62,7 +62,7 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.16), value: state.showingCommandBar)
         .coordinateSpace(name: "glassineRoot")
         .frame(minWidth: 620, minHeight: 400)
-        .background(WindowConfigurator(theme: theme))
+        .background(WindowConfigurator(theme: theme, floats: state.settings.data.floatOnTop))
         .preferredColorScheme(theme.colorScheme)
         .ignoresSafeArea()
         .sheet(item: $state.pendingPrompt) { prompt in

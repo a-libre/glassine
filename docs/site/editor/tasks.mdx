@@ -1,0 +1,41 @@
+---
+title: "Tasks"
+description: "Checkboxes you can click, a strike that sweeps, and finished items that settle to the bottom."
+icon: "square-check"
+---
+
+`- [ ] ` at the start of a line makes a task. The brackets are drawn as a box you can click.
+
+```markdown
+- [ ] Book the ferry
+- [ ] Pack the good pens
+- [x] Find the map
+```
+
+## Checking one off
+
+Click the box, or put the caret on the line and press ⌘⇧L. The box pulses, a strike sweeps across the words over about half a second while they fade to the muted colour, and the file gets a `[x]` that any Markdown app understands. Click again to reopen it; the words brighten back.
+
+⌘⇧L on a line that is not a task yet turns it into one.
+
+The checkboxes in [Review](/review/review) are live too. A click there writes the `[x]` straight into the file, with the same sweep drawn in CSS.
+
+## Finished tasks sink
+
+A moment after you check a task it fades out, drops below the last unfinished item in its list, and fades back in there. Nested items underneath it travel with it. Uncheck it and it rises back to exactly where it was.
+
+The pause is deliberate: a second and a half, long enough to change your mind without the list jumping under your hand.
+
+Settings → Editor → *Move finished tasks to the bottom after a moment* turns this off. With it off, a checked task stays where it is.
+
+## Reordering by hand
+
+Drag a task's box — or any bullet or list number — up or down to move that item within its list. Nested items come along. This works in every kind of list, not just tasks.
+
+## Nesting
+
+Tab nests a task under the one above; Shift-Tab un-nests it. Return on an empty nested task steps back out one level. The [Markdown page](/editor/markdown#lists) has the rest of the list behaviour.
+
+## In the file
+
+Nothing special. A task is a bullet whose text starts with `[ ]` or `[x]`, exactly as GitHub, Obsidian and iA Writer write it. Glassine adds no metadata; the order on disk is the order you see.

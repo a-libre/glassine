@@ -1,0 +1,23 @@
+---
+title: "Search"
+description: "Searching the library from anywhere, and finding text inside the open document."
+icon: "search"
+---
+
+## Searching the library
+
+⌘F. From the editor it opens All Documents with the search field in hand; from All Documents the field glides from its spot in the header to the middle of the window and takes the keyboard, with the wall filtering live behind it. The sidebar's field at the top is the same search.
+
+Every word you type has to appear somewhere in a document's title, its tags or its text. Case and accents are ignored, so `cafe` finds *Café*. Documents whose titles match are listed first, then the rest, each set in the current sort order. Shelved documents are searched too. The open document is searched as it is right now, not as it was last saved.
+
+In All Documents the top result is selected as you type, so Return opens it; the arrow keys walk the results, and ⌘↩ opens one in Review. Esc clears the search and gives the wall back.
+
+A [tag filter](/editor/links-and-tags#tags) narrows the search to documents carrying that tag.
+
+## Finding inside a document
+
+⌘⇧F opens the find bar across the top of the editor — the Mac's standard one, with Replace, ⌘G for the next match and ⌘⇧G for the previous. Esc closes it. (Edit → Find → Find… does the same by mouse; the ⌘F key belongs to the library search.)
+
+## How it is fast
+
+The library is listed at launch without reading a single file, and previews, tags and searchable text are read afterwards on a background queue. Searching costs nothing until you type, and the last result is kept until the library or the query changes.

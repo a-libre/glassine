@@ -120,6 +120,9 @@ struct SettingsData: Codable, Equatable {
     // Layout
     var sidebarVisible: Bool = true
     var sidebarWidth: Double = 250
+    /// The window floats over other apps' windows, and stays put when Stage
+    /// Manager switches sets. ⌘. toggles it.
+    var floatOnTop: Bool = false
     var expandedFolders: [String] = []
     var starred: [String] = []
     var recents: [String: Date] = [:]
@@ -179,6 +182,7 @@ struct SettingsData: Codable, Equatable {
         moveCompletedTasks = try c.decodeIfPresent(Bool.self, forKey: .moveCompletedTasks) ?? d.moveCompletedTasks
         sidebarVisible = try c.decodeIfPresent(Bool.self, forKey: .sidebarVisible) ?? d.sidebarVisible
         sidebarWidth = try c.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? d.sidebarWidth
+        floatOnTop = try c.decodeIfPresent(Bool.self, forKey: .floatOnTop) ?? d.floatOnTop
         expandedFolders = try c.decodeIfPresent([String].self, forKey: .expandedFolders) ?? d.expandedFolders
         starred = try c.decodeIfPresent([String].self, forKey: .starred) ?? d.starred
         recents = try c.decodeIfPresent([String: Date].self, forKey: .recents) ?? d.recents

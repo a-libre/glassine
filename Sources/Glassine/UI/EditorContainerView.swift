@@ -96,9 +96,18 @@ struct FooterBar: View {
             .buttonStyle(.plain)
             .help("Click to change what's counted")
             .animation(.easeOut(duration: 0.2), value: counterText)
+            if state.settings.data.floatOnTop {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(theme.accent.color.opacity(0.85))
+                    .rotationEffect(.degrees(35))
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+                    .help("Floating over other windows. ⌘. to stop.")
+            }
             copyButton
         }
         .animation(.easeInOut(duration: 0.15), value: state.transientNotice)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: state.settings.data.floatOnTop)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: document.saveState)
         .font(.system(size: 11, weight: .regular, design: .rounded))
         .foregroundStyle(theme.text.color.opacity(0.45))

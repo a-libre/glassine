@@ -1,0 +1,43 @@
+---
+title: "Review"
+description: "The document rendered as a finished page, in one of five styles, without leaving the window."
+icon: "book-open"
+---
+
+<Frame>
+  <img src="/images/review.jpg" alt="Review: an essay rendered as a finished page in the Glass style" />
+</Frame>
+
+⌘↩ swaps the editor for a read-only rendering of the document. It is real HTML in a web view, so tables, nested lists, task lists, code blocks and images all appear the way another Markdown app would show them. Review comes in with a breath of scale; ⌘↩ or Esc returns to the editor at roughly the same place.
+
+From All Documents, ⌘↩ opens the selected card straight into Review, and every right-click menu has *Open in Review*.
+
+## Styles
+
+Five, chosen from the pill at the top-right of the page, from View → Review Style, or from the ⌘K command bar while you are in Review.
+
+| Style |  |
+|---|---|
+| **Glass** | Your theme's colours, transparent over the blur. The default. |
+| **GitHub** | github.com's rendering, light or dark to match the theme. |
+| **Book** | A cream page with drop caps and small-cap headings. |
+| **Editorial** | Magazine typography: heavy headlines, pull-quotes. |
+| **Mono** | A terminal. |
+
+Headings are centered here too when *Center headings* is on in Settings.
+
+## What is live on the page
+
+**Task checkboxes.** Click one and the `[x]` is written straight into the file, with the same sweeping strike the editor draws.
+
+**Links** open in your browser.
+
+**Date capsules** are drawn around `@September 5, 2026` just as in the editor.
+
+**Text size.** ⌘+ and ⌘− scale the page independently of the editor's type size; ⌘0 puts it back.
+
+Review is also the style a [PDF export](/review/export-and-copy) is printed in.
+
+<Note>
+On the App Store version, Review is the reason the app holds the sandbox's outgoing-connection permission: the system web view cannot start without it. Nothing is sent; the [privacy page](/about/privacy) explains.
+</Note>

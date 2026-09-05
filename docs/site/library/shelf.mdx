@@ -1,0 +1,21 @@
+---
+title: "The Shelf"
+description: "For documents that are not current but are not finished with either. Out of the way, not gone."
+icon: "archive"
+---
+
+A library fills up. The Shelf is where things go when they should stop taking up room in the sidebar without being archived, deleted, or moved somewhere you will forget.
+
+## Shelving
+
+Right-click a document (or a folder) and choose **Shelve**, or press ⌘⇧⌫ with the document open, or pick Shelve in the ⌘K command bar. It leaves Recents, Starred, the folder tree and All Documents, and appears in a **Shelf** section at the bottom of the sidebar — collapsed, with a count. Search still finds it, and you can open and edit it from the Shelf like anything else.
+
+**Unshelve**, from the same places, puts it back exactly where it was.
+
+Both are undoable with ⌘Z.
+
+## On disk
+
+A shelved document is moved into a `Shelf` folder at the top of the library that mirrors the structure underneath it: `Essays/Draft.md` becomes `Shelf/Essays/Draft.md`. Nothing about the file changes but where it sits, so it syncs like everything else and other apps see a plain folder. Unshelving moves it home and removes any folders left empty on the way.
+
+If you prefer, make the folder yourself in Finder and drag things in; Glassine treats anything under `Shelf` as shelved.

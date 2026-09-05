@@ -1,0 +1,77 @@
+---
+title: "Markdown, lightly styled"
+sidebarTitle: "Markdown"
+description: "What the editor styles as you type, and the keys that write the syntax for you."
+icon: "text"
+---
+
+The file is plain Markdown. The editor shows it styled — headings larger, emphasis in weight, code in a box — but leaves every mark in place, dimmed to the theme's syntax colour, so what you see is what is in the file. There is no rendered mode to fall out of and no hidden formatting; Review, when you want the finished page, is [one key away](/review/review).
+
+## What gets styled
+
+| You type | You see |
+|---|---|
+| `# Heading` through `###### Heading` | Six heading levels, larger by default and centered by default. Both are settings. |
+| `**bold**` or `__bold__` | Bold |
+| `*italic*` or `_italic_` | Italic |
+| `~~struck~~` | Strikethrough |
+| `` `code` `` | Inline code in a rounded box |
+| Four spaces or a tab at the start of a line | An indented code line |
+| ` ``` ` or `~~~` fences | A code block; nothing inside it is styled as Markdown |
+| `> quote` | A quote, in the theme's quote colour, with a little room to breathe |
+| `- item`, `* item`, `+ item` | A bullet |
+| `1. item` or `1) item` | A numbered item |
+| `- [ ] task` and `- [x] task` | A [task](/editor/tasks) with a clickable box |
+| `[text](https://…)` | A [link](/editor/links-and-tags); the address steps back, the text is coloured |
+| `![alt](image.png)` | An image reference, styled like a link (the picture appears in Review) |
+| `https://…` on its own | A bare link, coloured |
+| `#tag` | A [tag](/editor/links-and-tags), collected in the sidebar |
+| `@today`, `@tomorrow`, `@yesterday` | Expand to a [date](/editor/dates), drawn as a capsule |
+| `---`, `***`, `___` | A horizontal rule |
+
+Emphasis follows the usual rules: the marks have to hug the text (`**bold**`, not `** bold **`) and underscores inside words are left alone.
+
+## Keys that write the syntax
+
+Each of these wraps the selection in the right marks, or inserts a placeholder to type over when nothing is selected. Pressing the key again with the caret sitting between the marks removes them.
+
+| Keys | Writes |
+|---|---|
+| ⌘B | `**bold**` |
+| ⌘I | `*italic*` |
+| ⌘E | `` `code` `` |
+| ⌘⇧X | `~~strikethrough~~` |
+| ⌘⇧K | `[text](url)` — if a web address is on the clipboard it goes straight in, and the selection becomes the link text |
+| ⌘⌥1, ⌘⌥2, ⌘⌥3 | Make the current line a heading of that level (pressing the level it already has turns it back into body text) |
+| ⌘⌥0 | Body text: remove the heading marks |
+| ⌘⇧L | Toggle a task box on the current line |
+
+They are all in the Format menu as well.
+
+## Lists
+
+Return inside a list continues it: a new bullet, the next number, an empty task box. Return on an empty item ends the list. Settings → Editor → *Continue lists on Return* turns this off.
+
+**Tab** nests the item under the one above it — bullets, numbers and tasks alike — and **Shift-Tab** un-nests it. Numbered lists renumber themselves to fit, and Return on an empty nested item steps back out one level rather than ending the list.
+
+You can also **drag** a bullet, a number or a task box up or down to reorder the list; nested items travel with their parent.
+
+## Headings
+
+Headings are drawn larger and centered by default, in the editor and in Review alike. Settings → Editor has one switch for each: *Larger headings* and *Center headings*.
+
+## Smart typing
+
+Settings → Editor → *While typing* controls the Mac's own text services: smart quotes and smart dashes (both on by default), spell checking, automatic correction and inline predictions (all off by default). They apply only to what you type; the file is never rewritten behind you.
+
+## The placeholder
+
+An empty document shows *Start writing* at the caret, in the syntax colour. It disappears at the first character.
+
+## Where the caret opens
+
+A document opens with the caret after its last character, where writing usually continues. The window itself reopens at the size and position you left it.
+
+## Text size
+
+⌘+ and ⌘− change the type size a point at a time (it is the same *Size* as in Settings → Editor); ⌘0 returns it to the default, 16 pt. In Review the same keys scale the rendered page independently, and ⌘0 puts that back to 100%.

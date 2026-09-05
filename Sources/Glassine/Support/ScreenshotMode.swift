@@ -55,8 +55,11 @@ enum ScreenshotMode {
                 let screenHeight = NSScreen.screens.first?.frame.height ?? 0
                 let f = window.frame
                 let rect = CGRect(x: f.minX, y: screenHeight - f.maxY, width: f.width, height: f.height)
-                guard let image = CGWindowListCreateImage(rect, [.optionOnScreenBelowWindow, .optionIncludingWindow], id, [.bestResolution]),
-                      image.width > 1, image.height > 1 else {
+                let composite = CGWindowListCreateImage(rect, [.optionOnScreenBelowWindow, .optionIncludingWindow], id, [.bestResolution])
+                // A window floating above the others (⌘.) has nothing beneath it the
+                // server will composite; take the window on its own then.
+                let image = composite ?? CGWindowListCreateImage(rect, .optionIncludingWindow, id, [.bestResolution])
+                guard let image, image.width > 1, image.height > 1 else {
                     finish(name: name, error: "the window server returned no image for window \(id)"); return
                 }
                 write(image, name: name)

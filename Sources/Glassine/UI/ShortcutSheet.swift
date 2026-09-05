@@ -33,6 +33,7 @@ struct ShortcutSheet: View {
             ("⌘↩", "Review"),
             ("Esc", "Step back: Review → editor → all documents"),
             ("↑ ↓ ← →", "Move between cards, Return opens"),
+            ("⌘.", "Float over other windows"),
             ("⌘,", "Settings"),
         ]),
     ]

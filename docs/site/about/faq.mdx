@@ -1,0 +1,55 @@
+---
+title: "Questions"
+description: "Short answers to the things people ask first."
+icon: "circle-help"
+---
+
+<AccordionGroup>
+  <Accordion title="Why is it called Glassine Writer on the App Store?">
+    The name "Glassine" alone was already reserved on App Store Connect by someone else, though no app by that name has shipped. The listing is *Glassine Writer*; the app, its window, its icon and its files are all still Glassine.
+  </Accordion>
+
+  <Accordion title="Where are my files?">
+    `iCloud Drive/Glassine` in Finder, one `.md` file per document. File → Reveal Library in Finder takes you there. The App Store version's default library is an iCloud folder of its own that Finder also shows as "Glassine" in iCloud Drive, with the app's icon. See [files and saving](/library/files).
+  </Accordion>
+
+  <Accordion title="Can I use Obsidian, iA Writer or Dropbox with it?">
+    Yes. Point Settings → General → Library at any folder — an Obsidian vault, a Dropbox folder — and Glassine reads and writes the same plain Markdown as everything else. Two apps can have the folder open at once; if both change the same file, Glassine keeps your edits and saves the other version beside the file as `… (conflict).md`.
+  </Accordion>
+
+  <Accordion title="Why does ⌘S hide the sidebar instead of saving?">
+    Because nothing needs saving. Glassine writes the file half a second after you stop typing and every few seconds while you type; the dot at the bottom-left tells you where things stand, and File → Save Now exists for reassurance. The key went to the thing you do all day.
+  </Accordion>
+
+  <Accordion title="The date chip, the task box, the tag — what is in the file?">
+    Only text. `@September 5, 2026`, `- [x] done`, `#ideas`. Glassine draws capsules, boxes and colours around ordinary Markdown and adds nothing to the file that another app would trip over.
+  </Accordion>
+
+  <Accordion title="Does it phone home?">
+    No. There are no accounts, no analytics, no crash reporting. The direct-download version asks GitHub once a day whether a newer release exists, and you can turn that off. The App Store version holds the sandbox's outgoing-connection permission only because Review's web view cannot start without it, and never opens a connection of its own. See [privacy](/about/privacy).
+  </Accordion>
+
+  <Accordion title="I have a file called Something (conflict).md — what is it?">
+    Both sides changed the same document — this Mac and another, or Glassine and another app — and Glassine kept your version, saving the other beside it so nothing was lost. Open both, keep what you want, delete the rest. If the file dates from the very first build (September 1, 2026), it is a false alarm from a bug since fixed and safe to delete.
+  </Accordion>
+
+  <Accordion title="Can I move documents by dragging them between folders?">
+    Not yet. Right-click → Move To does it, and ⌘Z undoes it. Dragging *within* a list — a task box, a bullet, a number — to reorder items does work.
+  </Accordion>
+
+  <Accordion title="Is there an iPhone or iPad version?">
+    Not yet. The files are in iCloud Drive, so any Markdown app on iOS can open them meanwhile.
+  </Accordion>
+
+  <Accordion title="Can I have two windows, or two libraries?">
+    One window, one library, by design. Switch libraries under Settings → General.
+  </Accordion>
+
+  <Accordion title="Export to Word, HTML, EPUB?">
+    PDF only, in the current Review style (⌘⇧E). For anything else, the files are plain Markdown; Pandoc and its relatives work on them directly.
+  </Accordion>
+
+  <Accordion title="Something looks wrong. How do I report it?">
+    Help → Copy Debug Info (⌘⌥⇧D) puts the editor's geometry and every setting on the clipboard. Paste it into an issue at [github.com/a-libre/glassine/issues](https://github.com/a-libre/glassine/issues) with a line about what you expected.
+  </Accordion>
+</AccordionGroup>

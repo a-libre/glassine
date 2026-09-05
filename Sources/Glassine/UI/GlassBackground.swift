@@ -81,20 +81,24 @@ struct GlassBackdrop: View {
 /// Configures the hosting NSWindow for the transparent, title-less look.
 struct WindowConfigurator: NSViewRepresentable {
     let theme: Theme
+    let floats: Bool
 
     func makeNSView(context: Context) -> ConfiguratorView {
         let v = ConfiguratorView()
         v.theme = theme
+        v.floats = floats
         return v
     }
 
     func updateNSView(_ v: ConfiguratorView, context: Context) {
         v.theme = theme
+        v.floats = floats
         v.configureIfPossible()
     }
 
     final class ConfiguratorView: NSView {
         var theme: Theme?
+        var floats = false
         private var configured = false
         /// Watches the window's first resizes after launch; see configureIfPossible.
         private var frameGuard: NSObjectProtocol?
@@ -141,6 +145,19 @@ struct WindowConfigurator: NSViewRepresentable {
             // same trick), and a non-opaque window would let clicks fall through to the desktop
             // wherever the backing store is transparent.
             if !window.isOpaque { window.isOpaque = true }
+            // Floating: above other apps' windows, and — the part that matters with
+            // Stage Manager on — allowed to stay on screen beside another app's set
+            // instead of being swept off with the rest of Glassine.
+            let level: NSWindow.Level = floats ? .floating : .normal
+            if window.level != level { window.level = level }
+            if floats != window.collectionBehavior.contains(.canJoinAllApplications) {
+                if floats {
+                    window.collectionBehavior.remove(.primary)
+                    window.collectionBehavior.insert(.canJoinAllApplications)
+                } else {
+                    window.collectionBehavior.remove(.canJoinAllApplications)
+                }
+            }
             window.backgroundColor = theme.tint.nsColor
             let appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
             if window.appearance != appearance { window.appearance = appearance }

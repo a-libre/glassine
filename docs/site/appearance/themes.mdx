@@ -1,0 +1,70 @@
+---
+title: "Themes"
+description: "Nine built in, a theme editor with live preview, and JSON files you can share."
+icon: "palette"
+---
+
+A theme is the glass — the blur material, the tint over it and how strongly the tint covers the blur, an optional paper grain, the sidebar's own tint — and the colours: text, headings, accent, Markdown syntax, quotes, code, links, caret and selection. The whole window follows it, Review's Glass style included.
+
+## Built in
+
+Nine, under View → Theme (and in the ⌘K command bar as *Theme: …*):
+
+| Theme |  |
+|---|---|
+| **Dusk** | Violet glass, a cyan accent. The default. |
+| **Ocean** | A thin blue-black tint that lets the desktop through; sea-blue accent. |
+| **Lavender** | Warm dark glass with cream text and a lavender accent. |
+| **Graphite** | Neutral dark grey, no grain, a copper accent. |
+| **Sepia Night** | Brown-black glass, parchment text, a burnt-orange accent. |
+| **Midnight** | The darkest: near-black blue, a soft blue accent. |
+| **Moss** | Green-black glass, a leaf-green accent. |
+| **Frost** | Light: cool white glass, a blue accent. |
+| **Paper** | Light: warm white with a little grain, like the sheet it is named for. |
+
+<Frame caption="Paper: a launch checklist on light glass.">
+  <img src="/images/light.jpg" alt="Glassine in the Paper theme" />
+</Frame>
+
+## Following the system
+
+Settings → Themes → Appearance. *Always the chosen theme* keeps whatever you picked. *Follow the system* takes one light theme and one dark theme — Paper and Dusk to begin with — and switches between them when macOS does. Choosing a theme from the View menu while following the system fills the matching slot.
+
+## Making your own
+
+Built-in themes cannot be edited, but any of them can be the starting point.
+
+<Steps>
+  <Step title="Duplicate">
+    Settings → Themes. Select the built-in theme closest to what you want and press **+**. A copy appears under *Mine* and becomes the current theme.
+  </Step>
+  <Step title="Edit, and watch">
+    Everything you change is live in the main window behind the settings card — the tint, the grain, every colour — so you can judge it on your own text.
+  </Step>
+  <Step title="Keep or discard">
+    **−** deletes a theme of yours. The ••• menu exports the current theme or imports one.
+  </Step>
+</Steps>
+
+### What you can change
+
+**Name**, and whether it is a **dark appearance** (which decides the GitHub Review style's colours and how the app treats it when following the system).
+
+**Glass.** The material, from a list:
+
+| Material |  |
+|---|---|
+| Soft glass | The standard window blur |
+| Deep glass | Darker and blurrier |
+| Sidebar glass | The blur macOS uses for sidebars |
+| Thin glass | Lets more of the desktop through |
+| Frosted | A light haze |
+| Opaque | No blur at all; the tint colour, solid |
+
+Then the **tint** colour, **tint strength** (how much of the blur it covers, 0–100%), **paper grain** (a faint texture, 0–20%) and **sidebar tint** (how strongly the sidebar's own darker tint is applied).
+
+**Colours.** Text, Headings, Accent, Markdown syntax, Quotes, Code, Links, Caret and Selection. The accent is the most visible: it colours tags, date capsules, task boxes, the star, the selected sidebar row and, unless you set one, the caret.
+
+## Sharing a theme
+
+Themes export as small JSON files, `Name.glassinetheme.json`, from the ••• menu in Settings → Themes. Import one from the same menu. They are easy to keep in a dotfiles repo, send to someone, or post; two of the built-ins, Dusk and Lavender, began life as exported files.

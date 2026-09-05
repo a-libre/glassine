@@ -1,0 +1,41 @@
+---
+title: "Focus mode and typewriter scrolling"
+sidebarTitle: "Focus and typewriter"
+description: "Two ways of keeping your attention on the line you are writing. Both are on by default."
+icon: "eye"
+---
+
+<Frame>
+  <img src="/images/focus.jpg" alt="Focus mode with typewriter scrolling: one paragraph lit, the rest dimmed, the caret held at the middle of the window" />
+</Frame>
+
+## Typewriter scrolling
+
+⌃⌘T, or View → Typewriter Scrolling, or the ⌘K command bar.
+
+The line you are writing stays at the middle of the window; the page moves under it instead of the caret wandering down the screen. The top margin grows to make room, and the viewport shifts with it so nothing jumps when you switch it on.
+
+By default the page re-centers as you type and when you move with the arrow keys, but not when you click — clicking somewhere on the page and having it scroll away is disorienting. Settings → Editor → *Also re-center after clicking* changes that.
+
+## Focus mode
+
+⌃⌘F, or View → Focus Mode, or the command bar.
+
+Everything except the paragraph you are in steps back. The dimmed text keeps its Markdown styling — headings are still large, links still blue — just darker and less saturated, so the shape of the page stays readable while the words recede.
+
+- **Focus on** — *Paragraph* (the default) or *Sentence*, in Settings → Editor.
+- **Unfocused text** — how bright the rest of the page stays, from 100% (no dimming) down to 0% (invisible). The default is 40%.
+
+As the caret moves between paragraphs the light crossfades from one to the next rather than snapping. Turning focus on settles the dimming over the page gradually.
+
+### Scrolling lifts it
+
+Scroll and the dimming fades away, so you can read around what you are writing. It stays lifted while you read. The next click or keystroke brings it back, around wherever the caret landed. (The momentum tail at the end of a trackpad scroll does not count as a new scroll, so the page will not flicker.)
+
+## The counter
+
+The footer shows a word count, a character count and a reading time — *Everything* by default; Settings → Editor → *Counter shows* narrows it to one, and View → Show Counter hides it. The word count ticks between values as you type rather than flashing.
+
+## Quiet chrome
+
+On the first keystroke in the editor the footer and the sidebar toggle fade to almost nothing. They come back when the pointer moves. Nothing else changes; it is only the chrome stepping out of the way.

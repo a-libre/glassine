@@ -1,0 +1,29 @@
+---
+title: "Links and tags"
+description: "Links written for you, web addresses that step back, and #tags that turn into sidebar filters."
+icon: "link"
+---
+
+## Links
+
+A Markdown link is `[the words](https://the.address)`. The editor colours the words in the theme's link colour and steps the brackets and the address back, so a paragraph full of links still reads as prose.
+
+There are three ways to make one without typing the brackets:
+
+**Paste over a selection.** Select some words, copy a web address from anywhere, and paste. Instead of replacing the words, ⌘V wraps them: `[the words](https://…)`. The new link pulses once in the link colour so you can see what happened. Spaces at the ends of the selection stay outside the link; selecting an address itself, or something with a line break or a bracket in it, pastes normally.
+
+**⌘⇧K.** Wraps the selection as a link. If a web address is on the clipboard it is used and the caret lands after the link; otherwise the address is left as `https://` and selected, ready to type over. With nothing selected you get `[link text](https://)` with the text selected.
+
+**Type an address.** A bare `https://…` is coloured as a link on its own.
+
+Links are not clickable in the editor, where a click should place the caret. In [Review](/review/review) they open in your browser.
+
+Image references, `![alt text](picture.png)`, are styled the same way and shown as pictures in Review. Paths are relative to the document's own folder in the library.
+
+## Tags
+
+Write `#tag` anywhere in a document — `#ideas`, `#draft`, `#2026-plans`, `#work/clients` — and it appears under **Tags** in the sidebar with a count of the documents that carry it. Click a tag to filter the sidebar and All Documents to those documents; the tag's name appears at the top of both with a small ⓧ that clears the filter (Esc in All Documents clears it too). A search and a tag filter combine.
+
+A tag starts with a letter or an underscore and may contain letters, digits, hyphens, underscores and slashes. Something that looks like a hex colour, `#FFF` or `#1E90FF`, is left alone, and so is anything inside code.
+
+Tags are how a note lives in more than one place without being moved: a document in `Essays` can carry `#travel` and show up beside the travel notes, with the file exactly where it was.

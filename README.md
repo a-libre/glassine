@@ -109,6 +109,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | — | Drag a task box or a list bullet or number up or down to reorder the list, nested items in tow |
 | ⌘Z ⇧⌘Z | Undo and redo — typing first, then file operations: a new document, a rename, a move, a duplicate, a trash |
 | ⌘+ ⌘− ⌘0 | Text size |
+| ⌘. | Float on top — the window stays over other apps' windows, and stays on screen when Stage Manager switches to another app. Again to stop; a pin in the footer shows while it floats |
 | ⌘, | Settings |
 | ⌘⌥⇧D | Copy Debug Info (also in the Help menu) — caret geometry, layout and settings in one paste, for bug reports |
 
@@ -176,6 +177,10 @@ For documents that aren't current but aren't finished with either. Right-click o
 
 On disk it's a plain move into a `Shelf` folder at the top of the library that mirrors the structure underneath (`Essays/Draft.md` becomes `Shelf/Essays/Draft.md`), so it syncs like everything else and nothing about the file changes but where it sits. Undo works on it like any other move.
 
+## Documentation
+
+The full manual — every feature, setting, key and small delight — lives in [`docs/site`](docs/site) and is published with Mintlify; the link goes here when the site is connected. `docs/site/docs.json` is the navigation, the pages are `.mdx`, and `mint dev` in that folder previews it. A change someone using Glassine would notice updates the page it belongs to and the changelog in the same commit.
+
 ## Project layout
 
 ```
@@ -187,6 +192,7 @@ Sources/Glassine/
   Support/    Distribution (sandbox / App Store differences), ScreenshotMode (the app photographs itself for the store), HexColor, small extensions
 Resources/    Info.plist, icon (make_icon.py draws it), entitlements for each build flavor
 docs/appstore/  the store listing, a showcase library, and the script that takes the screenshots
+docs/site/    the documentation site (Mintlify): docs.json plus one .mdx per page
 build.sh      assembles and signs Glassine.app (--appstore for the sandboxed flavor)
 release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for the Mac App Store
 ```

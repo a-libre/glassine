@@ -1,0 +1,65 @@
+---
+title: "Changelog"
+description: "What changed, by day. Version 0.2.3 is in App Review; everything after it is in the source and will be in the next build."
+icon: "history"
+---
+
+Glassine moves in days rather than versions so far. The App Store carries version numbers — 0.2.3, build 6, is the one submitted for review on September 3, 2026 — and the direct download will pick up the same numbering. Everything below is in the source on `main`.
+
+<Update label="September 5, 2026">
+- Date chips draw as one capsule again. A token whose `@` is dimmer than its date could reach the layout manager as two runs, each drawing its own capsule, overlapping.
+- The Today view is now **Timelapse**, in the sidebar, the View menu, the command bar, the shortcut sheet and here.
+- **⌘1, ⌘2 and ⌘3** open the three rows at the top of the sidebar in order: All Documents, Timelapse, New Document. ⌘P, ⌘D and ⌘N still work. The rows are reordered to match and show the numbers.
+- Gallery cards animate their own entrance, so a mosaic removed mid-cascade can no longer leave a ghost behind.
+- **Float on top.** ⌘. (View → Float on Top) keeps the window over other apps' windows and on screen across Stage Manager sets; a pin in the footer shows while it floats. Remembered between launches.
+- This documentation site.
+</Update>
+
+<Update label="September 4, 2026">
+- **Motion.** Checking a task sweeps the strike across the words over half a second while they fade to the muted colour, with a pulse on the box; the sink a moment later fades out, moves and fades back in; unchecking brightens the words back. Review does the same in CSS. And twenty smaller things: focus mode crossfades between paragraphs, settles when turned on and lifts gradually; date capsules and pasted links pulse; sidebar rows slide; stars spring; every count ticks; the search field brightens with focus; a folder's count and its + trade places on hover; the Saved mark springs in; cards cascade in and lift on hover; Review scales in; the command bar highlight glides; Settings tabs crossfade. All of it steps aside under Reduce Motion. See [small delights](/reference/small-delights).
+- New installs start in **Helvetica Neue**.
+- **Focus mode keeps Markdown styling** in the dimmed text — darker and less saturated rather than flattened to grey.
+- **Leaving a document shrinks the page back into its card**, the reverse of the way it opened.
+- Two more built-in themes, **Dusk** and **Lavender**; Dusk is the new default and the dark half of the system pair.
+- The sidebar's **Documents** tree starts collapsed, with a count; All Documents is the better way to browse.
+</Update>
+
+<Update label="September 3, 2026">
+- **The Shelf.** Shelve a document or folder (right-click, ⌘⇧⌫, or ⌘K) and it leaves Recents, Starred, the tree and All Documents for a collapsed Shelf section at the bottom of the sidebar, still searchable; Unshelve puts it back where it was. On disk, a plain move into a `Shelf` folder that mirrors the original path.
+- **Scrolling lifts focus mode**; the next click or keystroke brings it back where the caret lands.
+- **Paste a link over words to link them**: with a web address on the clipboard, ⌘V over a selection makes `[words](url)` instead of replacing the words.
+- A day's note keeps its date as its name whatever its heading says, and only date-named notes appear in the Timelapse corridor.
+- A new icon: the wordmark's lowercase *g* on paper, ruled lines fading in from the left.
+- The window reopens at the size and position you left it.
+- Review works in the sandboxed App Store build (the web view needs the outgoing-connection entitlement to start).
+- The app photographs itself for the store screenshots; no permissions, no one at the keyboard.
+- App Store build 0.2.3 (6) submitted for review.
+</Update>
+
+<Update label="September 2, 2026">
+- **Nested lists.** Tab and Shift-Tab nest and un-nest bullets, numbers and tasks; numbered items renumber; Return on an empty nested item steps out.
+- **Headings centered** by default, in the editor and Review, with a switch.
+- **Finished tasks sink** below the unfinished ones after a moment, nested items in tow, and rise back home when unchecked. On by default, with a switch.
+- **Drag a task box, a bullet or a number** to reorder a list.
+- A steadier sidebar resize.
+- **Undo for almost everything**: after the editor's own undo runs out, ⌘Z reaches file operations — a new document, a rename, a move, a duplicate, a trash.
+- Settings became a taller card with room to breathe; the Themes pane scrolls; Tab cycles the panes.
+- A hand-made wordmark in the sidebar header.
+- The App Store flavor: sandbox, an iCloud container of its own, bookmarked custom folders, and the packaging scripts. A privacy policy.
+</Update>
+
+<Update label="September 1, 2026">
+- **Ocean** became the default look, then a set of first-install defaults tuned for writing: typewriter and focus on, a soft 4 pt caret.
+- **The ⌘K command bar**, listing what applies where you are.
+- **Search that glides** from the header to the middle of the window on ⌘F, and searches full text.
+- **The Daily timeline** — later Timelapse — as a receding corridor, with ⌘D for the view and ⌥⌘D for today's note.
+- Quiet chrome while typing; the ⌘/ shortcut sheet; themes that follow the system; the *Start writing* placeholder; daily notes; PDF export; the card that grows into the page.
+- Faster launch: the library is listed without reading a file, and previews, tags and search text arrive on a background queue.
+- Gradient strikes, lit capsules, softer edges. Click a task's `[ ]` to check it, in the editor and in Review.
+- Documents open with the caret at the end.
+</Update>
+
+<Update label="August 31, 2026">
+- **Glassine 0.1**, first public commit: the glass window, the smooth caret, the iCloud library, autosave, the Craft-style sidebar, All Documents, Review with five styles, copy as Markdown or rich text, typewriter scrolling, focus mode, the counter.
+- ⌘P for All Documents, ⌘S for the sidebar; date tokens (`@today`, `@yesterday`, `@tomorrow`); full-text search on ⌘F; the release pipeline and the daily update check.
+</Update>

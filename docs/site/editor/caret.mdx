@@ -1,0 +1,19 @@
+---
+title: "The caret"
+description: "An insertion point that glides between positions instead of jumping, and how to tune it."
+icon: "text-cursor"
+---
+
+The caret in Glassine is drawn by the app, not by the text system, so it can move the way a thing moves: when you press an arrow key, click somewhere, or type, it glides to the new position over about a quarter of a second, easing out, instead of vanishing from one place and appearing in another. It takes its colour from the theme — usually the accent — and its blink is a soft fade rather than an on-off flicker.
+
+Everything about it is in Settings → Caret.
+
+| Setting | Default | What it does |
+|---|---|---|
+| Smooth movement | On | The glide itself. Off, the caret snaps like any other. |
+| Glide time | 270 ms | How long a move takes, from 40 to 300 ms. |
+| Smooth while typing | On | Whether the caret also glides from letter to letter as you type. Off, it glides for arrow keys and clicks but snaps instantly under your typing. |
+| Blink | Soft | *Soft* fades in and out. *Classic* is the traditional on-off blink. *Never* holds steady. |
+| Width | 4 pt | From 1 to 4 pt, in half-point steps. |
+
+If Reduce Motion is on in System Settings → Accessibility, gliding is turned off automatically and the caret behaves like a standard one. The same switch stills every other animation in the app; the [small delights page](/reference/small-delights) lists them.

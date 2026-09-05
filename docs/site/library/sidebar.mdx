@@ -1,0 +1,53 @@
+---
+title: "The sidebar"
+description: "Recents, Starred, the folder tree, Tags and the Shelf, and everything in the right-click menus."
+icon: "panel-left"
+---
+
+The sidebar is the library. ⌘S (or ⌘\, or the button in its header) hides and shows it; drag its edge to resize it. From top to bottom:
+
+**The wordmark** and the hide button.
+
+**Search** — ⌘F from anywhere. See [search](/library/search).
+
+**Three rows**, numbered so the left hand can reach them while the right is on the mouse: **All Documents** (⌘1), **Timelapse** (⌘2) and **New Document** (⌘3). The first two also answer to ⌘P and ⌘D, the third to ⌘N.
+
+**Recents** — the six documents you opened most recently, newest first.
+
+**Starred** — documents you have starred, from the right-click menu. The section appears when there is at least one.
+
+**Documents** — the folder tree, with a count. It starts collapsed on a fresh install, because All Documents is the better way to browse and the sidebar stays calmer without it; open it once and it stays open. Hovering a folder swaps its count for a **+** that makes a new document inside it; the arrows button in the header sorts everything by last edited, name or date created. Folders remember whether they are expanded.
+
+**Shelf** — documents [set aside](/library/shelf), collapsed, with a count. Present only when something is on it.
+
+**Tags** — every `#tag` in the library with a count. Click one to filter; the [tags page](/editor/links-and-tags#tags) explains.
+
+**The footer** — the library folder's name, the number of documents, and a gear for Settings.
+
+Hover any document row for a moment and the time it was last edited appears.
+
+## Right-click on a document
+
+| Item | What it does |
+|---|---|
+| Star / Unstar | Adds it to the Starred section |
+| Rename… (⌘R) | Renames the file. A file you rename yourself keeps that name; Glassine stops deriving it from the first line |
+| Duplicate | A copy next to the original, "Name Copy", opened straight away |
+| Copy as Markdown / Copy as Rich Text | The whole document to the clipboard |
+| Move To | Any folder in the library, or the top level. (Drag and drop between folders is not wired up; this is the way to move things) |
+| Shelve / Unshelve (⌘⇧⌫) | Out of the way, not gone |
+| Reveal in Finder | Selects the file in Finder |
+| Copy Path | The file's full path as text |
+| Move to Trash (⌘⌫) | Into the macOS Trash, from where it can be put back. (When the sandboxed App Store version cannot reach the Trash from an iCloud folder, the file goes to a hidden `.Trash` folder inside the library instead, which still syncs and still restores) |
+
+## Right-click on a folder
+
+New Document Here, New Subfolder…, Rename…, Reveal in Finder, Shelve (the whole folder, structure intact), and Move to Trash.
+
+## Undo
+
+⌘Z undoes text edits first. When the editor has nothing left to undo, the same key reaches the library's own history: a document you created by accident, a rename, a move, a duplicate, a trip to the Trash, a shelving. ⇧⌘Z redoes.
+
+## Small things
+
+Rows slide in and out as documents come and go — a new one, a shelved one, a search that ends. Counts tick between values rather than flashing. Stars spring in. The search field brightens while it has the keyboard.

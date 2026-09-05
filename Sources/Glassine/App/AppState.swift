@@ -807,6 +807,12 @@ final class AppState: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: work)
     }
 
+    /// ⌘.: the window floats over everything else, or stops.
+    func toggleFloating() {
+        settings.data.floatOnTop.toggle()
+        showNotice(settings.data.floatOnTop ? "Floating over other windows" : "Floating off")
+    }
+
     func toggleSidebar() {
         withAnimation(.spring(duration: 0.28, bounce: 0.05)) {
             settings.data.sidebarVisible.toggle()
@@ -878,6 +884,7 @@ final class AppState: ObservableObject {
             let mark = theme.id == t.id ? "  ✓" : ""
             add("theme-\(t.id)", "Theme: \(t.name)\(mark)") { [weak self] in self?.chooseTheme(t.id) }
         }
+        add("float", settings.data.floatOnTop ? "Stop floating over other windows" : "Float over other windows", keys: "⌘.") { [weak self] in self?.toggleFloating() }
         add("settings", "Settings…", keys: "⌘,") { [weak self] in self?.showingSettings = true }
         add("shortcuts", "Shortcuts", keys: "⌘/") { [weak self] in self?.showingShortcuts = true }
         return cmds

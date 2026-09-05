@@ -1,0 +1,88 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "willow",
+  "name": "Glassine",
+  "description": "A quiet Markdown writing app for macOS. Everything it does, and every key that does it.",
+  "colors": {
+    "primary": "#0A8FBF",
+    "light": "#5CCFF5",
+    "dark": "#0A7FA8"
+  },
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png",
+    "href": "https://github.com/a-libre/glassine"
+  },
+  "favicon": "/favicon.png",
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "decoration": "gradient"
+  },
+  "navbar": {
+    "links": [
+      { "label": "Source", "href": "https://github.com/a-libre/glassine" }
+    ],
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/a-libre/glassine"
+    }
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Start",
+        "pages": ["index", "install", "getting-started"]
+      },
+      {
+        "group": "Writing",
+        "pages": [
+          "editor/markdown",
+          "editor/tasks",
+          "editor/dates",
+          "editor/links-and-tags",
+          "editor/focus-and-typewriter",
+          "editor/caret"
+        ]
+      },
+      {
+        "group": "Library",
+        "pages": [
+          "library/all-documents",
+          "library/sidebar",
+          "library/search",
+          "library/shelf",
+          "library/timelapse",
+          "library/files"
+        ]
+      },
+      {
+        "group": "Review",
+        "pages": ["review/review", "review/export-and-copy"]
+      },
+      {
+        "group": "Appearance",
+        "pages": ["appearance/themes", "appearance/typography"]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/shortcuts",
+          "reference/command-bar",
+          "reference/settings",
+          "reference/small-delights"
+        ]
+      },
+      {
+        "group": "About",
+        "pages": ["about/faq", "about/privacy", "about/building", "about/changelog"]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/a-libre/glassine"
+    }
+  }
+}

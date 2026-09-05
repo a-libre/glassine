@@ -1,0 +1,29 @@
+---
+title: "Privacy"
+description: "Glassine collects nothing. What that means in each version."
+icon: "shield"
+---
+
+Glassine collects nothing.
+
+There are no accounts, no analytics, no crash reporting, no advertising, and no servers. What you write stays on your Mac, in plain Markdown files you can see in Finder.
+
+## iCloud
+
+If you keep your library in iCloud Drive, your documents sync through your own iCloud account under Apple's terms, exactly as any file in iCloud Drive does. Glassine never sees them in transit and has no way to. Apple's iCloud privacy terms are at [apple.com/legal/privacy](https://www.apple.com/legal/privacy/).
+
+The Mac App Store version runs in the App Sandbox. It holds the sandbox's permission for outgoing connections only because Review, which draws the page with the system's web view, cannot start without it. The app never opens a connection of its own, and there is nothing it would send.
+
+## Checking for updates (direct download only)
+
+The version downloaded from GitHub, outside the App Store, asks GitHub once a day whether a newer release exists. That request carries the version of Glassine you are running and, like any web request, your IP address. GitHub's [privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) covers what they do with it. Settings → General turns the check off.
+
+Nothing about your documents, your library, or how you use the app is ever sent.
+
+## Changes
+
+If this ever changes, the change will appear first in [PRIVACY.md](https://github.com/a-libre/glassine/blob/main/PRIVACY.md), in the same repository as the code that does it, and then here.
+
+## Contact
+
+Open an issue at [github.com/a-libre/glassine/issues](https://github.com/a-libre/glassine/issues).

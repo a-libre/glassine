@@ -1,0 +1,45 @@
+---
+title: "Files and saving"
+description: "Where your writing lives, when it is written, how names are chosen, and what happens when two copies disagree."
+icon: "folder"
+---
+
+## Where the files are
+
+`iCloud Drive/Glassine` — the **Glassine** folder at the top level of iCloud Drive in Finder; on disk, `~/Library/Mobile Documents/com~apple~CloudDocs/Glassine/`. Every document is a plain `.md` file and every folder is a folder. Nothing is stored anywhere else: no database, no sidecar files, no metadata the files do not carry themselves.
+
+Anything you drop into the folder from Finder or another Mac appears in the sidebar within a few seconds, and anything Glassine writes syncs the ordinary iCloud way. Other Markdown apps can open the same folder at the same time.
+
+File → Reveal Library in Finder (or Help → Open Library Folder) takes you there; File → Reveal Document in Finder (⌘⇧R) selects the open file.
+
+### Using a different folder
+
+Settings → General → Library → **Change…** points Glassine at any folder — a Dropbox folder, an Obsidian vault, a plain folder on the Mac. **Use iCloud Drive** puts it back. The App Store version remembers a chosen folder with a security-scoped bookmark, so it can return to it after a relaunch without asking again.
+
+The App Store version's default library is an iCloud folder of the app's own, which Finder also shows as "Glassine" in iCloud Drive; the [install page](/install#what-differs-between-the-two-versions) has the differences.
+
+## Saving
+
+Always on; there is no Save. Glassine writes the file about half a second after you stop typing, at least every four seconds while you type continuously, when you switch documents, when the app loses focus, and on quit.
+
+The small dot at the bottom-left of the editor says what is happening: grey is clean, accent-coloured means edits are waiting to be written, and a brief *Saved* with an iCloud mark springs in after each write. File → Save Now forces a write if you want the reassurance.
+
+## Naming
+
+A new document starts as *Untitled* and takes its file name from its first line as you write — leading `#` and Markdown marks stripped, characters a file name cannot hold replaced. Rename the file yourself (⌘R, or the right-click menu) and Glassine stops touching its name from then on. Settings → General → *Name files after the first line* turns the whole behaviour off.
+
+Daily notes are the exception: a note named for a date keeps that name whatever its first line says.
+
+## When a file changes underneath you
+
+If a file changes on disk while it is open and you have no unsaved edits, Glassine simply reloads it. If both sides changed, your edits win and the other version is kept next to the file as `… (conflict).md`, so nothing is lost either way.
+
+Glassine compares file *contents* to decide this, not modification dates. iCloud rewrites dates after an upload, and trusting them produced phantom conflict copies in the very first build; any `(conflict)` files from that build are safe to delete.
+
+## The Trash
+
+Move to Trash (⌘⌫) uses the macOS Trash, so a document can be put back from Finder — or with ⌘Z, straight away. When the sandboxed App Store version cannot reach the Trash from an iCloud folder, the file goes to a hidden `.Trash` folder inside the library instead, which still syncs and still restores.
+
+## What is remembered outside the files
+
+Settings, the list of starred documents, which folders are expanded, the recent list, the sort order and the window's size and position live in the app's preferences, not in the library. Themes you make are stored there too, and can be exported as JSON from Settings → Themes.
