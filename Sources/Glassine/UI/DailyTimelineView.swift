@@ -75,7 +75,9 @@ struct DailyTimelineView: View {
 
     private func corridor(items: [(doc: DocumentRef, date: Date)], hasToday: Bool, size: CGSize) -> some View {
         let width: CGFloat = min(470, size.width - 120)
-        let frontY = size.height - 200
+        // Today's card starts at the middle of the window and reaches into the
+        // lower half; the days before it climb the upper half toward the top.
+        let frontY = size.height / 2 + 90
         // Each day sits a fifth of its own height clear of the one in front of it,
         // whatever the window's height; the corridor rises from the front card.
         let rises = DailyTimelineView.rises(count: 12)
@@ -101,7 +103,7 @@ struct DailyTimelineView: View {
                 Text("Daily notes collect here — today in front, earlier days up the corridor.")
                     .font(.system(size: 12))
                     .opacity(0.45)
-                    .position(x: size.width / 2, y: frontY - 190)
+                    .position(x: size.width / 2, y: frontY - 180)
             }
         }
     }
