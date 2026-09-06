@@ -509,7 +509,17 @@ final class GlassineTextView: NSTextView {
            ch == " " || ch == "\t" || ",.;:!?)]".contains(ch) {
             expandDateShortcutIfNeeded()
         }
+        // Three hyphens are a rule, not an em dash and a hyphen: while a line
+        // holds nothing but dashes the smart-dash substitution stands down, and
+        // an em dash it has already made turns back into the hyphens it came from.
+        let dashLine = (string as? String) == "-" && lineBeforeCaretIsDashes()
+        let smartDashes = isAutomaticDashSubstitutionEnabled
+        if dashLine { isAutomaticDashSubstitutionEnabled = false }
         super.insertText(string, replacementRange: replacementRange)
+        if dashLine {
+            isAutomaticDashSubstitutionEnabled = smartDashes
+            straightenDashLine()
+        }
         // A slash on its own — at the start of a line or after a space — opens
         // the menu; one inside a word or an address is just a slash.
         if let s = string as? String, s == "/", slashAnchor == nil, let storage = textStorage {
@@ -520,6 +530,36 @@ final class GlassineTextView: NSTextView {
                 if before == 10 || before == 32 || before == 9 { openSlashMenu(at: loc) }
             }
         }
+    }
+
+    private static let dashes: Set<Character> = ["-", "\u{2013}", "\u{2014}"]
+
+    /// The line so far, up to the caret, is dashes and nothing else.
+    private func lineBeforeCaretIsDashes() -> Bool {
+        guard let storage = textStorage else { return false }
+        let ns = storage.string as NSString
+        let sel = selectedRange()
+        let para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
+        let head = ns.substring(with: NSRange(location: para.location, length: sel.location - para.location))
+        return !head.isEmpty && head.allSatisfy { Self.dashes.contains($0) }
+    }
+
+    /// A line of dashes with an em or en dash in it becomes the plain hyphens
+    /// it stands for — two per long dash — so `---` is `---` in the file.
+    private func straightenDashLine() {
+        guard let storage = textStorage else { return }
+        let ns = storage.string as NSString
+        let sel = selectedRange()
+        var para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
+        if para.length > 0, ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }
+        let line = ns.substring(with: para)
+        guard !line.isEmpty, line.allSatisfy({ Self.dashes.contains($0) }), line.contains(where: { $0 != "-" }) else { return }
+        let count = line.reduce(0) { $0 + ($1 == "-" ? 1 : 2) }
+        let straight = String(repeating: "-", count: count)
+        guard shouldChangeText(in: para, replacementString: straight) else { return }
+        storage.replaceCharacters(in: para, with: straight)
+        didChangeText()
+        setSelectedRange(NSRange(location: para.location + straight.nsLength, length: 0))
     }
 
     /// Replaces a shortcut word right before the caret with the actual date. Returns true if it did.
@@ -826,9 +866,7 @@ final class GlassineTextView: NSTextView {
     private func updateSyntaxReveal() {
         guard let lm = layoutManager, let storage = textStorage else { return }
         let ns = storage.string as NSString
-        let new = config.hideSyntax
-            ? ns.paragraphRange(for: selectedRange().clamped(to: storage.length))
-            : NSRange(location: NSNotFound, length: 0)
+        let new = ns.paragraphRange(for: selectedRange().clamped(to: storage.length))
         let old = syntaxRevealRange
         syntaxRevealRange = new
         func paragraphs(_ r: NSRange) -> Int {
@@ -836,9 +874,21 @@ final class GlassineTextView: NSTextView {
             return ns.substring(with: r.clamped(to: storage.length)).components(separatedBy: "\n").count
         }
         guard new.location != old.location || paragraphs(new) != paragraphs(old) else { return }
+        // Only a paragraph whose glyphs change with the reveal is worth re-laying out.
+        func matters(_ r: NSRange) -> Bool {
+            var found = false
+            storage.enumerateAttributes(in: r, options: []) { attrs, _, stop in
+                if attrs[Syntax.ruleKey] != nil
+                    || (config.hideSyntax && (attrs[Syntax.hiddenKey] != nil || attrs[Syntax.bulletKey] != nil)) {
+                    found = true
+                    stop.pointee = true
+                }
+            }
+            return found
+        }
         for r in [old, new] where r.location != NSNotFound {
             let range = r.clamped(to: storage.length)
-            guard range.length > 0 else { continue }
+            guard range.length > 0, matters(range) else { continue }
             lm.invalidateGlyphs(forCharacterRange: range, changeInLength: 0, actualCharacterRange: nil)
             lm.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
             lm.invalidateDisplay(forCharacterRange: range)
@@ -1918,18 +1968,25 @@ extension GlassineTextView: NSLayoutManagerDelegate {
     func layoutManager(_ layoutManager: NSLayoutManager, shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>,
                        properties props: UnsafePointer<NSLayoutManager.GlyphProperty>, characterIndexes: UnsafePointer<Int>,
                        font: NSFont, forGlyphRange glyphRange: NSRange) -> Int {
-        guard config.hideSyntax, glyphRange.length > 0, let storage = textStorage else { return 0 }
+        guard glyphRange.length > 0, let storage = textStorage else { return 0 }
         let count = glyphRange.length
         let first = characterIndexes[0], last = characterIndexes[count - 1]
         let charRange = NSRange(location: first, length: last - first + 1)
         let reveal = (storage.string as NSString).paragraphRange(for: selectedRange().clamped(to: storage.length))
         var hidden: [NSRange] = []
         var bullets: [NSRange] = []
-        storage.enumerateAttribute(Syntax.hiddenKey, in: charRange, options: []) { value, r, _ in
+        // A horizontal rule keeps its dashes out of sight in either mode; the
+        // layout manager draws the line in their place.
+        storage.enumerateAttribute(Syntax.ruleKey, in: charRange, options: []) { value, r, _ in
             if value != nil, !NSLocationInRange(r.location, reveal) { hidden.append(r) }
         }
-        storage.enumerateAttribute(Syntax.bulletKey, in: charRange, options: []) { value, r, _ in
-            if value != nil, !NSLocationInRange(r.location, reveal) { bullets.append(r) }
+        if config.hideSyntax {
+            storage.enumerateAttribute(Syntax.hiddenKey, in: charRange, options: []) { value, r, _ in
+                if value != nil, !NSLocationInRange(r.location, reveal) { hidden.append(r) }
+            }
+            storage.enumerateAttribute(Syntax.bulletKey, in: charRange, options: []) { value, r, _ in
+                if value != nil, !NSLocationInRange(r.location, reveal) { bullets.append(r) }
+            }
         }
         guard !hidden.isEmpty || !bullets.isEmpty else { return 0 }
         var newGlyphs = Array(UnsafeBufferPointer(start: glyphs, count: count))

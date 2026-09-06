@@ -17,6 +17,8 @@ enum TaskBox {
 enum Syntax {
     static let hiddenKey = NSAttributedString.Key("glassine.syntaxHidden")
     static let bulletKey = NSAttributedString.Key("glassine.bullet")
+    /// On the dashes of a horizontal rule; the value is the colour to draw the line in.
+    static let ruleKey = NSAttributedString.Key("glassine.rule")
 }
 
 final class MarkdownStyler {
@@ -178,6 +180,7 @@ final class MarkdownStyler {
                                  range: absRange(NSRange(location: m.range(at: 1).location, length: m.range(at: 1).length + m.range(at: 2).length)))
         } else if MarkdownStyler.hr.firstMatch(in: text, options: [], range: full) != nil {
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: paraRange)
+            storage.addAttribute(Syntax.ruleKey, value: theme.text.withAlpha(theme.isDark ? 0.3 : 0.24), range: paraRange)
             inlineAllowed = false
         } else if let m = MarkdownStyler.quote.firstMatch(in: text, options: [], range: full) {
             storage.addAttribute(.paragraphStyle, value: quoteParagraph!, range: enclosing)

@@ -100,6 +100,29 @@ final class GlassineLayoutManager: NSLayoutManager {
         }
     }
 
+    /// A horizontal rule: its dashes are not drawn (see the text view's glyph
+    /// generation), and a line across the middle of the column stands in for
+    /// them — unless the caret is on that line, when the dashes show instead.
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+        guard let storage = textStorage else { return }
+        let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
+            guard let color = value as? NSColor else { return }
+            let glyphs = self.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0, self.propertyForGlyph(at: glyphs.location) == .null,
+                  let container = self.textContainer(forGlyphAt: glyphs.location, effectiveRange: nil) else { return }
+            let line = self.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 16)
+            let baseline = origin.y + line.minY + self.location(forGlyphAt: glyphs.location).y
+            let width = (container.size.width * 0.4).rounded()
+            let x = origin.x + line.minX + ((container.size.width - width) / 2).rounded()
+            let y = (baseline - font.xHeight * 0.55).rounded() - 0.5
+            color.setFill()
+            NSRect(x: x, y: y, width: width, height: 1).fill()
+        }
+    }
+
     /// Finished tasks: one strike per line, fading from the accent to the muted text colour.
     override func drawStrikethrough(forGlyphRange glyphRange: NSRange, strikethroughType: NSUnderlineStyle,
                                     baselineOffset: CGFloat, lineFragmentRect lineRect: NSRect,
