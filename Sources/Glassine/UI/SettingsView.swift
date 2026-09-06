@@ -204,7 +204,7 @@ struct EditorSettings: View {
             }
             Section("Markdown") {
                 Toggle("Hide Markdown syntax", isOn: data.hideSyntax)
-                Text("The markers — #, **, ==, the brackets of a link — stay in the file and leave the page, except in the paragraph you are editing. ⌃⌘M switches this from the keyboard.")
+                Text("The markers — #, **, ==, the brackets of a link — stay in the file and leave the page, except in the sentence you are writing. ⌃⌘M switches this from the keyboard.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Layout") {

@@ -63,7 +63,7 @@ final class GlassineTextView: NSTextView {
     private var slashAnchor: Int?
     private var slashSelection = 0
     private var slashItems: [SlashItem] = []
-    /// With Markdown hidden, the paragraph whose markers are showing.
+    /// With Markdown hidden, the stretch of text whose markers are showing.
     private var syntaxRevealRange = NSRange(location: NSNotFound, length: 0)
 
     static let minimumSideMargin: CGFloat = 40
@@ -749,41 +749,95 @@ final class GlassineTextView: NSTextView {
 
     // MARK: - Formatting commands (menu / shortcuts)
 
+    /// The span an inline mark makes, with its inner text as group 1: what the
+    /// styler recognises, so toggling agrees with what is drawn.
+    private static func spanRegex(for prefix: String) -> NSRegularExpression {
+        let pattern: String
+        switch prefix {
+        case "*": pattern = "(?<![\\*\\w])\\*(?=\\S)([^*\\n]+?)(?<=\\S)\\*(?!\\*)"
+        case "_": pattern = "(?<![\\w_])_(?=\\S)([^_\\n]+?)(?<=\\S)_(?![\\w_])"
+        case "`": pattern = "`([^`\\n]+?)`"
+        case "==": pattern = "==(?=\\S)([^=\\n]+?)(?<=\\S)=="
+        default:
+            let m = NSRegularExpression.escapedPattern(for: prefix)
+            pattern = m + "(?=\\S)(.+?)(?<=\\S)" + m
+        }
+        return try! NSRegularExpression(pattern: pattern)
+    }
+
+    /// Inline marks, the way a rich-text key behaves. With a selection: wrap it,
+    /// or unwrap it if it is a marked span or sits inside one. With a caret:
+    /// inside a span, the key turns the mark off — at the end of the span the
+    /// caret steps out past the closing mark, at the start it steps out before
+    /// the opening one, in the middle the span splits around the caret. Between
+    /// two marks with nothing inside, both go. Anywhere else, a placeholder
+    /// arrives between fresh marks, selected, ready to be typed over.
     private func wrapSelection(prefix: String, suffix: String? = nil, placeholder: String) {
         let suffix = suffix ?? prefix
         guard let storage = textStorage else { return }
         let ns = storage.string as NSString
         var sel = selectedRange()
+        func replace(_ range: NSRange, with text: String, thenSelect selection: NSRange) {
+            guard shouldChangeText(in: range, replacementString: text) else { return }
+            storage.replaceCharacters(in: range, with: text)
+            didChangeText()
+            setSelectedRange(selection)
+        }
+        // The marks right around a range, when they are exactly these and not
+        // part of a longer run (so a single * is never mistaken for half of **).
+        func hugged(_ range: NSRange) -> Bool {
+            let before = NSRange(location: range.location - prefix.nsLength, length: prefix.nsLength)
+            let after = NSRange(location: range.upperBoundValue, length: suffix.nsLength)
+            guard before.location >= 0, after.upperBoundValue <= ns.length,
+                  ns.substring(with: before) == prefix, ns.substring(with: after) == suffix else { return false }
+            if prefix.nsLength == 1, let mark = prefix.unicodeScalars.first?.value {
+                if before.location > 0, ns.character(at: before.location - 1) == mark { return false }
+                if after.upperBoundValue < ns.length, ns.character(at: after.upperBoundValue) == mark { return false }
+            }
+            return true
+        }
+
         if sel.length == 0 {
-            // Toggle off if already inside markers.
-            let before = NSRange(location: max(0, sel.location - prefix.nsLength), length: min(prefix.nsLength, sel.location))
-            let after = NSRange(location: sel.location, length: min(suffix.nsLength, ns.length - sel.location))
-            if before.length == prefix.nsLength, after.length == suffix.nsLength,
-               ns.substring(with: before) == prefix, ns.substring(with: after) == suffix {
-                let whole = NSRange(location: before.location, length: prefix.nsLength + suffix.nsLength)
-                if shouldChangeText(in: whole, replacementString: "") {
-                    storage.replaceCharacters(in: whole, with: "")
-                    didChangeText()
-                    setSelectedRange(NSRange(location: before.location, length: 0))
+            // Between two marks with nothing inside: the marks go.
+            if hugged(sel) {
+                let whole = NSRange(location: sel.location - prefix.nsLength, length: prefix.nsLength + suffix.nsLength)
+                replace(whole, with: "", thenSelect: NSRange(location: whole.location, length: 0))
+                return
+            }
+            // Inside a span: the mark comes off here.
+            var para = ns.paragraphRange(for: sel)
+            if para.length > 0, ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }
+            let text = ns.substring(with: para)
+            let at = sel.location - para.location
+            let spans = Self.spanRegex(for: prefix).matches(in: text, options: [], range: NSRange(location: 0, length: text.nsLength))
+            if let span = spans.first(where: { at >= $0.range(at: 1).location && at <= $0.range(at: 1).upperBoundValue }) {
+                let inner = span.range(at: 1)
+                if at == inner.upperBoundValue {
+                    setSelectedRange(NSRange(location: para.location + span.range.upperBoundValue, length: 0))
+                } else if at == inner.location {
+                    setSelectedRange(NSRange(location: para.location + span.range.location, length: 0))
+                } else {
+                    replace(sel, with: suffix + prefix, thenSelect: NSRange(location: sel.location + suffix.nsLength, length: 0))
                 }
                 return
             }
-            let text = prefix + placeholder + suffix
-            if shouldChangeText(in: sel, replacementString: text) {
-                storage.replaceCharacters(in: sel, with: text)
-                didChangeText()
-                setSelectedRange(NSRange(location: sel.location + prefix.nsLength, length: placeholder.nsLength))
-            }
+            // Fresh marks with a placeholder to type over.
+            replace(sel, with: prefix + placeholder + suffix,
+                    thenSelect: NSRange(location: sel.location + prefix.nsLength, length: placeholder.nsLength))
             return
         }
+
         let selected = ns.substring(with: sel)
         if selected.hasPrefix(prefix), selected.hasSuffix(suffix), selected.nsLength >= prefix.nsLength + suffix.nsLength {
+            // The selection is a marked span, marks included: unwrap it.
             let inner = String(selected.dropFirst(prefix.count).dropLast(suffix.count))
-            if shouldChangeText(in: sel, replacementString: inner) {
-                storage.replaceCharacters(in: sel, with: inner)
-                didChangeText()
-                setSelectedRange(NSRange(location: sel.location, length: inner.nsLength))
-            }
+            replace(sel, with: inner, thenSelect: NSRange(location: sel.location, length: inner.nsLength))
+            return
+        }
+        if hugged(sel) {
+            // The selection is the inside of a marked span: the marks around it go.
+            let whole = NSRange(location: sel.location - prefix.nsLength, length: sel.length + prefix.nsLength + suffix.nsLength)
+            replace(whole, with: selected, thenSelect: NSRange(location: whole.location, length: selected.nsLength))
             return
         }
         let wrapped = prefix + selected + suffix
@@ -859,14 +913,33 @@ final class GlassineTextView: NSTextView {
 
     // MARK: - Hidden Markdown
 
+    /// What stays as written while the syntax is hidden: the sentence the
+    /// caret is in — finish it and move on, and its marks go too. A selection
+    /// keeps its whole paragraph span open. A rule's line is a sentence of its own.
+    private func revealRange(in storage: NSTextStorage) -> NSRange {
+        let ns = storage.string as NSString
+        let sel = selectedRange().clamped(to: storage.length)
+        let para = ns.paragraphRange(for: sel)
+        guard sel.length == 0 else { return para }
+        var found: NSRange?
+        ns.enumerateSubstrings(in: para, options: [.bySentences, .substringNotRequired]) { _, _, enclosing, stop in
+            if NSLocationInRange(sel.location, enclosing) || sel.location == enclosing.upperBoundValue {
+                found = enclosing
+                stop.pointee = true
+            }
+        }
+        return found ?? para
+    }
+
     /// With the syntax hidden, markers stay in the file and leave the page —
-    /// except in the paragraph being edited, where they show so the text can
-    /// be worked on as written. Moving the caret to another paragraph swaps
-    /// which one is open. Typing within a paragraph changes nothing here.
+    /// except around the caret, in the sentence being written, where they show
+    /// so the text can be worked on as written. Moving on to the next sentence
+    /// or another paragraph swaps which stretch is open. Typing within the
+    /// sentence changes nothing here.
     private func updateSyntaxReveal() {
         guard let lm = layoutManager, let storage = textStorage else { return }
         let ns = storage.string as NSString
-        let new = ns.paragraphRange(for: selectedRange().clamped(to: storage.length))
+        let new = revealRange(in: storage)
         let old = syntaxRevealRange
         syntaxRevealRange = new
         func paragraphs(_ r: NSRange) -> Int {
@@ -1961,7 +2034,7 @@ extension GlassineTextView: NSLayoutManagerDelegate {
         return true
     }
 
-    /// Hidden Markdown: a marker outside the paragraph being edited becomes a
+    /// Hidden Markdown: a marker outside the sentence being written becomes a
     /// glyph that is not drawn and takes no room, so `**bold**` reads as bold
     /// and `# Title` as a title. A bullet's `-` is drawn as a bullet. The
     /// characters are all still there; only their glyphs change.
@@ -1972,7 +2045,7 @@ extension GlassineTextView: NSLayoutManagerDelegate {
         let count = glyphRange.length
         let first = characterIndexes[0], last = characterIndexes[count - 1]
         let charRange = NSRange(location: first, length: last - first + 1)
-        let reveal = (storage.string as NSString).paragraphRange(for: selectedRange().clamped(to: storage.length))
+        let reveal = revealRange(in: storage)
         var hidden: [NSRange] = []
         var bullets: [NSRange] = []
         // A horizontal rule keeps its dashes out of sight in either mode; the

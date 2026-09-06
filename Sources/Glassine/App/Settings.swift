@@ -114,7 +114,7 @@ struct SettingsData: Codable, Equatable {
     var spellCheck: Bool = false
     var inlinePredictions: Bool = false
     var continueLists: Bool = true
-    /// Markdown markers leave the page, except in the paragraph being edited.
+    /// Markdown markers leave the page, except in the sentence being written.
     var hideSyntax: Bool = false
     /// A task you check off sinks below the last unfinished item in its list.
     var moveCompletedTasks: Bool = true

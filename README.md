@@ -61,7 +61,7 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 - **All Documents** (⌘P): a mosaic of every document with rendered previews, navigable with the arrow keys.
 - **Review** (⌘↩): the document rendered as HTML in one of five styles — Glass, GitHub, Book, Editorial, Mono.
 - **Typewriter scrolling, focus mode, word count and reading time.**
-- **Markdown, lightly styled.** Syntax stays visible but steps back: headings, emphasis, code, quotes, lists, tasks, links, tags. Or hide it (⌃⌘M): the marks leave the page except in the paragraph you're editing.
+- **Markdown, lightly styled.** Syntax stays visible but steps back: headings, emphasis, code, quotes, lists, tasks, links, tags. Or hide it (⌃⌘M): the marks leave the page except in the sentence you're writing.
 - **Formatting as you go.** A bar over whatever you select; a menu under a `/` for headings, lists, tasks, quotes, code blocks, dividers and dates; chips (⌘⇧H) that put a word in a capsule like a date's.
 - **Copy the whole document** as Markdown (⌘⇧C) or rich text (⌥⌘C).
 
@@ -106,7 +106,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘⇧H | Chip — the selected words in a capsule, `==like this==` |
 | `/` | At the start of a line: the slash menu — headings, lists, task, quote, code block, divider, link, chip, today/tomorrow/yesterday |
 | — | Select text and a formatting bar appears over it |
-| ⌃⌘M | Hide Markdown syntax — the marks leave the page except in the paragraph being edited |
+| ⌃⌘M | Hide Markdown syntax — the marks leave the page except in the sentence being written |
 | ⌘V over a selection | With a web address on the clipboard, links the selected words instead of replacing them |
 | ⌘⌥1 ⌘⌥2 ⌘⌥3 ⌘⌥0 | Heading level / body text |
 | ⌘⇧L | Toggle a task checkbox (or click the `[ ]`) |
