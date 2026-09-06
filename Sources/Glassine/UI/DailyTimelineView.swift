@@ -15,8 +15,13 @@ struct DailyTimelineView: View {
 
     /// Every day is the same size in the corridor, whatever it holds: this much
     /// preview, on a plate this tall.
-    static let previewCap: CGFloat = 120
-    static let cardHeight: CGFloat = 184
+    static let previewCap: CGFloat = 130
+    static let cardHeight: CGFloat = 200
+    /// The label above a card and the space under it, part of what tilts.
+    static let labelBand: CGFloat = 24
+    /// Where the fade on a day behind another ends, as a fraction of its plate.
+    static let fadeSolidUntil = 0.42
+    static let fadeClearAt = 0.62
 
     private static let shortFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -71,19 +76,20 @@ struct DailyTimelineView: View {
     private func corridor(items: [(doc: DocumentRef, date: Date)], hasToday: Bool, size: CGSize) -> some View {
         let width: CGFloat = min(470, size.width - 120)
         let frontY = size.height - 200
-        // Steps up the corridor shrink geometrically and never pass the header.
-        let travelTotal = max(240, frontY - 150)
+        // Each day sits a fifth of its own height clear of the one in front of it,
+        // whatever the window's height; the corridor rises from the front card.
+        let rises = DailyTimelineView.rises(count: 12)
 
         return ZStack {
             if !hasToday {
-                slot(depth: 0 - walker.offset, width: width, frontY: frontY, travelTotal: travelTotal,
+                slot(depth: 0 - walker.offset, width: width, frontY: frontY, rises: rises,
                      centerX: size.width / 2, label: "TODAY", labelColor: theme.accent.color) {
                     startTodayCard(width: width)
                 }
             }
             ForEach(Array(items.enumerated()), id: \.element.doc.id) { i, item in
                 let depth = Double(i + (hasToday ? 0 : 1)) - walker.offset
-                slot(depth: depth, width: width, frontY: frontY, travelTotal: travelTotal,
+                slot(depth: depth, width: width, frontY: frontY, rises: rises,
                      centerX: size.width / 2,
                      label: label(for: item.date),
                      labelColor: depth < 0.5 ? theme.accent.color : theme.text.color.opacity(0.5)) {
@@ -100,25 +106,64 @@ struct DailyTimelineView: View {
         }
     }
 
+    // MARK: Geometry
+
+    static func scale(at depth: Double) -> Double { pow(0.84, max(-0.6, depth)) }
+    static func tilt(at depth: Double) -> Double { max(0, min(54, 10 + depth * 10)) }
+
+    /// Half the height a day takes on screen at a depth: its plate and label,
+    /// scaled and foreshortened by the tilt.
+    static func projectedHalf(at depth: Double) -> CGFloat {
+        (cardHeight + labelBand) / 2 * scale(at: depth) * cos(tilt(at: depth) * .pi / 180)
+    }
+
+    /// How far above the front day's centre each whole depth sits. A day's
+    /// visible foot — where its fade reaches nothing — clears the top of the day
+    /// in front by a fifth of its own height, so the corridor reads as a stack
+    /// of cards with air between them rather than a spread across the window.
+    static func rises(count: Int) -> [CGFloat] {
+        // Where the fade ends, as a fraction of the whole tilting block (label included).
+        let foot = (labelBand + fadeClearAt * cardHeight) / (cardHeight + labelBand)
+        var rises: [CGFloat] = [0]
+        var previousHalf = projectedHalf(at: 0)
+        for d in 1..<count {
+            let half = projectedHalf(at: Double(d))
+            let gap = max(8, 0.2 * 2 * half)
+            rises.append(rises[d - 1] + previousHalf + gap + (2 * foot - 1) * half)
+            previousHalf = half
+        }
+        return rises
+    }
+
+    /// The rise at a continuous depth: between whole depths, on the way from one
+    /// to the next; in front of the front day, sliding down and out.
+    static func rise(at depth: Double, rises: [CGFloat]) -> CGFloat {
+        if depth <= 0 { return CGFloat(depth) * (2 * projectedHalf(at: 0) + 24) }
+        let lower = min(rises.count - 2, Int(depth.rounded(.down)))
+        let t = CGFloat(depth - Double(lower))
+        return rises[lower] + (rises[lower + 1] - rises[lower]) * min(1, t)
+    }
+
     /// Places one day at its continuous depth. Depth 0 is the front; positive is
     /// further up the corridor; between -1 and 0 the card is sliding past the
     /// camera (scrolled beyond it) and fades out below.
     @ViewBuilder
-    private func slot(depth: Double, width: CGFloat, frontY: CGFloat, travelTotal: CGFloat,
+    private func slot(depth: Double, width: CGFloat, frontY: CGFloat, rises: [CGFloat],
                       centerX: CGFloat, label: String, labelColor: Color,
                       @ViewBuilder content: () -> some View) -> some View {
-        if depth > -1, depth < 8.5 {
-            let r = 0.70
-            let travel = travelTotal * (1 - pow(r, depth))         // asymptotic march to the vanishing point
-            let scale = pow(0.84, max(-0.6, depth))
-            let tilt = max(0, min(54, 10 + depth * 10))
-            let fade = depth < 0 ? max(0, 1 + depth) : max(0.12, 1 - depth * 0.13)
+        // A day that has climbed up under the header is gone; one on its way there fades.
+        let travel = DailyTimelineView.rise(at: depth, rises: rises)
+        let headroom = min(1, max(0, (frontY - travel - 84) / 40))
+        if depth > -1, depth < 8.5, headroom > 0 {
+            let scale = DailyTimelineView.scale(at: depth)
+            let tilt = DailyTimelineView.tilt(at: depth)
+            let fade = (depth < 0 ? max(0, 1 + depth) : max(0.12, 1 - depth * 0.13)) * headroom
             // A day behind another dissolves before it reaches the one in front:
             // its lower part fades to nothing, so no two days touch. The front
             // day is whole; a day sliding back picks up the fade as it goes.
             let haze = min(1, max(0, depth))
-            let solidUntil = 0.42 + 0.58 * (1 - haze)
-            let clearAt = 0.62 + 0.38 * (1 - haze)
+            let solidUntil = DailyTimelineView.fadeSolidUntil + (1 - DailyTimelineView.fadeSolidUntil) * (1 - haze)
+            let clearAt = DailyTimelineView.fadeClearAt + (1 - DailyTimelineView.fadeClearAt) * (1 - haze)
 
             VStack(alignment: .leading, spacing: 7) {
                 Text(label)
