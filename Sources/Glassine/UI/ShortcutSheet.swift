@@ -47,6 +47,8 @@ struct ShortcutSheet: View {
             ("⌘⇧L", "Task checkbox"),
             ("⇥  ⇧⇥", "Nest or un-nest a list item"),
             ("⌘⇧X", "Strikethrough"),
+            ("⌘⇧H", "Chip — a word in a capsule"),
+            ("/", "Slash menu: headings, lists, dates…"),
             ("⌘⇧F", "Find in document"),
         ]),
         Group(title: "Copy & view", rows: [
@@ -54,6 +56,7 @@ struct ShortcutSheet: View {
             ("⌥⌘C", "Copy as rich text"),
             ("⌃⌘T", "Typewriter scrolling"),
             ("⌃⌘F", "Focus mode"),
+            ("⌃⌘M", "Hide Markdown syntax"),
             ("⌘+  ⌘−", "Text size"),
             ("⌘/", "This sheet"),
         ]),

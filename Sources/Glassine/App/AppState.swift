@@ -873,6 +873,7 @@ final class AppState: ObservableObject {
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
             add("typewriter", "\(settings.data.typewriterMode ? "Turn off" : "Turn on") typewriter scrolling", keys: "⌃⌘T") { [weak self] in self?.toggleTypewriter() }
             add("focus", "\(settings.data.focusMode ? "Turn off" : "Turn on") focus mode", keys: "⌃⌘F") { [weak self] in self?.toggleFocus() }
+            add("syntax", settings.data.hideSyntax ? "Show Markdown syntax" : "Hide Markdown syntax", keys: "⌃⌘M") { [weak self] in self?.toggleHideSyntax() }
             add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
             add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
             add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
@@ -923,6 +924,11 @@ final class AppState: ObservableObject {
 
     func toggleTypewriter() { settings.data.typewriterMode.toggle() }
     func toggleFocus() { settings.data.focusMode.toggle() }
+    /// ⌃⌘M: Markdown markers leave the page, or come back.
+    func toggleHideSyntax() {
+        settings.data.hideSyntax.toggle()
+        showNotice(settings.data.hideSyntax ? "Markdown hidden" : "Markdown shown")
+    }
 
     func adjustFontSize(by delta: Double) {
         if reviewMode && !showingGallery {

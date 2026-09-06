@@ -56,6 +56,19 @@ enum ScreenshotMode {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
             showBackdrop(behind: window, dark: AppState.shared.theme.isDark)
+            // The editor's floating helpers, for a picture of them: a selection
+            // (`-glassine.shootSelect 12,20`) brings the formatting bar; a typed
+            // slash (`-glassine.shootSlash 1`) opens the slash menu.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                guard let editor = GlassineTextView.current else { return }
+                if let spec = defaults.string(forKey: "glassine.shootSelect") {
+                    let parts = spec.split(separator: ",").compactMap { Int($0) }
+                    if parts.count == 2 { editor.setSelectedRange(NSRange(location: parts[0], length: parts[1])) }
+                }
+                if defaults.bool(forKey: "glassine.shootSlash") {
+                    editor.insertText("/", replacementRange: editor.selectedRange())
+                }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 // The window alone, asked for by its number: the one window of ours,
                 // and nothing else. The backdrop beneath it is still on screen, so the

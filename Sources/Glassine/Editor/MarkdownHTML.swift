@@ -40,6 +40,7 @@ enum MarkdownHTML {
     private static let italicStarRx = rx("(?<![\\*\\w])\\*(?=\\S)([^*\\n]+?)(?<=\\S)\\*(?!\\*)")
     private static let italicUnderscoreRx = rx("(?<![\\w_])_(?=\\S)([^_\\n]+?)(?<=\\S)_(?![\\w_])")
     private static let strikeRx = rx("~~(?=\\S)(.+?)(?<=\\S)~~")
+    private static let chipRx = rx("==(?=\\S)([^=\\n]+?)(?<=\\S)==")
     private static let autolinkRx = rx("(?<![\"=>\\w/])(https?://[^\\s<>\"]*[^\\s<>\".,;:!?)])")
     private static let tagRx = rx("(?<![\\w#/&;])#([A-Za-z_][\\w\\-/]*)")
     private static let dateRx = rx(DateToken.pattern)
@@ -431,6 +432,7 @@ enum MarkdownHTML {
         s = replaceAll(italicStarRx, in: s) { "<em>" + $0.group(1) + "</em>" }
         s = replaceAll(italicUnderscoreRx, in: s) { "<em>" + $0.group(1) + "</em>" }
         s = replaceAll(strikeRx, in: s) { "<del>" + $0.group(1) + "</del>" }
+        s = replaceAll(chipRx, in: s) { "<span class=\"chip\">" + $0.group(1) + "</span>" }
         s = replaceAll(autolinkRx, in: s) { m in
             let url = m.group(1)
             return "<a href=\"\(url)\">" + url + "</a>"
@@ -461,7 +463,7 @@ enum MarkdownHTML {
         blockquote { border-left: 3px solid #c8c8cc; margin-left: 0; padding-left: 12px; color: #515154; }
         table { border-collapse: collapse; } th, td { border: 1px solid #d2d2d7; padding: 4px 8px; }
         a { color: #0a63c9; } hr { border: 0; border-top: 1px solid #d2d2d7; }
-        .date { background: #e8eef8; color: #0a63c9; border-radius: 10px; padding: 1px 7px; }
+        .date, .chip { background: #e8eef8; color: #0a63c9; border-radius: 10px; padding: 1px 7px; }
         </style></head><body>\(body)</body></html>
         """
     }

@@ -359,7 +359,7 @@ enum ReviewHTML {
     th, td { padding: 0.5em 0.8em; text-align: left; vertical-align: top; }
     th { font-weight: 600; }
     .tag { color: var(--accent); }
-    .date { display: inline-block; color: var(--accent); border-radius: 999px; padding: 0 0.55em; font-size: 0.92em; line-height: 1.5; white-space: nowrap; \
+    .date, .chip { display: inline-block; color: var(--accent); border-radius: 999px; padding: 0 0.55em; font-size: 0.92em; line-height: 1.5; white-space: nowrap; \
     background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 24%, transparent), color-mix(in srgb, var(--accent) 12%, transparent)); \
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); }
     ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }

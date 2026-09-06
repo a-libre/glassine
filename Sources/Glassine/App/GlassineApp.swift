@@ -243,6 +243,8 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("x", modifiers: [.command, .shift])
             Button("Link") { send(#selector(GlassineTextView.markdownLink(_:))) }
                 .keyboardShortcut("k", modifiers: [.command, .shift])
+            Button("Chip") { send(#selector(GlassineTextView.markdownChip(_:))) }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
             Divider()
             Button("Heading 1") { send(#selector(GlassineTextView.markdownHeading1(_:))) }
                 .keyboardShortcut("1", modifiers: [.command, .option])
@@ -288,6 +290,11 @@ struct GlassineCommands: Commands {
                 set: { state.settings.data.focusMode = $0 }
             ))
             .keyboardShortcut("f", modifiers: [.command, .control])
+            Toggle("Hide Markdown Syntax", isOn: Binding(
+                get: { state.settings.data.hideSyntax },
+                set: { _ in state.toggleHideSyntax() }
+            ))
+            .keyboardShortcut("m", modifiers: [.command, .control])
             Toggle("Show Counter", isOn: Binding(
                 get: { state.settings.data.showCounter },
                 set: { state.settings.data.showCounter = $0 }

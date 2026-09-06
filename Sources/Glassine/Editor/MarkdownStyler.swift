@@ -11,6 +11,14 @@ enum TaskBox {
     static let doneKey = NSAttributedString.Key("glassine.taskDone")
 }
 
+/// Markdown markers, so the editor can hide them: `Syntax.hiddenKey` on the
+/// characters that are syntax and nothing else, `Syntax.bulletKey` on a list's
+/// `-`, `*` or `+`, which is drawn as a bullet instead.
+enum Syntax {
+    static let hiddenKey = NSAttributedString.Key("glassine.syntaxHidden")
+    static let bulletKey = NSAttributedString.Key("glassine.bullet")
+}
+
 final class MarkdownStyler {
     var config: StyleConfig {
         didSet { rebuildCaches() }
@@ -66,6 +74,7 @@ final class MarkdownStyler {
     private static let italicStar = rx("(?<![\\*\\w])(\\*)(?=\\S)([^*\\n]+?)(?<=\\S)\\1(?!\\*)")
     private static let italicUnderscore = rx("(?<![\\w_])(_)(?=\\S)([^_\\n]+?)(?<=\\S)\\1(?![\\w_])")
     private static let strike = rx("(~~)(?=\\S)(.+?)(?<=\\S)\\1")
+    private static let chip = rx("(==)(?=\\S)([^=\\n]+?)(?<=\\S)\\1")
     private static let link = rx("(!?\\[)([^\\]\\n]*)(\\]\\()([^)\\s]*)((?:\\s+\"[^\"]*\")?\\))")
     private static let bareURL = rx("(?<![\\(\\w])https?://[^\\s<>()\\]]+")
     private static let tag = rx("(?<![\\w#/&])#([A-Za-z_][\\w\\-/]*)")
@@ -165,6 +174,8 @@ final class MarkdownStyler {
             storage.addAttribute(.font, value: headingFonts[level - 1], range: paraRange)
             storage.addAttribute(.foregroundColor, value: theme.headingColor, range: paraRange)
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(m.range(at: 1)))
+            storage.addAttribute(Syntax.hiddenKey, value: true,
+                                 range: absRange(NSRange(location: m.range(at: 1).location, length: m.range(at: 1).length + m.range(at: 2).length)))
         } else if MarkdownStyler.hr.firstMatch(in: text, options: [], range: full) != nil {
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: paraRange)
             inlineAllowed = false
@@ -173,6 +184,7 @@ final class MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: theme.quoteColor, range: paraRange)
             storage.addAttribute(.font, value: italicFont!, range: paraRange)
             storage.addAttribute(.foregroundColor, value: theme.accent.withAlpha(0.6), range: absRange(m.range(at: 1)))
+            storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(m.range(at: 1)))
         } else if let m = MarkdownStyler.list.firstMatch(in: text, options: [], range: full) {
             let indentText = textNS.substring(with: m.range(at: 1))
             let markerText = textNS.substring(with: m.range(at: 2))
@@ -187,6 +199,13 @@ final class MarkdownStyler {
             }()
             storage.addAttribute(.paragraphStyle, value: style, range: enclosing)
             storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: absRange(m.range(at: 2)))
+            if m.range(at: 4).location != NSNotFound {
+                // A task's `- ` steps aside when the syntax is hidden; the box is the marker.
+                let dash = NSRange(location: m.range(at: 2).location, length: m.range(at: 2).length + m.range(at: 3).length)
+                storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(dash))
+            } else if let first = markerText.first, "-*+".contains(first) {
+                storage.addAttribute(Syntax.bulletKey, value: true, range: absRange(m.range(at: 2)))
+            }
             if m.range(at: 4).location != NSNotFound {
                 let box = textNS.substring(with: m.range(at: 4))
                 let checked = box.lowercased().contains("x")
@@ -224,6 +243,8 @@ final class MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(m.range(at: 1)))
             let closing = NSRange(location: m.range.upperBoundValue - m.range(at: 1).length, length: m.range(at: 1).length)
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(closing))
+            storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(m.range(at: 1)))
+            storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(closing))
         }
         func inCode(_ r: NSRange) -> Bool {
             codeRanges.contains { NSIntersectionRange($0, r).length > 0 }
@@ -246,6 +267,8 @@ final class MarkdownStyler {
                 }
                 storage.addAttribute(.foregroundColor, value: syntaxColor, range: open)
                 storage.addAttribute(.foregroundColor, value: syntaxColor, range: close)
+                storage.addAttribute(Syntax.hiddenKey, value: true, range: open)
+                storage.addAttribute(Syntax.hiddenKey, value: true, range: close)
             }
         }
         emphasize(MarkdownStyler.bold, trait: .bold)
@@ -259,6 +282,20 @@ final class MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(m.range(at: 3)))
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(m.range(at: 4)))
             storage.addAttribute(.foregroundColor, value: syntaxColor, range: absRange(m.range(at: 5)))
+            for i in [1, 3, 4, 5] { storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(m.range(at: i))) }
+        }
+        // `==word==`: a capsule like a date's, around anything.
+        for m in MarkdownStyler.chip.matches(in: text, options: [], range: full) where !inCode(m.range) {
+            let r = absRange(m.range)
+            storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: r)
+            storage.addAttribute(.backgroundColor, value: theme.accent.withAlpha(theme.isDark ? 0.18 : 0.14), range: r)
+            storage.addAttribute(DateToken.attributeKey, value: true, range: r)
+            let open = absRange(m.range(at: 1))
+            let close = NSRange(location: r.upperBoundValue - 2, length: 2)
+            for marker in [open, close] {
+                storage.addAttribute(.foregroundColor, value: theme.accent.withAlpha(0.45), range: marker)
+                storage.addAttribute(Syntax.hiddenKey, value: true, range: marker)
+            }
         }
         for m in MarkdownStyler.bareURL.matches(in: text, options: [], range: full) where !inCode(m.range) {
             storage.addAttribute(.foregroundColor, value: theme.linkColor.withAlphaComponent(0.85), range: absRange(m.range))

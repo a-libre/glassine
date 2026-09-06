@@ -39,6 +39,7 @@
         "group": "Writing",
         "pages": [
           "editor/markdown",
+          "editor/formatting",
           "editor/tasks",
           "editor/dates",
           "editor/links-and-tags",

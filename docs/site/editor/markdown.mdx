@@ -5,7 +5,7 @@ description: "What the editor styles as you type, and the keys that write the sy
 icon: "text"
 ---
 
-The file is plain Markdown. The editor shows it styled — headings larger, emphasis in weight, code in a box — but leaves every mark in place, dimmed to the theme's syntax colour, so what you see is what is in the file. There is no rendered mode to fall out of and no hidden formatting; Review, when you want the finished page, is [one key away](/review/review).
+The file is plain Markdown. The editor shows it styled — headings larger, emphasis in weight, code in a box — but leaves every mark in place, dimmed to the theme's syntax colour, so what you see is what is in the file. There is no rendered mode to fall out of and no hidden formatting; Review, when you want the finished page, is [one key away](/review/review). If you would rather not see the marks at all, [hide them](/editor/formatting#hiding-the-markdown): the file stays the same and the paragraph you are editing still shows its syntax.
 
 ## What gets styled
 
@@ -15,6 +15,7 @@ The file is plain Markdown. The editor shows it styled — headings larger, emph
 | `**bold**` or `__bold__` | Bold |
 | `*italic*` or `_italic_` | Italic |
 | `~~struck~~` | Strikethrough |
+| `==chip==` | A [chip](/editor/formatting#chips): the words in a capsule, like a date |
 | `` `code` `` | Inline code in a rounded box |
 | Four spaces or a tab at the start of a line | An indented code line |
 | ` ``` ` or `~~~` fences | A code block; nothing inside it is styled as Markdown |
@@ -41,12 +42,13 @@ Each of these wraps the selection in the right marks, or inserts a placeholder t
 | ⌘I | `*italic*` |
 | ⌘E | `` `code` `` |
 | ⌘⇧X | `~~strikethrough~~` |
+| ⌘⇧H | `==chip==` |
 | ⌘⇧K | `[text](url)` — if a web address is on the clipboard it goes straight in, and the selection becomes the link text |
 | ⌘⌥1, ⌘⌥2, ⌘⌥3 | Make the current line a heading of that level (pressing the level it already has turns it back into body text) |
 | ⌘⌥0 | Body text: remove the heading marks |
 | ⌘⇧L | Toggle a task box on the current line |
 
-They are all in the Format menu as well.
+They are all in the Format menu as well, and on the [bar that appears over a selection](/editor/formatting#the-bar-over-a-selection); the [slash menu](/editor/formatting#the-slash-menu) writes the block-level ones — headings, lists, quotes, code blocks, dividers — from the keyboard without leaving the line.
 
 ## Lists
 

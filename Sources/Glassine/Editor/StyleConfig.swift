@@ -36,6 +36,7 @@ struct StyleConfig: Equatable {
     let inlinePredictions: Bool
     let continueLists: Bool
     let moveCompletedTasks: Bool
+    let hideSyntax: Bool
 
     init(theme: Theme, settings: SettingsData) {
         self.theme = theme
@@ -65,6 +66,7 @@ struct StyleConfig: Equatable {
         inlinePredictions = settings.inlinePredictions
         continueLists = settings.continueLists
         moveCompletedTasks = settings.moveCompletedTasks
+        hideSyntax = settings.hideSyntax
     }
 
     // MARK: - Fonts

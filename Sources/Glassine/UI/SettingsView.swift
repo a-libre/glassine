@@ -202,6 +202,11 @@ struct EditorSettings: View {
                 Toggle("Larger headings", isOn: data.scaledHeadings)
                 Toggle("Center headings", isOn: data.centerHeadings)
             }
+            Section("Markdown") {
+                Toggle("Hide Markdown syntax", isOn: data.hideSyntax)
+                Text("The markers — #, **, ==, the brackets of a link — stay in the file and leave the page, except in the paragraph you are editing. ⌃⌘M switches this from the keyboard.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Layout") {
                 sliderRow("Column width", value: data.columnWidth, range: 420...1100, step: 10, format: "%.0f pt")
                 sliderRow("Top margin", value: data.topInset, range: 24...240, step: 4, format: "%.0f pt")
@@ -257,7 +262,7 @@ struct CaretSettings: View {
         Form {
             Section("Movement") {
                 Toggle("Smooth movement", isOn: data.smoothCaret)
-                sliderRow("Glide time", value: data.caretSpeed, range: 0.04...0.30, step: 0.01, format: "%.0f ms", scale: 1000)
+                sliderRow("Glide time", value: data.caretSpeed, range: 0.04...0.75, step: 0.01, format: "%.0f ms", scale: 1000)
                     .disabled(!state.settings.data.smoothCaret)
                 Toggle("Smooth while typing", isOn: data.smoothWhileTyping)
                     .disabled(!state.settings.data.smoothCaret)

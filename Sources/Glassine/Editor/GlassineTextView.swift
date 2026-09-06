@@ -1,4 +1,5 @@
 import AppKit
+import CoreText
 import QuartzCore
 
 /// NSTextView subclass (TextKit 1) with a smoothly animated caret, a centered
@@ -53,6 +54,17 @@ final class GlassineTextView: NSTextView {
     private var focusLifted = false
     private var clipObserver: NSObjectProtocol?
     private var windowObservers: [NSObjectProtocol] = []
+
+    // Formatting over the text: a bar above a selection, a menu under a slash
+    private var formatBar: QuietHostingView<FormatBar>?
+    private var formatBarWork: DispatchWorkItem?
+    private var slashMenu: QuietHostingView<SlashMenu>?
+    /// Where the slash that opened the menu sits; nil while the menu is closed.
+    private var slashAnchor: Int?
+    private var slashSelection = 0
+    private var slashItems: [SlashItem] = []
+    /// With Markdown hidden, the paragraph whose markers are showing.
+    private var syntaxRevealRange = NSRange(location: NSNotFound, length: 0)
 
     static let minimumSideMargin: CGFloat = 40
 
@@ -142,6 +154,8 @@ final class GlassineTextView: NSTextView {
         })
         windowObservers.append(nc.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
             self?.updateCaret(animated: false)
+            self?.hideFormatBar()
+            self?.closeSlashMenu()
         })
         windowObservers.append(nc.addObserver(forName: NSWindow.didChangeBackingPropertiesNotification, object: window, queue: .main) { [weak self] _ in
             self?.caretLayer.contentsScale = window.backingScaleFactor
@@ -208,6 +222,16 @@ final class GlassineTextView: NSTextView {
         } else {
             updateFocusDimming(force: true)
         }
+        hideFormatBar()
+        closeSlashMenu()
+        if let p = previous, p.hideSyntax != config.hideSyntax, let lm = layoutManager, let storage = textStorage, storage.length > 0 {
+            syntaxRevealRange = NSRange(location: NSNotFound, length: 0)
+            let full = NSRange(location: 0, length: storage.length)
+            lm.invalidateGlyphs(forCharacterRange: full, changeInLength: 0, actualCharacterRange: nil)
+            lm.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
+            lm.invalidateDisplay(forCharacterRange: full)
+            updateSyntaxReveal()
+        }
         updateCaret(animated: false)
         if config.typewriter && previous?.typewriter == false {
             typewriterScroll(animated: true)
@@ -219,6 +243,8 @@ final class GlassineTextView: NSTextView {
     func load(text: String, caretAt position: Int?) {
         guard let storage = textStorage else { return }
         suppressAnimationOnce = true
+        hideFormatBar()
+        closeSlashMenu()
         undoManager?.removeAllActions()
         pendingSinks.values.forEach { $0.cancel() }
         pendingSinks.removeAll()
@@ -342,6 +368,7 @@ final class GlassineTextView: NSTextView {
             styler.restyle(storage, range: range)
             syncTypingAttributes()
         }
+        updateSyntaxReveal()
         lastTypedWasKeyboard = true
         lastEditAt = CACurrentMediaTime()
         onTextChanged?()
@@ -350,6 +377,8 @@ final class GlassineTextView: NSTextView {
         updateFocusDimming(force: false, fadeIn: wasLifted)
         updateCaret(animated: config.smoothWhileTyping)
         if config.typewriter { typewriterScroll(animated: true) }
+        if slashAnchor != nil { refreshSlashMenu() }
+        if selectedRange().length == 0 { hideFormatBar() }
     }
 
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
@@ -366,8 +395,13 @@ final class GlassineTextView: NSTextView {
             updateFocusDimming(force: false, fadeIn: wasLifted)
             // While a keystroke is still landing the text is not styled yet;
             // didChangeText scrolls once it is, from the line as it will be drawn.
+            updateSyntaxReveal()
             if config.typewriter && (byKeyboard || config.typewriterOnClick) && pendingEditRange == nil {
                 typewriterScroll(animated: true)
+            }
+            if pendingEditRange == nil {
+                if slashAnchor != nil { refreshSlashMenu() }
+                updateFormatBar(delay: byKeyboard)
             }
         }
     }
@@ -401,6 +435,8 @@ final class GlassineTextView: NSTextView {
     override func resignFirstResponder() -> Bool {
         let ok = super.resignFirstResponder()
         updateCaret(animated: false)
+        hideFormatBar()
+        closeSlashMenu()
         return ok
     }
 
@@ -446,6 +482,12 @@ final class GlassineTextView: NSTextView {
 
     /// Escape. NSTextView would start word completion here; ⌥Esc still does that.
     override func cancelOperation(_ sender: Any?) {
+        if slashAnchor != nil { closeSlashMenu(); return }
+        if formatBar != nil {
+            hideFormatBar()
+            setSelectedRange(NSRange(location: selectedRange().upperBoundValue, length: 0))
+            return
+        }
         if let onEscape {
             onEscape()
         } else {
@@ -454,6 +496,7 @@ final class GlassineTextView: NSTextView {
     }
 
     override func insertNewline(_ sender: Any?) {
+        if slashAnchor != nil { pickSlashItem(slashSelection); return }
         expandDateShortcutIfNeeded()
         if config.continueLists, continueListIfNeeded() { return }
         super.insertNewline(sender)
@@ -467,6 +510,16 @@ final class GlassineTextView: NSTextView {
             expandDateShortcutIfNeeded()
         }
         super.insertText(string, replacementRange: replacementRange)
+        // A slash on its own — at the start of a line or after a space — opens
+        // the menu; one inside a word or an address is just a slash.
+        if let s = string as? String, s == "/", slashAnchor == nil, let storage = textStorage {
+            let ns = storage.string as NSString
+            let loc = selectedRange().location - 1
+            if loc >= 0, loc < ns.length, ns.character(at: loc) == 47 {
+                let before: unichar = loc > 0 ? ns.character(at: loc - 1) : 10
+                if before == 10 || before == 32 || before == 9 { openSlashMenu(at: loc) }
+            }
+        }
     }
 
     /// Replaces a shortcut word right before the caret with the actual date. Returns true if it did.
@@ -538,13 +591,14 @@ final class GlassineTextView: NSTextView {
     private static let listLineRx = try! NSRegularExpression(pattern: "^([ \\t]*)([-*+]|(\\d{1,3})[.)])([ \\t]+)(\\[[ xX]\\][ \\t]+)?(.*)$")
     private static let indentUnit = "    "
 
-    private static func indentWidth(_ s: String) -> Int {
+    static func indentWidth(_ s: String) -> Int {
         s.reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
     }
 
     /// Tab on a list item nests it one level deeper; Shift-Tab brings it back out.
     /// Anywhere else both keys keep their usual meaning.
     override func insertTab(_ sender: Any?) {
+        if slashAnchor != nil { pickSlashItem(slashSelection); return }
         if config.continueLists, shiftListItems(deeper: true) { return }
         super.insertTab(sender)
     }
@@ -556,7 +610,7 @@ final class GlassineTextView: NSTextView {
 
     /// The number a numbered item should carry at `width`, judged by the item
     /// just above it at the same depth (1 when it starts a fresh list).
-    private func nextNumber(before location: Int, width: Int) -> Int {
+    func nextNumber(before location: Int, width: Int) -> Int {
         guard let ns = textStorage?.string as NSString? else { return 1 }
         var p = location
         while p > 0 {
@@ -705,6 +759,8 @@ final class GlassineTextView: NSTextView {
     @objc func markdownItalic(_ sender: Any?) { wrapSelection(prefix: "*", placeholder: "italic") }
     @objc func markdownCode(_ sender: Any?) { wrapSelection(prefix: "`", placeholder: "code") }
     @objc func markdownStrike(_ sender: Any?) { wrapSelection(prefix: "~~", placeholder: "text") }
+    /// `==word==`: a capsule around a word, the way a date gets one.
+    @objc func markdownChip(_ sender: Any?) { wrapSelection(prefix: "==", placeholder: "chip") }
 
     @objc func markdownLink(_ sender: Any?) {
         guard let storage = textStorage else { return }
@@ -734,27 +790,7 @@ final class GlassineTextView: NSTextView {
     @objc func markdownClearHeading(_ sender: Any?) { setHeadingLevel(0) }
 
     private func setHeadingLevel(_ level: Int) {
-        guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
-        let sel = selectedRange()
-        var para = ns.paragraphRange(for: sel)
-        if para.length > 0 && ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }
-        let line = ns.substring(with: para)
-        let stripped = line.replacingOccurrences(of: "^#{1,6}[ \\t]+", with: "", options: .regularExpression)
-        let currentLevel = line.nsLength - stripped.nsLength > 0 ? (line.prefix(while: { $0 == "#" }).count) : 0
-        let newLine: String
-        if level == 0 || currentLevel == level {
-            newLine = stripped
-        } else {
-            newLine = String(repeating: "#", count: level) + " " + stripped
-        }
-        guard newLine != line else { return }
-        if shouldChangeText(in: para, replacementString: newLine) {
-            storage.replaceCharacters(in: para, with: newLine)
-            didChangeText()
-            let delta = newLine.nsLength - line.nsLength
-            setSelectedRange(NSRange(location: max(para.location, sel.location + delta), length: 0))
-        }
+        setBlock(level == 0 ? .paragraph : .heading(level))
     }
 
     @objc func markdownToggleTask(_ sender: Any?) {
@@ -779,6 +815,234 @@ final class GlassineTextView: NSTextView {
             didChangeText()
             setSelectedRange(NSRange(location: min(sel.location + (newLine.nsLength - line.nsLength), storage.length), length: 0))
         }
+    }
+
+    // MARK: - Hidden Markdown
+
+    /// With the syntax hidden, markers stay in the file and leave the page —
+    /// except in the paragraph being edited, where they show so the text can
+    /// be worked on as written. Moving the caret to another paragraph swaps
+    /// which one is open. Typing within a paragraph changes nothing here.
+    private func updateSyntaxReveal() {
+        guard let lm = layoutManager, let storage = textStorage else { return }
+        let ns = storage.string as NSString
+        let new = config.hideSyntax
+            ? ns.paragraphRange(for: selectedRange().clamped(to: storage.length))
+            : NSRange(location: NSNotFound, length: 0)
+        let old = syntaxRevealRange
+        syntaxRevealRange = new
+        func paragraphs(_ r: NSRange) -> Int {
+            guard r.location != NSNotFound, r.length > 0 else { return 0 }
+            return ns.substring(with: r.clamped(to: storage.length)).components(separatedBy: "\n").count
+        }
+        guard new.location != old.location || paragraphs(new) != paragraphs(old) else { return }
+        for r in [old, new] where r.location != NSNotFound {
+            let range = r.clamped(to: storage.length)
+            guard range.length > 0 else { continue }
+            lm.invalidateGlyphs(forCharacterRange: range, changeInLength: 0, actualCharacterRange: nil)
+            lm.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
+            lm.invalidateDisplay(forCharacterRange: range)
+            lm.ensureLayout(forCharacterRange: range)
+        }
+        updateCaret(animated: false)
+    }
+
+    // MARK: - The bar over a selection
+
+    /// Shows the bar over a selection made with the mouse at once and, after a
+    /// beat, over one made with the keyboard, so shift-arrowing does not flicker.
+    private func updateFormatBar(delay: Bool) {
+        formatBarWork?.cancel()
+        formatBarWork = nil
+        let sel = selectedRange()
+        guard sel.length > 0, isEditable, window?.isKeyWindow == true, window?.firstResponder === self, slashAnchor == nil else {
+            hideFormatBar()
+            return
+        }
+        if delay {
+            let work = DispatchWorkItem { [weak self] in self?.showFormatBar() }
+            formatBarWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+        } else {
+            showFormatBar()
+        }
+    }
+
+    private func showFormatBar() {
+        guard selectedRange().length > 0 else { hideFormatBar(); return }
+        let host: QuietHostingView<FormatBar>
+        if let existing = formatBar {
+            host = existing
+        } else {
+            host = QuietHostingView(rootView: FormatBar(theme: config.theme, perform: { [weak self] in self?.perform($0) }))
+            host.wantsLayer = true
+            host.layer?.zPosition = 20
+            host.alphaValue = 0
+            addSubview(host)
+            formatBar = host
+        }
+        guard let frame = formatBarFrame(size: host.fittingSize) else { hideFormatBar(); return }
+        host.frame = frame
+        if host.alphaValue < 1 {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.14
+                host.animator().alphaValue = 1
+            }
+        }
+    }
+
+    /// Centred over the selection's first line, or under its last when the top
+    /// of the viewport is in the way.
+    private func formatBarFrame(size: NSSize) -> NSRect? {
+        guard let lm = layoutManager, let tc = textContainer else { return nil }
+        let glyphs = lm.glyphRange(forCharacterRange: selectedRange(), actualCharacterRange: nil)
+        var rects: [NSRect] = []
+        lm.enumerateEnclosingRects(forGlyphRange: glyphs, withinSelectedGlyphRange: glyphs, in: tc) { r, _ in rects.append(r) }
+        guard let first = rects.first, let last = rects.last else { return nil }
+        let origin = textContainerOrigin
+        let visible = visibleRect
+        var x = first.midX + origin.x - size.width / 2
+        x = max(visible.minX + 8, min(x, visible.maxX - size.width - 8))
+        var y = first.minY + origin.y - size.height - 8
+        if y < visible.minY + 6 { y = last.maxY + origin.y + 8 }
+        return NSRect(x: x.rounded(), y: y.rounded(), width: size.width, height: size.height)
+    }
+
+    private func hideFormatBar() {
+        formatBarWork?.cancel()
+        formatBarWork = nil
+        guard let host = formatBar else { return }
+        formatBar = nil
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.1
+            host.animator().alphaValue = 0
+        }, completionHandler: { host.removeFromSuperview() })
+    }
+
+    private func perform(_ action: FormatAction) {
+        switch action {
+        case .bold: markdownBold(nil)
+        case .italic: markdownItalic(nil)
+        case .strike: markdownStrike(nil)
+        case .code: markdownCode(nil)
+        case .chip: markdownChip(nil)
+        case .link: markdownLink(nil)
+        case .h1: setBlock(.heading(1))
+        case .h2: setBlock(.heading(2))
+        case .h3: setBlock(.heading(3))
+        case .bullet: setBlock(.bullet)
+        case .numbered: setBlock(.numbered)
+        case .task: setBlock(.task)
+        case .quote: setBlock(.quote)
+        }
+        window?.makeFirstResponder(self)
+        updateFormatBar(delay: false)
+    }
+
+    // MARK: - The slash menu
+
+    /// A "/" at the start of a line or after a space opens the menu; what is
+    /// typed after it filters the list. Return or Tab takes the highlighted
+    /// item and removes the slash and the query; Esc leaves them as typed.
+    private func openSlashMenu(at anchor: Int) {
+        hideFormatBar()
+        slashAnchor = anchor
+        slashSelection = 0
+        refreshSlashMenu()
+    }
+
+    private func refreshSlashMenu() {
+        guard let anchor = slashAnchor, let storage = textStorage else { return }
+        let sel = selectedRange()
+        let ns = storage.string as NSString
+        guard sel.length == 0, sel.location > anchor, anchor < ns.length, ns.character(at: anchor) == 47 else { closeSlashMenu(); return }
+        let query = ns.substring(with: NSRange(location: anchor + 1, length: sel.location - anchor - 1))
+        guard !query.contains("\n") else { closeSlashMenu(); return }
+        let items = SlashItem.matching(query)
+        guard !items.isEmpty else { closeSlashMenu(); return }
+        slashItems = items
+        slashSelection = max(0, min(slashSelection, items.count - 1))
+        let view = SlashMenu(theme: config.theme, items: items, selection: slashSelection,
+                             pick: { [weak self] i in self?.pickSlashItem(i) },
+                             hover: { [weak self] i in
+                                 guard let self, self.slashSelection != i else { return }
+                                 self.slashSelection = i
+                                 self.refreshSlashMenu()
+                             })
+        let host: QuietHostingView<SlashMenu>
+        if let existing = slashMenu {
+            host = existing
+            host.rootView = view
+        } else {
+            host = QuietHostingView(rootView: view)
+            host.wantsLayer = true
+            host.layer?.zPosition = 20
+            addSubview(host)
+            slashMenu = host
+        }
+        host.frame = slashMenuFrame(size: NSSize(width: SlashMenu.width, height: SlashMenu.height(for: items.count)))
+    }
+
+    /// Under the caret, or above it when the bottom of the viewport is in the way.
+    private func slashMenuFrame(size: NSSize) -> NSRect {
+        let caret = caretRect() ?? NSRect(x: textContainerOrigin.x, y: textContainerOrigin.y, width: 1, height: config.bodyLineHeight)
+        let visible = visibleRect
+        var x = caret.minX - 10
+        x = max(visible.minX + 8, min(x, visible.maxX - size.width - 8))
+        var y = caret.maxY + 6
+        if y + size.height > visible.maxY - 6 { y = caret.minY - size.height - 6 }
+        return NSRect(x: x.rounded(), y: y.rounded(), width: size.width, height: size.height)
+    }
+
+    private func closeSlashMenu() {
+        slashAnchor = nil
+        slashItems = []
+        guard let host = slashMenu else { return }
+        slashMenu = nil
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.1
+            host.animator().alphaValue = 0
+        }, completionHandler: { host.removeFromSuperview() })
+    }
+
+    private func pickSlashItem(_ index: Int) {
+        guard let anchor = slashAnchor, index >= 0, index < slashItems.count, let storage = textStorage else { return }
+        let item = slashItems[index]
+        let sel = selectedRange()
+        closeSlashMenu()
+        undoManager?.beginUndoGrouping()
+        defer { undoManager?.endUndoGrouping() }
+        let range = NSRange(location: anchor, length: max(0, sel.location - anchor))
+        if range.length > 0, shouldChangeText(in: range, replacementString: "") {
+            storage.replaceCharacters(in: range, with: "")
+            didChangeText()
+            setSelectedRange(NSRange(location: anchor, length: 0))
+        }
+        switch item.action {
+        case .block(let kind): setBlock(kind)
+        case .codeBlock: insertOwnLine("```\n\n```", caretOffset: 4)
+        case .divider: insertOwnLine("---", caretOffset: 4)
+        case .link: markdownLink(nil)
+        case .chip: markdownChip(nil)
+        case .date(let days): insertDate(daysFromToday: days)
+        }
+        window?.makeFirstResponder(self)
+    }
+
+    private func slashMove(_ step: Int) {
+        guard slashAnchor != nil, !slashItems.isEmpty else { return }
+        slashSelection = (slashSelection + step + slashItems.count) % slashItems.count
+        refreshSlashMenu()
+    }
+
+    override func moveUp(_ sender: Any?) {
+        if slashAnchor != nil { slashMove(-1); return }
+        super.moveUp(sender)
+    }
+
+    override func moveDown(_ sender: Any?) {
+        if slashAnchor != nil { slashMove(1); return }
+        super.moveDown(sender)
     }
 
     // MARK: - Typewriter scrolling
@@ -997,7 +1261,7 @@ final class GlassineTextView: NSTextView {
 
     /// A soft ring that swells out from a range and fades — a checkbox toggled,
     /// a date capsule appearing, a link made — then removes itself.
-    private func pulse(charRange: NSRange, color: NSColor, scale: CGFloat, duration: CFTimeInterval) {
+    func pulse(charRange: NSRange, color: NSColor, scale: CGFloat, duration: CFTimeInterval) {
         guard !GlassineTextView.reduceMotion, let lm = layoutManager, let tc = textContainer, let host = layer,
               let storage = textStorage else { return }
         let range = charRange.clamped(to: storage.length)
@@ -1282,6 +1546,7 @@ final class GlassineTextView: NSTextView {
 
     override func mouseDown(with event: NSEvent) {
         lastTypedWasKeyboard = false
+        closeSlashMenu()
         if event.clickCount == 1,
            event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
            let handle = listHandle(at: event) {
@@ -1617,7 +1882,7 @@ final class GlassineTextView: NSTextView {
             #selector(markdownBold(_:)), #selector(markdownItalic(_:)), #selector(markdownCode(_:)),
             #selector(markdownStrike(_:)), #selector(markdownLink(_:)), #selector(markdownHeading1(_:)),
             #selector(markdownHeading2(_:)), #selector(markdownHeading3(_:)), #selector(markdownClearHeading(_:)),
-            #selector(markdownToggleTask(_:)), #selector(copyDebugInfo(_:)),
+            #selector(markdownToggleTask(_:)), #selector(markdownChip(_:)), #selector(copyDebugInfo(_:)),
         ]
         if let action = item.action, markdownActions.contains(action) { return isEditable }
         return super.validateUserInterfaceItem(item)
@@ -1644,5 +1909,45 @@ extension GlassineTextView: NSLayoutManagerDelegate {
         guard extra > 0 else { return false }
         baselineOffset.pointee -= (extra / 2).rounded()
         return true
+    }
+
+    /// Hidden Markdown: a marker outside the paragraph being edited becomes a
+    /// glyph that is not drawn and takes no room, so `**bold**` reads as bold
+    /// and `# Title` as a title. A bullet's `-` is drawn as a bullet. The
+    /// characters are all still there; only their glyphs change.
+    func layoutManager(_ layoutManager: NSLayoutManager, shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>,
+                       properties props: UnsafePointer<NSLayoutManager.GlyphProperty>, characterIndexes: UnsafePointer<Int>,
+                       font: NSFont, forGlyphRange glyphRange: NSRange) -> Int {
+        guard config.hideSyntax, glyphRange.length > 0, let storage = textStorage else { return 0 }
+        let count = glyphRange.length
+        let first = characterIndexes[0], last = characterIndexes[count - 1]
+        let charRange = NSRange(location: first, length: last - first + 1)
+        let reveal = (storage.string as NSString).paragraphRange(for: selectedRange().clamped(to: storage.length))
+        var hidden: [NSRange] = []
+        var bullets: [NSRange] = []
+        storage.enumerateAttribute(Syntax.hiddenKey, in: charRange, options: []) { value, r, _ in
+            if value != nil, !NSLocationInRange(r.location, reveal) { hidden.append(r) }
+        }
+        storage.enumerateAttribute(Syntax.bulletKey, in: charRange, options: []) { value, r, _ in
+            if value != nil, !NSLocationInRange(r.location, reveal) { bullets.append(r) }
+        }
+        guard !hidden.isEmpty || !bullets.isEmpty else { return 0 }
+        var newGlyphs = Array(UnsafeBufferPointer(start: glyphs, count: count))
+        var newProps = Array(UnsafeBufferPointer(start: props, count: count))
+        var bullet: CGGlyph = 0
+        if !bullets.isEmpty {
+            var dot: UniChar = 0x2022
+            CTFontGetGlyphsForCharacters(unsafeBitCast(font, to: CTFont.self), &dot, &bullet, 1)
+        }
+        for i in 0..<count {
+            let c = characterIndexes[i]
+            if hidden.contains(where: { NSLocationInRange(c, $0) }) {
+                newProps[i] = .null
+            } else if bullet != 0, bullets.contains(where: { NSLocationInRange(c, $0) }) {
+                newGlyphs[i] = bullet
+            }
+        }
+        layoutManager.setGlyphs(newGlyphs, properties: newProps, characterIndexes: characterIndexes, font: font, forGlyphRange: glyphRange)
+        return count
     }
 }
