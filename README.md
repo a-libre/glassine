@@ -19,11 +19,15 @@ Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift p
   </tr>
   <tr>
     <td><img src="docs/screenshots/library.jpg" alt="All Documents: the library laid out as a wall of cards"></td>
-    <td><img src="docs/screenshots/daily.jpg" alt="Daily: today's note in front, earlier days receding behind it"></td>
+    <td><img src="docs/screenshots/daily.jpg" alt="Timelapse: today's note in front, earlier days receding behind it"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/writing.jpg" alt="The formatting bar over a selection, chips in capsules and a rule, with the Markdown syntax hidden"></td>
+    <td><img src="docs/screenshots/slash.jpg" alt="The slash menu open under the caret"></td>
   </tr>
 </table>
 
-Focus mode and Review; All Documents and Timelapse.
+Focus mode and Review; All Documents and Timelapse; the formatting bar with the syntax hidden, and the slash menu.
 
 There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well, and the full manual is at [docs.glassine.ink](https://docs.glassine.ink).
 
@@ -200,7 +204,7 @@ Sources/Glassine/
 Resources/    Info.plist, icon (make_icon.py draws it), entitlements for each build flavor
 docs/appstore/  the store listing, a showcase library, and the script that takes the screenshots
 docs/site/    the documentation site (Mintlify): docs.json plus one .mdx per page
-site/         glassine.ink, the one-page site (static HTML, served by Vercel; vercel.json holds the redirects)
+site/         glassine.ink, the one-page site (static HTML, served by Vercel; vercel.json holds the redirects; screenshots.sh takes its pictures, the README's and the manual's)
 build.sh      assembles and signs Glassine.app (--appstore for the sandboxed flavor)
 release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for the Mac App Store
 ```
