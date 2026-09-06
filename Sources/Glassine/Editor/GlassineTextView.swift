@@ -340,6 +340,7 @@ final class GlassineTextView: NSTextView {
             let range = pendingEditRange ?? NSRange(location: selectedRange().location, length: 0)
             pendingEditRange = nil
             styler.restyle(storage, range: range)
+            syncTypingAttributes()
         }
         lastTypedWasKeyboard = true
         lastEditAt = CACurrentMediaTime()
@@ -363,10 +364,32 @@ final class GlassineTextView: NSTextView {
             let wasLifted = focusLifted
             focusLifted = false
             updateFocusDimming(force: false, fadeIn: wasLifted)
-            if config.typewriter && (byKeyboard || config.typewriterOnClick) {
+            // While a keystroke is still landing the text is not styled yet;
+            // didChangeText scrolls once it is, from the line as it will be drawn.
+            if config.typewriter && (byKeyboard || config.typewriterOnClick) && pendingEditRange == nil {
                 typewriterScroll(animated: true)
             }
         }
+    }
+
+    /// AppKit refreshes the typing attributes when the selection moves, which
+    /// during typing is before the styler has run. Left there they lag a step
+    /// behind the text: a heading typed from scratch keeps receiving body-sized
+    /// characters that the styler then enlarges, and everything measured in
+    /// between — the caret, the typewriter line — sees a line that is not the
+    /// one that ends up on screen. So after each restyle they follow the
+    /// character before the caret; at the start of a paragraph, the base.
+    private func syncTypingAttributes() {
+        guard let storage = textStorage else { return }
+        let loc = selectedRange().location
+        var attrs = config.baseAttributes
+        if loc > 0, loc <= storage.length, (storage.string as NSString).character(at: loc - 1) != 10 {
+            let styled = storage.attributes(at: loc - 1, effectiveRange: nil)
+            for key in [NSAttributedString.Key.font, .foregroundColor, .paragraphStyle, .kern] {
+                if let value = styled[key] { attrs[key] = value }
+            }
+        }
+        typingAttributes = attrs
     }
 
     override func becomeFirstResponder() -> Bool {
