@@ -114,6 +114,7 @@ struct GalleryView: View {
 
     /// Keyboard handling for the mosaic. Returns true when the event was consumed.
     private static func handle(_ event: NSEvent, nav: GalleryNavigator, state: AppState) -> Bool {
+        guard state.galleryOnScreen else { return false }
         guard let window = event.window, window === (nav.window ?? NSApp.mainWindow) else { return false }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function])
         // A text field being edited (the search box) owns a field editor; the document

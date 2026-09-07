@@ -212,7 +212,7 @@ struct SidebarView: View {
 
     private var allDocumentsRow: some View {
         Button {
-            state.toggleGallery()
+            state.showGallery()
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "square.grid.2x2")

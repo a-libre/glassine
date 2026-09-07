@@ -721,10 +721,15 @@ final class AppState: ObservableObject {
 
     // MARK: - View toggles
 
-    func toggleGallery() {
+    /// All Documents, whatever is showing: from the editor the page zooms out
+    /// into its card, from the Timelapse the wall takes its place. Asked for
+    /// while it is already up, it stays up — a view that closed when picked
+    /// again put people in a document they had not chosen. Esc is the way back.
+    func showGallery() {
         if showingDaily { showingDaily = false; showingGallery = true; return }
+        if galleryOnScreen { return }
         if document == nil { showingGallery = true; return }
-        if showingGallery { showingGallery = false } else { zoomOutToGallery() }
+        zoomOutToGallery()
     }
 
     /// Esc from the editor: zoom out to where the document was opened from —
@@ -870,13 +875,13 @@ final class AppState: ObservableObject {
             add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
             add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
             add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
-            add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.toggleGallery() }
+            add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.showGallery() }
         } else if galleryOnScreen || showingDaily {
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
             add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
             add("daily", showingDaily ? "All Documents" : "Timelapse", keys: showingDaily ? "⌘P" : "⌘D") { [weak self] in
                 guard let self else { return }
-                if self.showingDaily { self.toggleGallery() } else { self.showDaily() }
+                if self.showingDaily { self.showGallery() } else { self.showDaily() }
             }
             for mode in SortMode.allCases {
                 let mark = settings.data.sortDocumentsBy == mode ? "  ✓" : ""
@@ -890,7 +895,7 @@ final class AppState: ObservableObject {
                 }
             }
         } else {
-            add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.toggleGallery() }
+            add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.showGallery() }
             add("review", "Review", keys: "⌘↩") { [weak self] in self?.toggleReview() }
             add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
             add("daily", "Timelapse", keys: "⌘D") { [weak self] in self?.showDaily() }
