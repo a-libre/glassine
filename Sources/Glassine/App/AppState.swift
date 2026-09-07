@@ -775,6 +775,16 @@ final class AppState: ObservableObject {
         reviewMode.toggle()
     }
 
+    /// Review is what is on screen: not the mosaic or the Timelapse over it.
+    var inReview: Bool { reviewMode && !galleryOnScreen && !showingDaily && document != nil }
+
+    /// The next style along, or the one before: ⇥ and ⇧⇥ in Review.
+    func cycleReviewStyle(by step: Int) {
+        let all = ReviewStyle.allCases
+        guard let i = all.firstIndex(of: settings.data.reviewStyle) else { return }
+        settings.data.reviewStyle = all[((i + step) % all.count + all.count) % all.count]
+    }
+
     func openInReview(_ ref: DocumentRef) {
         open(ref)
         reviewEntryScrollFraction = 0
@@ -864,8 +874,6 @@ final class AppState: ObservableObject {
         func add(_ id: String, _ title: String, keys: String? = nil, _ action: @escaping () -> Void) {
             cmds.append(AppCommand(id: id, title: title, keys: keys, action: action))
         }
-        let inReview = reviewMode && !galleryOnScreen && !showingDaily && document != nil
-
         if inReview {
             for s in ReviewStyle.allCases {
                 let mark = settings.data.reviewStyle == s ? "  ✓" : ""

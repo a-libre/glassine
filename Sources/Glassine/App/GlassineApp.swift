@@ -67,6 +67,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     return nil
                 }
             }
+            // ⇥ / ⇧⇥ in Review walk the styles, the way they walk the panes
+            // of Settings. The web view would otherwise take the tab for its
+            // own focus ring.
+            if event.keyCode == 48, flags.isEmpty || flags == .shift, state.inReview,
+               !state.showingSettings, !state.showingCommandBar, !state.showingSearch, !state.showingShortcuts {
+                state.cycleReviewStyle(by: flags == .shift ? -1 : 1)
+                return nil
+            }
             // ⌘⇧S: Review, a second key for it beside ⌘↩ — ⌘S shows the
             // sidebar, so the shifted key sits under the same finger.
             if event.charactersIgnoringModifiers?.lowercased() == "s", flags == [.command, .shift] {

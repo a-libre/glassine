@@ -146,7 +146,7 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Review
 
-⌘↩ swaps the editor for a read-only rendering of the document — real HTML in a web view, so tables, nested lists, task lists, code blocks and images all appear the way another Markdown app would show them. Six styles, under View → Review Style or the pill at the top-right: **Glass** (your theme's colors, transparent over the blur), **GitHub** (github.com's rendering, light or dark with the theme), **Book** (a cream page with drop caps and small-cap headings), **Book Dark** (the same page on warm charcoal, with a terracotta drop cap), **Editorial** (magazine typography: heavy headlines, pull-quotes) and **Mono** (a terminal). ⌘+ / ⌘− scale the text in Review independently of the editor. Links open in your browser. Esc or ⌘↩ returns to editing at roughly the same place.
+⌘↩ swaps the editor for a read-only rendering of the document — real HTML in a web view, so tables, nested lists, task lists, code blocks and images all appear the way another Markdown app would show them. Six styles, under View → Review Style or the pill at the top-right: **Glass** (your theme's colors, transparent over the blur), **GitHub** (github.com's rendering, light or dark with the theme), **Book** (a cream page with drop caps and small-cap headings), **Book Dark** (the same page on warm charcoal, with a terracotta drop cap), **Editorial** (magazine typography: heavy headlines, pull-quotes) and **Mono** (a terminal). ⇥ and ⇧⇥ walk the styles. ⌘+ / ⌘− scale the text in Review independently of the editor. Links open in your browser. Esc or ⌘↩ returns to editing at roughly the same place.
 
 ## Copying a document
 
