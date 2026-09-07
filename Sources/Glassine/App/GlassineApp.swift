@@ -67,6 +67,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     return nil
                 }
             }
+            // ⌘⇧S: Review, a second key for it beside ⌘↩ — ⌘S shows the
+            // sidebar, so the shifted key sits under the same finger.
+            if event.charactersIgnoringModifiers?.lowercased() == "s", flags == [.command, .shift] {
+                state.toggleReview()
+                return nil
+            }
             // ⌘Z / ⇧⌘Z: text edits go first; when the focused text has
             // nothing left, the library's own stack takes back file operations —
             // a stray new document, a rename, a move, a duplicate, a trash.

@@ -30,7 +30,7 @@ struct ShortcutSheet: View {
             ("⌘K", "Command bar"),
             ("⌘F", "Search the library"),
             ("⌘S", "Show or hide the sidebar"),
-            ("⌘↩", "Review"),
+            ("⌘↩  ⌘⇧S", "Review"),
             ("Esc", "Step back: Review → editor → all documents"),
             ("↑ ↓ ← →", "Move between cards, Return opens"),
             ("⌘.", "Float over other windows"),

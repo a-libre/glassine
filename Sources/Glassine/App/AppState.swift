@@ -871,7 +871,7 @@ final class AppState: ObservableObject {
                 let mark = settings.data.reviewStyle == s ? "  ✓" : ""
                 add("style-\(s.rawValue)", "Review style: \(s.label)\(mark)") { [weak self] in self?.settings.data.reviewStyle = s }
             }
-            add("leave-review", "Leave Review", keys: "⌘↩") { [weak self] in self?.toggleReview() }
+            add("leave-review", "Leave Review", keys: "⌘↩  ⌘⇧S") { [weak self] in self?.toggleReview() }
             add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
             add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
             add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
@@ -896,7 +896,7 @@ final class AppState: ObservableObject {
             }
         } else {
             add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.showGallery() }
-            add("review", "Review", keys: "⌘↩") { [weak self] in self?.toggleReview() }
+            add("review", "Review", keys: "⌘↩  ⌘⇧S") { [weak self] in self?.toggleReview() }
             add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
             add("daily", "Timelapse", keys: "⌘D") { [weak self] in self?.showDaily() }
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
