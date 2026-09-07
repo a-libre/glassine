@@ -38,8 +38,9 @@ enum DateToken {
     }
 }
 
-/// Draws rounded backgrounds — capsules for date tokens, softly rounded rectangles
-/// for inline code — and the strikethrough of finished tasks as a gradient.
+/// Draws softly rounded rectangles for inline code, capsules for dates and
+/// chips (on the text view's behalf, before the text system draws), the line of
+/// a horizontal rule, and the strikethrough of finished tasks as a gradient.
 /// Everything else is inherited.
 final class GlassineLayoutManager: NSLayoutManager {
     /// Strikes still being drawn in, by the character index where the struck
@@ -54,85 +55,87 @@ final class GlassineLayoutManager: NSLayoutManager {
         // Copy these out before asking the layout manager anything else: the
         // buffer they live in is shared, and the queries below write into it.
         let rects = (0..<rectCount).map { rectArray[$0] }
-        var tokenRange = NSRange(location: 0, length: 0)
-        let isDate = textStorage.map { charRange.location < $0.length
-            && $0.attribute(DateToken.attributeKey, at: charRange.location, longestEffectiveRange: &tokenRange,
-                            in: NSRange(location: 0, length: $0.length)) != nil } ?? false
+        // A date or a chip gets its capsule from drawCapsules(in:origin:), which
+        // the text view calls before the text system draws — nothing here.
+        let isCapsule = textStorage.map { charRange.location < $0.length
+            && $0.attribute(DateToken.attributeKey, at: charRange.location, effectiveRange: nil) != nil } ?? false
+        guard !isCapsule else { return }
         color.setFill()
-        guard isDate else {
-            for rect in rects {
-                NSBezierPath(roundedRect: rect.insetBy(dx: -1, dy: 0), xRadius: 3.5, yRadius: 3.5).fill()
-            }
-            return
+        for rect in rects {
+            NSBezierPath(roundedRect: rect.insetBy(dx: -1, dy: 0), xRadius: 3.5, yRadius: 3.5).fill()
         }
+    }
 
-        // A token can come through here in more than one run — the "@" is dimmer
-        // than the date, a chip's marks dimmer than its word — and each would get
-        // a capsule. The run holding the token's first drawn glyph draws the whole
-        // token; the rest draw nothing.
-        // The glyph range can reach a glyph past the token's characters (a
-        // kerned space before it, say), so each glyph is checked against them.
-        let glyphs = glyphRange(forCharacterRange: tokenRange, actualCharacterRange: nil)
-        func drawn(_ g: Int) -> Bool {
-            guard NSLocationInRange(characterIndexForGlyph(at: g), tokenRange) else { return false }
-            let property = propertyForGlyph(at: g)
-            return property != .null && property != .controlCharacter
-        }
-        guard let firstDrawn = (glyphs.location..<glyphs.upperBoundValue).first(where: drawn),
-              NSLocationInRange(characterIndexForGlyph(at: firstDrawn), charRange) else { return }
-        // The capsule follows the token's drawn glyphs, line by line. A marker
-        // that is not drawn takes no room in it, and a token that wraps — or
-        // whose hidden marks are left behind at the end of a line — gets a
-        // capsule around what it shows on each line and nothing where it
-        // shows nothing: never the empty remainder of the line it left.
-        var capsules: [NSRect] = []
-        if let container = textContainer(forGlyphAt: firstDrawn, effectiveRange: nil) {
-            let none = NSRange(location: NSNotFound, length: 0)
-            var n = 0
-            let runFirst = self.rectArray(forCharacterRange: charRange, withinSelectedCharacterRange: none,
-                                          in: container, rectCount: &n).flatMap { n > 0 ? $0[0] : nil }
-            // Each piece is as wide as its glyphs and as tall as their type — from
-            // the ascender to the descender about the baseline — rather than the
-            // whole line fragment, so a short word gets a pill and not an egg.
-            var pieces: [(line: CGFloat, rect: NSRect)] = []
-            for g in glyphs.location..<glyphs.upperBoundValue where drawn(g) {
-                let line = lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
-                let box = boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: container)
-                guard box.width > 0 else { continue }
-                let font = (textStorage?.attribute(.font, at: characterIndexForGlyph(at: g), effectiveRange: nil) as? NSFont)
-                    ?? NSFont.systemFont(ofSize: 16)
-                let baseline = line.minY + location(forGlyphAt: g).y
-                let type = NSRect(x: box.minX, y: baseline - font.ascender, width: box.width, height: font.ascender - font.descender)
-                if let i = pieces.firstIndex(where: { $0.line == line.minY }) {
-                    pieces[i].rect = pieces[i].rect.union(type)
-                } else {
-                    pieces.append((line.minY, type))
+    /// Capsules for dates and chips, drawn by the text view before the text
+    /// system draws anything, so nothing the text system clips to — the text
+    /// container's edges — can cut one off where it reaches into a margin.
+    /// Each token gets a capsule around its drawn glyphs, line by line: a
+    /// marker that is not drawn takes no room in it, a token that wraps gets
+    /// one per line, and each is as tall as its type — ascender to descender —
+    /// rather than the whole line, so a short word gets a pill and not an egg.
+    func drawCapsules(in rect: NSRect, origin: NSPoint) {
+        guard let storage = textStorage, storage.length > 0, let container = textContainers.first else { return }
+        let glyphs = glyphRange(forBoundingRect: rect.offsetBy(dx: -origin.x, dy: -origin.y), in: container)
+        guard glyphs.length > 0 else { return }
+        let chars = characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        let full = NSRange(location: 0, length: storage.length)
+        var index = chars.location
+        while index < chars.upperBoundValue {
+            var tokenRange = NSRange(location: 0, length: 0)
+            let isToken = storage.attribute(DateToken.attributeKey, at: index, longestEffectiveRange: &tokenRange, in: full) != nil
+            guard tokenRange.length > 0 else { break }
+            if isToken, let color = storage.attribute(.backgroundColor, at: tokenRange.location, effectiveRange: nil) as? NSColor {
+                for piece in capsulePieces(for: tokenRange, in: container) {
+                    drawCapsule(piece.offsetBy(dx: origin.x, dy: origin.y), color: color)
                 }
             }
-            // Those are container coordinates; the run's own first rect, which we
-            // hold in both systems, says how far the view has moved them.
-            if let runFirst {
-                let dx = rects[0].minX - runFirst.minX, dy = rects[0].minY - runFirst.minY
-                capsules = pieces.map { $0.rect.offsetBy(dx: dx, dy: dy) }
-            }
+            index = tokenRange.upperBoundValue
         }
-        if capsules.isEmpty { capsules = rects }
-        for var rect in capsules {
-            // A capsule lit from the top, with a hairline edge: enough to read as a chip.
-            rect = rect.insetBy(dx: -DateToken.capsulePadding, dy: -2)
-            let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-            let alpha = color.alphaComponent
-            if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),
-                                         ending: color.withAlphaComponent(alpha * 0.8)) {
-                gradient.draw(in: path, angle: 90)
+    }
+
+    /// The rectangles a token's capsule is made of, one per line it has drawn
+    /// glyphs on, in container coordinates. The glyph range can reach a glyph
+    /// past the token's characters (a kerned space before it, say), so each
+    /// glyph is checked against them.
+    private func capsulePieces(for tokenRange: NSRange, in container: NSTextContainer) -> [NSRect] {
+        let glyphs = glyphRange(forCharacterRange: tokenRange, actualCharacterRange: nil)
+        var pieces: [(line: CGFloat, rect: NSRect)] = []
+        for g in glyphs.location..<glyphs.upperBoundValue {
+            guard NSLocationInRange(characterIndexForGlyph(at: g), tokenRange) else { continue }
+            let property = propertyForGlyph(at: g)
+            guard property != .null, property != .controlCharacter else { continue }
+            let line = lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
+            let box = boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: container)
+            guard box.width > 0 else { continue }
+            let font = (textStorage?.attribute(.font, at: characterIndexForGlyph(at: g), effectiveRange: nil) as? NSFont)
+                ?? NSFont.systemFont(ofSize: 16)
+            let baseline = line.minY + location(forGlyphAt: g).y
+            let type = NSRect(x: box.minX, y: baseline - font.ascender, width: box.width, height: font.ascender - font.descender)
+            if let i = pieces.firstIndex(where: { $0.line == line.minY }) {
+                pieces[i].rect = pieces[i].rect.union(type)
             } else {
-                path.fill()
+                pieces.append((line.minY, type))
             }
-            color.withAlphaComponent(min(1, alpha * 1.1)).setStroke()
-            let edge = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: rect.height / 2, yRadius: rect.height / 2)
-            edge.lineWidth = 1
-            edge.stroke()
         }
+        return pieces.map { $0.rect }
+    }
+
+    /// A capsule lit from the top, with a hairline edge: enough to read as a chip.
+    private func drawCapsule(_ glyphRect: NSRect, color: NSColor) {
+        let rect = glyphRect.insetBy(dx: -DateToken.capsulePadding, dy: -2)
+        let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+        let alpha = color.alphaComponent
+        if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),
+                                     ending: color.withAlphaComponent(alpha * 0.8)) {
+            gradient.draw(in: path, angle: 90)
+        } else {
+            color.setFill()
+            path.fill()
+        }
+        color.withAlphaComponent(min(1, alpha * 1.1)).setStroke()
+        let edge = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: rect.height / 2, yRadius: rect.height / 2)
+        edge.lineWidth = 1
+        edge.stroke()
     }
 
     /// A horizontal rule: its dashes are not drawn (see the text view's glyph

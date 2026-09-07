@@ -330,6 +330,10 @@ final class GlassineTextView: NSTextView {
         super.setNeedsDisplay(rect.insetBy(dx: -(DateToken.capsulePadding + 2), dy: -2), avoidAdditionalLayout: flag)
     }
 
+    override func setNeedsDisplay(_ invalidRect: NSRect) {
+        super.setNeedsDisplay(invalidRect.insetBy(dx: -(DateToken.capsulePadding + 2), dy: -2))
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         updateInsets()
@@ -361,6 +365,9 @@ final class GlassineTextView: NSTextView {
     var placeholder = "Start writing"
 
     override func draw(_ dirtyRect: NSRect) {
+        // Capsules go down first, under everything the text system draws, and
+        // outside its clip: one at the start of a line reaches into the margin.
+        (layoutManager as? GlassineLayoutManager)?.drawCapsules(in: dirtyRect, origin: textContainerOrigin)
         super.draw(dirtyRect)
         guard string.isEmpty, !placeholder.isEmpty else { return }
         let font = config.bodyFont
