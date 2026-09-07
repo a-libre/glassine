@@ -130,7 +130,7 @@ Return inside a list continues the list; Return on an empty item ends it.
 
 ## Caret
 
-Settings → Caret. Smooth movement on or off, glide time (default 110 ms), whether to also glide while typing or only for arrow keys and clicks, blink style (soft fade, classic, or never) and width. The caret takes its color from the theme. If Reduce Motion is on in System Settings, gliding is disabled automatically.
+Settings → Editor, under Caret. Smooth movement on or off, glide time (default 270 ms, up to 500), whether to also glide while typing or only for arrow keys and clicks, blink style (soft fade, classic, or never) and width. The caret takes its color from the theme. If Reduce Motion is on in System Settings, gliding is disabled automatically.
 
 ## Themes
 

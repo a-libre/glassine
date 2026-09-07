@@ -8,6 +8,7 @@ struct StyleConfig: Equatable {
     let fontSize: CGFloat
     let lineHeightMultiple: CGFloat
     let paragraphSpacingEm: CGFloat
+    let paragraphIndentEm: CGFloat
     let letterSpacing: CGFloat
     let scaledHeadings: Bool
     let columnWidth: CGFloat
@@ -44,6 +45,7 @@ struct StyleConfig: Equatable {
         fontSize = CGFloat(settings.fontSize)
         lineHeightMultiple = CGFloat(settings.lineHeight)
         paragraphSpacingEm = CGFloat(settings.paragraphSpacing)
+        paragraphIndentEm = CGFloat(settings.paragraphIndent)
         letterSpacing = CGFloat(settings.letterSpacing)
         scaledHeadings = settings.scaledHeadings
         centerHeadings = settings.centerHeadings
@@ -125,11 +127,14 @@ struct StyleConfig: Equatable {
     // MARK: - Paragraph styles
 
     var paragraphSpacing: CGFloat { (fontSize * paragraphSpacingEm).rounded() }
+    /// How far the first line of a body paragraph steps in.
+    var paragraphIndent: CGFloat { (fontSize * paragraphIndentEm).rounded() }
 
     func baseParagraphStyle() -> NSMutableParagraphStyle {
         let p = NSMutableParagraphStyle()
         p.lineHeightMultiple = lineHeightMultiple
         p.paragraphSpacing = paragraphSpacing
+        p.firstLineHeadIndent = paragraphIndent
         p.lineBreakMode = .byWordWrapping
         return p
     }
@@ -138,6 +143,7 @@ struct StyleConfig: Equatable {
         let p = baseParagraphStyle()
         p.paragraphSpacingBefore = level == 1 ? paragraphSpacing * 1.2 : paragraphSpacing * 0.8
         p.paragraphSpacing = paragraphSpacing * 0.6
+        p.firstLineHeadIndent = 0   // a heading never steps in
         p.alignment = centerHeadings ? .center : .natural
         return p
     }

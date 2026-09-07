@@ -4,7 +4,7 @@ description: "Every setting, pane by pane, with its default."
 icon: "settings"
 ---
 
-⌘, or Glassine → Settings…, or the gear at the bottom of the sidebar. Settings open as a card over the window rather than in a window of their own, so everything you change is visible behind it as you change it. ⇥ and ⇧⇥ move between the four panes; Esc closes the card.
+⌘, or Glassine → Settings…, or the gear at the bottom of the sidebar. Settings open as a card over the window rather than in a window of their own, so everything you change is visible behind it as you change it. ⇥ and ⇧⇥ move between the three panes; Esc closes the card.
 
 ## General
 
@@ -35,6 +35,7 @@ icon: "settings"
 | Size | 16 pt | 11–32 |
 | Line height | 1.55× | 1.0–2.2 |
 | Paragraph spacing | 0.65 em | 0–1.5 |
+| Paragraph indent | 0 em | 0–3. The first line of each body paragraph steps in; headings, lists and quotes keep their own margins |
 | Letter spacing | 0 pt | −1 to 2 |
 | Larger headings | On | |
 | Center headings | On | |
@@ -76,24 +77,17 @@ icon: "settings"
 | Continue lists on Return | On |
 | Move finished tasks to the bottom after a moment | On |
 
-## Caret
-
-**Movement**
-
-| Setting | Default | Range |
-|---|---|---|
-| Smooth movement | On | |
-| Glide time | 270 ms | 40–750 |
-| Smooth while typing | On | Off: the caret glides for arrow keys and clicks but snaps as you type |
-
-**Look**
+**Caret**
 
 | Setting | Default | |
 |---|---|---|
+| Smooth movement | On | |
+| Glide time | 270 ms | 40–500 ms |
+| Smooth while typing | On | Off: the caret glides for arrow keys and clicks but snaps as you type |
 | Blink | Soft | Or *Classic*, or *Never* |
 | Width | 4 pt | 1–4 in half-point steps |
 
-The caret uses the theme's caret colour, usually the accent. Reduce Motion in System Settings disables gliding.
+The caret uses the theme's caret colour, usually the accent. Reduce Motion in System Settings disables gliding. (The caret had a pane of its own until September 6; it is part of Editor now.)
 
 ## Themes
 

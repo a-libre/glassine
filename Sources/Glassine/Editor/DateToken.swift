@@ -5,6 +5,10 @@ import AppKit
 /// Glassine draws as a small capsule. ISO dates (`@2026-09-01`) get the capsule too.
 enum DateToken {
     static let attributeKey = NSAttributedString.Key("glassine.dateToken")
+    /// How far a capsule reaches beyond its glyphs on each side. The styler
+    /// kerns the spaces on either side by the same amount, so the capsule's
+    /// edge — not the word inside it — stands a space clear of its neighbours.
+    static let capsulePadding: CGFloat = 4
 
     /// Matches a stored token: `@September 1, 2026` or `@2026-09-01`.
     static let pattern = "@(?:\\d{4}-\\d{2}-\\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}, \\d{4})(?![\\w])"
@@ -84,7 +88,7 @@ final class GlassineLayoutManager: NSLayoutManager {
         }
         for var rect in capsules {
             // A capsule lit from the top, with a hairline edge: enough to read as a chip.
-            rect = rect.insetBy(dx: -4, dy: -1.5)
+            rect = rect.insetBy(dx: -DateToken.capsulePadding, dy: -1.5)
             let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
             let alpha = color.alphaComponent
             if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),

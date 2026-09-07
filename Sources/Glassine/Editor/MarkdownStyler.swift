@@ -288,8 +288,10 @@ final class MarkdownStyler {
             for i in [1, 3, 4, 5] { storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(m.range(at: i))) }
         }
         // `==word==`: a capsule like a date's, around anything.
+        var capsules: [NSRange] = []
         for m in MarkdownStyler.chip.matches(in: text, options: [], range: full) where !inCode(m.range) {
             let r = absRange(m.range)
+            capsules.append(r)
             storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: r)
             storage.addAttribute(.backgroundColor, value: theme.accent.withAlpha(theme.isDark ? 0.18 : 0.14), range: r)
             storage.addAttribute(DateToken.attributeKey, value: true, range: r)
@@ -310,11 +312,24 @@ final class MarkdownStyler {
         }
         for m in MarkdownStyler.dateToken.matches(in: text, options: [], range: full) where !inCode(m.range) {
             let r = absRange(m.range)
+            capsules.append(r)
             storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: r)
             storage.addAttribute(.backgroundColor, value: theme.accent.withAlpha(theme.isDark ? 0.18 : 0.14), range: r)
             storage.addAttribute(DateToken.attributeKey, value: true, range: r)
             // The "@" stays in the file but steps back visually.
             storage.addAttribute(.foregroundColor, value: theme.accent.withAlpha(0.55), range: NSRange(location: r.location, length: 1))
+        }
+        // Room around a capsule: a space on either side of one is kerned by the
+        // capsule's own reach, so the capsule stands a full space clear of the
+        // words around it instead of eating the space and touching them.
+        let room = DateToken.capsulePadding + config.letterSpacing
+        for r in capsules {
+            if r.location > paraRange.location, ns.character(at: r.location - 1) == 32 {
+                storage.addAttribute(.kern, value: room, range: NSRange(location: r.location - 1, length: 1))
+            }
+            if r.upperBoundValue < paraRange.upperBoundValue, ns.character(at: r.upperBoundValue) == 32 {
+                storage.addAttribute(.kern, value: room, range: NSRange(location: r.upperBoundValue, length: 1))
+            }
         }
     }
 }

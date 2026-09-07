@@ -962,7 +962,7 @@ enum WelcomeDocument {
 
     ## A few things to try
 
-    - Watch the caret glide as you type. Tune it under **Glassine → Settings → Caret**.
+    - Watch the caret glide as you type. Tune it under **Glassine → Settings → Editor**.
     - Press ⌘S to hide the sidebar. Press it again to bring it back. ⌘P shows every document at once; ⌘F searches everything you have written.
     - Try ⌃⌘T for typewriter scrolling and ⌃⌘F for focus mode.
     - Themes live under **View → Theme**. Duplicate one in Settings to make it yours.

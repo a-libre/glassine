@@ -207,6 +207,7 @@ final class GlassineTextView: NSTextView {
             guard let p = previous else { return true }
             return p.theme != config.theme || p.fontFamily != config.fontFamily || p.fontSize != config.fontSize
                 || p.lineHeightMultiple != config.lineHeightMultiple || p.paragraphSpacingEm != config.paragraphSpacingEm
+                || p.paragraphIndentEm != config.paragraphIndentEm
                 || p.letterSpacing != config.letterSpacing || p.scaledHeadings != config.scaledHeadings
         }()
         if typographyChanged, let storage = textStorage, storage.length > 0 {
@@ -354,7 +355,7 @@ final class GlassineTextView: NSTextView {
         guard string.isEmpty, !placeholder.isEmpty else { return }
         let font = config.bodyFont
         let color = config.theme.syntax.withAlpha(config.theme.isDark ? 0.45 : 0.5)
-        let origin = NSPoint(x: textContainerOrigin.x + (textContainer?.lineFragmentPadding ?? 0) + 1,
+        let origin = NSPoint(x: textContainerOrigin.x + (textContainer?.lineFragmentPadding ?? 0) + config.paragraphIndent + 1,
                              y: textContainerOrigin.y + (config.bodyLineHeight - font.ascender + font.descender) / 2)
         (placeholder as NSString).draw(at: origin, withAttributes: [.font: font, .foregroundColor: color])
     }

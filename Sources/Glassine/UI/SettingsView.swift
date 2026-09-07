@@ -15,14 +15,13 @@ struct SettingsOverlay: View {
     }
 
     enum Pane: String, CaseIterable, Identifiable {
-        case general, editor, caret, themes
+        case general, editor, themes
         var id: String { rawValue }
         var label: String { rawValue.capitalized }
         var icon: String {
             switch self {
             case .general: return "gearshape"
             case .editor: return "textformat"
-            case .caret: return "cursorarrow.motionlines"
             case .themes: return "paintpalette"
             }
         }
@@ -77,7 +76,6 @@ struct SettingsOverlay: View {
                 switch tab {
                 case .general: GeneralSettings()
                 case .editor: EditorSettings()
-                case .caret: CaretSettings()
                 case .themes: ThemeSettings()
                 }
             }
@@ -198,6 +196,7 @@ struct EditorSettings: View {
                 sliderRow("Size", value: data.fontSize, range: 11...32, step: 1, format: "%.0f pt")
                 sliderRow("Line height", value: data.lineHeight, range: 1.0...2.2, step: 0.05, format: "%.2f×")
                 sliderRow("Paragraph spacing", value: data.paragraphSpacing, range: 0...1.5, step: 0.05, format: "%.2f em")
+                sliderRow("Paragraph indent", value: data.paragraphIndent, range: 0...3, step: 0.1, format: "%.1f em")
                 sliderRow("Letter spacing", value: data.letterSpacing, range: -1...2, step: 0.1, format: "%.1f pt")
                 Toggle("Larger headings", isOn: data.scaledHeadings)
                 Toggle("Center headings", isOn: data.centerHeadings)
@@ -210,6 +209,22 @@ struct EditorSettings: View {
             Section("Layout") {
                 sliderRow("Column width", value: data.columnWidth, range: 420...1100, step: 10, format: "%.0f pt")
                 sliderRow("Top margin", value: data.topInset, range: 24...240, step: 4, format: "%.0f pt")
+            }
+            Section("Caret") {
+                Toggle("Smooth movement", isOn: data.smoothCaret)
+                sliderRow("Glide time", value: data.caretSpeed, range: 0.04...0.50, step: 0.01, format: "%.0f ms", scale: 1000)
+                    .disabled(!state.settings.data.smoothCaret)
+                Toggle("Smooth while typing", isOn: data.smoothWhileTyping)
+                    .disabled(!state.settings.data.smoothCaret)
+                Text("Turn this off to keep gliding for arrow keys and clicks, but snap instantly as you type.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Picker("Blink", selection: data.caretBlink) {
+                    ForEach(CaretBlink.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                sliderRow("Width", value: data.caretWidth, range: 1...4, step: 0.5, format: "%.1f pt")
+                Text("The caret uses the theme's caret color (usually the accent). Reduce Motion in System Settings disables gliding.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Modes") {
                 Toggle("Typewriter scrolling", isOn: data.typewriterMode)
@@ -246,40 +261,6 @@ struct EditorSettings: View {
                 .filter { !$0.hasPrefix(".") }
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         }
-    }
-}
-
-// MARK: - Caret
-
-struct CaretSettings: View {
-    @EnvironmentObject var state: AppState
-
-    private var data: Binding<SettingsData> {
-        Binding(get: { state.settings.data }, set: { state.settings.data = $0 })
-    }
-
-    var body: some View {
-        Form {
-            Section("Movement") {
-                Toggle("Smooth movement", isOn: data.smoothCaret)
-                sliderRow("Glide time", value: data.caretSpeed, range: 0.04...0.75, step: 0.01, format: "%.0f ms", scale: 1000)
-                    .disabled(!state.settings.data.smoothCaret)
-                Toggle("Smooth while typing", isOn: data.smoothWhileTyping)
-                    .disabled(!state.settings.data.smoothCaret)
-                Text("Turn this off to keep gliding for arrow keys and clicks, but snap instantly as you type.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section("Look") {
-                Picker("Blink", selection: data.caretBlink) {
-                    ForEach(CaretBlink.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                sliderRow("Width", value: data.caretWidth, range: 1...4, step: 0.5, format: "%.1f pt")
-                Text("The caret uses the theme's caret color (usually the accent). Reduce Motion in System Settings disables gliding.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
     }
 }
 

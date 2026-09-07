@@ -17,6 +17,11 @@ import ImageIO
 /// permission: nothing on the machine needs granting, and no other app's
 /// window is ever touched.
 ///
+/// A plain check never takes the keyboard: the window is put in front without
+/// activating the app, so typing elsewhere on the Mac carries on unharmed.
+/// The composite pictures, and any that ask for the caret's company (a
+/// selection, a slash), do activate, since those need the window to be key.
+///
 /// The store pictures pass `-glassine.shootCapture 1` and get the fuller
 /// composite instead — the window and everything beneath it, the backdrop
 /// included, so the glass carries the backdrop's colour the way it does on
@@ -53,8 +58,18 @@ enum ScreenshotMode {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             guard let window = mainWindow() else { finish(name: name, error: "no main window"); return }
             place(window, size: size)
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            // The composite pictures, and any that need the caret or the
+            // formatting helpers, take the keyboard: the app comes to the
+            // front and its window becomes key. A plain layout check does
+            // not, so whoever is typing at the Mac keeps their keystrokes.
+            let needsKeyboard = composite || defaults.string(forKey: "glassine.shootSelect") != nil
+                || defaults.bool(forKey: "glassine.shootSlash")
+            if needsKeyboard {
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                window.orderFrontRegardless()
+            }
             showBackdrop(behind: window, dark: AppState.shared.theme.isDark)
             // The editor's floating helpers, for a picture of them: a selection
             // (`-glassine.shootSelect 12,20`) brings the formatting bar; a typed

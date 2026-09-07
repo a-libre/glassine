@@ -62,7 +62,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let fieldEditing = (window.firstResponder as? NSTextView)?.isFieldEditor ?? false
                 if event.keyCode == 48, flags.isEmpty || flags == .shift, !fieldEditing {
                     let step = flags == .shift ? -1 : 1
-                    state.settingsTab = ((state.settingsTab + step) % 4 + 4) % 4
+                    let n = SettingsOverlay.Pane.allCases.count
+                    state.settingsTab = ((state.settingsTab + step) % n + n) % n
                     return nil
                 }
             }

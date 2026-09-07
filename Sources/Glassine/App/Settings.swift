@@ -84,6 +84,8 @@ struct SettingsData: Codable, Equatable {
     var fontSize: Double = 16
     var lineHeight: Double = 1.55
     var paragraphSpacing: Double = 0.65
+    /// First-line indent of a body paragraph, in ems of the type size. 0 is none.
+    var paragraphIndent: Double = 0
     var columnWidth: Double = 660
     var letterSpacing: Double = 0
     var scaledHeadings: Bool = true
@@ -158,6 +160,7 @@ struct SettingsData: Codable, Equatable {
         fontSize = try c.decodeIfPresent(Double.self, forKey: .fontSize) ?? d.fontSize
         lineHeight = try c.decodeIfPresent(Double.self, forKey: .lineHeight) ?? d.lineHeight
         paragraphSpacing = try c.decodeIfPresent(Double.self, forKey: .paragraphSpacing) ?? d.paragraphSpacing
+        paragraphIndent = try c.decodeIfPresent(Double.self, forKey: .paragraphIndent) ?? d.paragraphIndent
         columnWidth = try c.decodeIfPresent(Double.self, forKey: .columnWidth) ?? d.columnWidth
         letterSpacing = try c.decodeIfPresent(Double.self, forKey: .letterSpacing) ?? d.letterSpacing
         scaledHeadings = try c.decodeIfPresent(Bool.self, forKey: .scaledHeadings) ?? d.scaledHeadings
