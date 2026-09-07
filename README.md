@@ -59,7 +59,7 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
 - **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘S — and a Shelf at the bottom for what isn't current, out of the way without being archived.
 - **All Documents** (⌘P): a mosaic of every document with rendered previews, navigable with the arrow keys.
-- **Review** (⌘↩): the document rendered as HTML in one of five styles — Glass, GitHub, Book, Editorial, Mono.
+- **Review** (⌘↩): the document rendered as HTML in one of six styles — Glass, GitHub, Book, Book Dark, Editorial, Mono.
 - **Typewriter scrolling, focus mode, word count and reading time.**
 - **Markdown, lightly styled.** Syntax stays visible but steps back: headings, emphasis, code, quotes, lists, tasks, links, tags. Or hide it (⌃⌘M): the marks leave the page except in the sentence you're writing.
 - **Formatting as you go.** A bar over whatever you select; a menu under a `/` for headings, lists, tasks, quotes, code blocks, dividers and dates; chips (⌘⇧H) that put a word in a capsule like a date's.
@@ -146,7 +146,7 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Review
 
-⌘↩ swaps the editor for a read-only rendering of the document — real HTML in a web view, so tables, nested lists, task lists, code blocks and images all appear the way another Markdown app would show them. Five styles, under View → Review Style or the pill at the top-right: **Glass** (your theme's colors, transparent over the blur), **GitHub** (github.com's rendering, light or dark with the theme), **Book** (a cream page with drop caps and small-cap headings), **Editorial** (magazine typography: heavy headlines, pull-quotes) and **Mono** (a terminal). ⌘+ / ⌘− scale the text in Review independently of the editor. Links open in your browser. Esc or ⌘↩ returns to editing at roughly the same place.
+⌘↩ swaps the editor for a read-only rendering of the document — real HTML in a web view, so tables, nested lists, task lists, code blocks and images all appear the way another Markdown app would show them. Six styles, under View → Review Style or the pill at the top-right: **Glass** (your theme's colors, transparent over the blur), **GitHub** (github.com's rendering, light or dark with the theme), **Book** (a cream page with drop caps and small-cap headings), **Book Dark** (the same page on warm charcoal, with a terracotta drop cap), **Editorial** (magazine typography: heavy headlines, pull-quotes) and **Mono** (a terminal). ⌘+ / ⌘− scale the text in Review independently of the editor. Links open in your browser. Esc or ⌘↩ returns to editing at roughly the same place.
 
 ## Copying a document
 

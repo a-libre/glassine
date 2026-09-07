@@ -66,26 +66,50 @@ final class GlassineLayoutManager: NSLayoutManager {
             return
         }
 
-        // A date token can come through here in more than one run — the "@" is
-        // dimmer than the date, so it can be a run of its own — and each would
-        // get a capsule. The first run draws the whole token; the rest draw nothing.
-        guard charRange.location == tokenRange.location else { return }
-        var capsules = rects
-        if charRange.length < tokenRange.length,
-           let container = textContainer(forGlyphAt: glyphIndexForCharacter(at: charRange.location), effectiveRange: nil) {
+        // A token can come through here in more than one run — the "@" is dimmer
+        // than the date, a chip's marks dimmer than its word — and each would get
+        // a capsule. The run holding the token's first drawn glyph draws the whole
+        // token; the rest draw nothing.
+        // The glyph range can reach a glyph past the token's characters (a
+        // kerned space before it, say), so each glyph is checked against them.
+        let glyphs = glyphRange(forCharacterRange: tokenRange, actualCharacterRange: nil)
+        func drawn(_ g: Int) -> Bool {
+            guard NSLocationInRange(characterIndexForGlyph(at: g), tokenRange) else { return false }
+            let property = propertyForGlyph(at: g)
+            return property != .null && property != .controlCharacter
+        }
+        guard let firstDrawn = (glyphs.location..<glyphs.upperBoundValue).first(where: drawn),
+              NSLocationInRange(characterIndexForGlyph(at: firstDrawn), charRange) else { return }
+        // The capsule follows the token's drawn glyphs, line by line. A marker
+        // that is not drawn takes no room in it, and a token that wraps — or
+        // whose hidden marks are left behind at the end of a line — gets a
+        // capsule around what it shows on each line and nothing where it
+        // shows nothing: never the empty remainder of the line it left.
+        var capsules: [NSRect] = []
+        if let container = textContainer(forGlyphAt: firstDrawn, effectiveRange: nil) {
             let none = NSRange(location: NSNotFound, length: 0)
             var n = 0
             let runFirst = self.rectArray(forCharacterRange: charRange, withinSelectedCharacterRange: none,
                                           in: container, rectCount: &n).flatMap { n > 0 ? $0[0] : nil }
-            let token = self.rectArray(forCharacterRange: tokenRange, withinSelectedCharacterRange: none,
-                                       in: container, rectCount: &n).map { p in (0..<n).map { p[$0] } } ?? []
+            var pieces: [(line: CGFloat, rect: NSRect)] = []
+            for g in glyphs.location..<glyphs.upperBoundValue where drawn(g) {
+                let line = lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
+                let box = boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: container)
+                guard box.width > 0 else { continue }
+                if let i = pieces.firstIndex(where: { $0.line == line.minY }) {
+                    pieces[i].rect = pieces[i].rect.union(box)
+                } else {
+                    pieces.append((line.minY, box))
+                }
+            }
             // Those are container coordinates; the run's own first rect, which we
             // hold in both systems, says how far the view has moved them.
-            if let runFirst, !token.isEmpty {
+            if let runFirst {
                 let dx = rects[0].minX - runFirst.minX, dy = rects[0].minY - runFirst.minY
-                capsules = token.map { $0.offsetBy(dx: dx, dy: dy) }
+                capsules = pieces.map { $0.rect.offsetBy(dx: dx, dy: dy) }
             }
         }
+        if capsules.isEmpty { capsules = rects }
         for var rect in capsules {
             // A capsule lit from the top, with a hairline edge: enough to read as a chip.
             rect = rect.insetBy(dx: -DateToken.capsulePadding, dy: -1.5)

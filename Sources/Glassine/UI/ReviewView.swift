@@ -3,13 +3,14 @@ import SwiftUI
 import WebKit
 
 enum ReviewStyle: String, Codable, CaseIterable, Identifiable {
-    case glass, github, book, editorial, mono
+    case glass, github, book, bookDark, editorial, mono
     var id: String { rawValue }
     var label: String {
         switch self {
         case .glass: return "Glass"
         case .github: return "GitHub"
         case .book: return "Book"
+        case .bookDark: return "Book Dark"
         case .editorial: return "Editorial"
         case .mono: return "Mono"
         }
@@ -420,6 +421,29 @@ enum ReviewHTML {
             code { background: rgba(0,0,0,0.06); font-size: 0.82em; } pre { background: rgba(0,0,0,0.05); }
             th, td { border-bottom: 1px solid rgba(43,33,24,0.2); }
             .tag { color: #7a3b1e; }
+            """
+        case .bookDark:
+            // The same page after dark: warm charcoal paper, cream type, and a
+            // terracotta for the drop cap and the ornaments.
+            return """
+            body { --accent: #d97757; background: transparent; color: #e7dfd0; font-family: "Iowan Old Style", "Palatino", ui-serif, "New York", Georgia, serif; }
+            html { font-size: calc(18px * var(--scale)); }
+            article { max-width: 38rem; background: #2a2622; margin: 3.4rem auto 4rem; padding: 4rem 3.6rem 4.5rem; border-radius: 4px; \
+            box-shadow: 0 30px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04); line-height: 1.72; text-align: justify; hyphens: auto; }
+            h1, h2, h3, h4 { text-align: center; font-weight: 500; letter-spacing: 0.02em; color: #f3ecdc; }
+            h1 { font-size: 1.9em; margin: 0.2em 0 1.2em; font-variant: small-caps; letter-spacing: 0.08em; }
+            h2 { font-size: 1.35em; margin-top: 2.2em; font-variant: small-caps; letter-spacing: 0.06em; }
+            h3 { font-size: 1.1em; font-style: italic; }
+            article > p:first-of-type::first-letter, h1 + p::first-letter { float: left; font-size: 3.6em; line-height: 0.85; padding: 0.08em 0.1em 0 0; color: #d97757; }
+            p { margin: 0 0 0 0; } p + p { text-indent: 1.5em; } p:has(+ h2), p:has(+ h3), p:has(+ hr) { margin-bottom: 1em; }
+            ul, ol, blockquote, pre, table { margin: 1em 0; text-align: left; }
+            blockquote { border: 0; font-style: italic; padding: 0 2em; color: #b9af9e; }
+            hr { border: 0; background: none; height: auto; text-align: center; margin: 2em 0; }
+            hr::after { content: "❧"; color: #d97757; font-size: 1.3em; }
+            a { color: #e39271; border-bottom: 1px solid rgba(227,146,113,0.35); }
+            code { background: rgba(255,255,255,0.07); font-size: 0.82em; color: #ede6d8; } pre { background: rgba(0,0,0,0.28); }
+            th, td { border-bottom: 1px solid rgba(231,223,208,0.2); }
+            .tag { color: #d97757; }
             """
         case .editorial:
             let bg = dark ? "#141416" : "#fafaf8"

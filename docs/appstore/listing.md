@@ -40,7 +40,7 @@ YOUR LIBRARY
 • @today, @yesterday and @tomorrow turn into dates as you type
 
 REVIEW
-• Command-Return shows the finished page in one of five styles: Glass, GitHub, Book, Editorial or Mono
+• Command-Return shows the finished page in one of six styles: Glass, GitHub, Book, Book Dark, Editorial or Mono
 • Check tasks off right there
 • Export to PDF, or copy the whole document as Markdown or rich text with one shortcut
 
