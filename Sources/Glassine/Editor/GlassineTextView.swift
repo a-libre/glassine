@@ -29,7 +29,17 @@ final class GlassineTextView: NSTextView {
     }
 
     // Caret
+    /// The caret: a box that glides and blinks, holding the shape itself —
+    /// a solid path in the caret colour over a faint one — as sublayers, so
+    /// a change of shape never touches the motion.
     private let caretLayer = CALayer()
+    private let caretShapeLayer = CAShapeLayer()
+    /// The faint piece: a tint, flat or fading along its length, cut to its path.
+    private let caretFaintLayer = CAGradientLayer()
+    private let caretFaintMask = CAShapeLayer()
+    private var caretGeometryKey: CaretGeometryKey?
+    /// Room around the bar for the pieces of a shape that reach past it.
+    private static let caretReach: CGFloat = 32
     private var caretVisible = false
     private var lastCaretRect: CGRect = .zero
     private var isUpdatingCaret = false
@@ -127,9 +137,19 @@ final class GlassineTextView: NSTextView {
         insertionPointColor = .clear   // the system caret is hidden; we draw our own
 
         caretLayer.anchorPoint = CGPoint(x: 0, y: 0)
-        caretLayer.cornerRadius = 1
         caretLayer.opacity = 0
         caretLayer.zPosition = 10
+        caretLayer.shadowOffset = .zero
+        caretLayer.shadowRadius = 6
+        caretLayer.shadowOpacity = 0
+        for l in [caretFaintLayer, caretShapeLayer] {
+            l.anchorPoint = CGPoint(x: 0, y: 0)
+            caretLayer.addSublayer(l)
+        }
+        caretFaintLayer.startPoint = CGPoint(x: 0, y: 0.5)
+        caretFaintLayer.endPoint = CGPoint(x: 1, y: 0.5)
+        caretFaintMask.anchorPoint = CGPoint(x: 0, y: 0)
+        caretFaintLayer.mask = caretFaintMask
         layer?.addSublayer(caretLayer)
         for l in [dragHighlight, dropBar] {
             l.anchorPoint = CGPoint(x: 0, y: 0)
@@ -158,9 +178,9 @@ final class GlassineTextView: NSTextView {
             self?.closeSlashMenu()
         })
         windowObservers.append(nc.addObserver(forName: NSWindow.didChangeBackingPropertiesNotification, object: window, queue: .main) { [weak self] _ in
-            self?.caretLayer.contentsScale = window.backingScaleFactor
+            self?.setCaretScale(window.backingScaleFactor)
         })
-        caretLayer.contentsScale = window.backingScaleFactor
+        setCaretScale(window.backingScaleFactor)
     }
 
     override func viewDidMoveToSuperview() {
@@ -188,7 +208,9 @@ final class GlassineTextView: NSTextView {
         styler.config = config
         let theme = config.theme
         selectedTextAttributes = [.backgroundColor: theme.selectionColor]
-        caretLayer.backgroundColor = theme.caretColor.cgColor
+        caretShapeLayer.fillColor = theme.caretColor.cgColor
+        caretLayer.shadowColor = theme.caretColor.cgColor
+        caretGeometryKey = nil
         dragHighlight.backgroundColor = theme.caretColor.withAlphaComponent(0.10).cgColor
         dropBar.backgroundColor = theme.caretColor.cgColor
         linkTextAttributes = [.foregroundColor: theme.linkColor]
@@ -1529,7 +1551,7 @@ final class GlassineTextView: NSTextView {
     static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
     override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
-        // Intentionally empty: the caret is drawn by `caretLayer`.
+        // Intentionally empty: the caret is drawn by `caretLayer` and its shape.
     }
 
     override func updateInsertionPointStateAndRestartTimer(_ restartFlag: Bool) {
@@ -1635,11 +1657,88 @@ final class GlassineTextView: NSTextView {
             CATransaction.setDisableActions(true)
         }
         caretLayer.frame = layerRect
+        layoutCaretShape(in: rect)
         CATransaction.commit()
 
         if moved || !wasVisible {
             restartBlink()
         }
+    }
+
+    private func setCaretScale(_ scale: CGFloat) {
+        for l in [caretLayer, caretShapeLayer, caretFaintLayer, caretFaintMask] { l.contentsScale = scale }
+    }
+
+    private struct CaretGeometryKey: Equatable {
+        var shape: CaretShape
+        var width: CGFloat
+        var height: CGFloat
+        var baseline: CGFloat
+        var slot: CGFloat
+    }
+
+    /// The shape, fitted to the bar the caret would be: rebuilt only when the
+    /// shape, the bar's size or (for a ghost) the next character's width has
+    /// changed. Inside the caller's transaction, so a change of size glides
+    /// along with the box.
+    private func layoutCaretShape(in rect: CGRect) {
+        let shape = config.caretShape
+        let font = caretFont(at: selectedRange().location)
+        let key = CaretGeometryKey(shape: shape, width: rect.width, height: rect.height,
+                                   baseline: font.ascender + 1, slot: shape == .ghost ? nextSlotWidth() : 0)
+        guard key != caretGeometryKey else { return }
+        caretGeometryKey = key
+        let g = shape.geometry(barWidth: key.width, height: key.height, baseline: key.baseline, slot: key.slot)
+        // The sublayers are larger than the box on every side, so the pieces
+        // that reach past the bar are never at the mercy of a clip.
+        let reach = GlassineTextView.caretReach
+        var shift = CGAffineTransform(translationX: reach, y: reach)
+        let frame = CGRect(x: -reach, y: -reach, width: key.width + 2 * reach, height: key.height + 2 * reach)
+        caretShapeLayer.frame = frame
+        caretFaintLayer.frame = frame
+        caretFaintMask.frame = CGRect(origin: .zero, size: frame.size)
+        caretShapeLayer.path = g.solid.copy(using: &shift)
+        let tint = config.theme.caretColor
+        if let faint = g.faint?.copy(using: &shift) {
+            caretFaintMask.path = faint
+            if g.fades {
+                // From nothing at the far end of the piece to its full strength at the bar.
+                let box = faint.boundingBox
+                caretFaintLayer.colors = [tint.withAlphaComponent(0).cgColor, tint.withAlphaComponent(CaretShape.fadePeakAlpha).cgColor]
+                caretFaintLayer.startPoint = CGPoint(x: box.minX / frame.width, y: 0.5)
+                caretFaintLayer.endPoint = CGPoint(x: box.maxX / frame.width, y: 0.5)
+            } else {
+                let flat = tint.withAlphaComponent(CaretShape.faintAlpha).cgColor
+                caretFaintLayer.colors = [flat, flat]
+            }
+            caretFaintLayer.isHidden = false
+        } else {
+            caretFaintLayer.isHidden = true
+        }
+        caretLayer.shadowOpacity = g.halo ? 0.9 : 0
+    }
+
+    /// The width of the character after the caret, for a shape that sits
+    /// over it, or a stand-in — half an em — at the end of a line, before a
+    /// tab, or where the next glyph is one of the hidden marks.
+    private func nextSlotWidth() -> CGFloat {
+        let fallback = (config.fontSize * 0.5).rounded()
+        guard let lm = layoutManager, let tc = textContainer, let storage = textStorage else { return fallback }
+        let loc = selectedRange().location
+        guard loc < storage.length else { return fallback }
+        let ch = (storage.string as NSString).character(at: loc)
+        guard ch != 10, ch != 9 else { return fallback }
+        let g = lm.glyphIndexForCharacter(at: loc)
+        if selectionAffinity == .upstream, loc > 0 {
+            // At the end of a wrapped line the next character is on the line below.
+            let pg = lm.glyphIndexForCharacter(at: loc - 1)
+            if lm.lineFragmentRect(forGlyphAt: pg, effectiveRange: nil).minY != lm.lineFragmentRect(forGlyphAt: g, effectiveRange: nil).minY {
+                return fallback
+            }
+        }
+        guard lm.propertyForGlyph(at: g) != .null else { return fallback }
+        let width = lm.boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: tc).width
+        return width > 1 ? width : fallback
     }
 
     private func hideCaret() {
@@ -2011,7 +2110,7 @@ final class GlassineTextView: NSTextView {
         clip bounds: \(clip) length: \(textStorage?.length ?? -1) glyphs: \(layoutManager?.numberOfGlyphs ?? -1)
         extraLineFragment: \(layoutManager?.extraLineFragmentRect ?? .zero)
         config: font=\(config.fontFamily) \(config.fontSize)pt lh=\(config.lineHeightMultiple) col=\(config.columnWidth) top=\(config.topInset)
-        caret: smooth=\(config.smoothCaret) dur=\(config.caretDuration) typing=\(config.smoothWhileTyping) blink=\(config.caretBlink) w=\(config.caretWidth)
+        caret: smooth=\(config.smoothCaret) dur=\(config.caretDuration) typing=\(config.smoothWhileTyping) blink=\(config.caretBlink) w=\(config.caretWidth) shape=\(config.caretShape)
         modes: typewriter=\(config.typewriter) focus=\(config.focus) reduceMotion=\(GlassineTextView.reduceMotion)
         """
     }

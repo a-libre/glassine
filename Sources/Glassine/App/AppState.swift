@@ -162,11 +162,13 @@ final class AppState: ObservableObject {
             showingGallery = true
         }
         // Review and the Daily view are not remembered between launches, so
-        // docs/appstore/screenshots.sh asks for them by launch argument:
+        // docs/appstore/screenshots.sh asks for them by launch argument, and a
+        // check shot can ask for Settings on the Editor pane the same way:
         //   open Glassine.app --args -glassine.launchView review
         switch UserDefaults.standard.string(forKey: "glassine.launchView") {
         case "review": if document != nil { reviewMode = true }
         case "daily": showDaily()
+        case "settings": showingSettings = true; settingsTab = 1
         default: break
         }
     }

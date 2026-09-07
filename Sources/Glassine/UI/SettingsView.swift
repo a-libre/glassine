@@ -223,6 +223,12 @@ struct EditorSettings: View {
                 }
                 .pickerStyle(.segmented)
                 sliderRow("Width", value: data.caretWidth, range: 1...4, step: 0.5, format: "%.1f pt")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Shape")
+                    CaretShapePicker(shape: data.caretShape, color: Color(nsColor: state.theme.caretColor))
+                    Text(state.settings.data.caretShape.blurb)
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Text("The caret uses the theme's caret color (usually the accent). Reduce Motion in System Settings disables gliding.")
                     .font(.caption).foregroundStyle(.secondary)
             }

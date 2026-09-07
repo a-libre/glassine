@@ -98,6 +98,7 @@ struct SettingsData: Codable, Equatable {
     var smoothWhileTyping: Bool = true
     var caretBlink: CaretBlink = .soft
     var caretWidth: Double = 4
+    var caretShape: CaretShape = .bar
 
     // Modes
     var typewriterMode: Bool = true
@@ -171,6 +172,7 @@ struct SettingsData: Codable, Equatable {
         smoothWhileTyping = try c.decodeIfPresent(Bool.self, forKey: .smoothWhileTyping) ?? d.smoothWhileTyping
         caretBlink = try c.decodeIfPresent(CaretBlink.self, forKey: .caretBlink) ?? d.caretBlink
         caretWidth = try c.decodeIfPresent(Double.self, forKey: .caretWidth) ?? d.caretWidth
+        caretShape = try c.decodeIfPresent(CaretShape.self, forKey: .caretShape) ?? d.caretShape
         typewriterMode = try c.decodeIfPresent(Bool.self, forKey: .typewriterMode) ?? d.typewriterMode
         typewriterOnClick = try c.decodeIfPresent(Bool.self, forKey: .typewriterOnClick) ?? d.typewriterOnClick
         focusMode = try c.decodeIfPresent(Bool.self, forKey: .focusMode) ?? d.focusMode

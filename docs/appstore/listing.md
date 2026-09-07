@@ -46,7 +46,7 @@ REVIEW
 
 MADE TO BE YOURS
 • Themes: Dusk by default, a light and dark pair that follows the system, and an editor for making your own
-• Choose the font and size, the caret's width and speed, how much focus mode dims, whether headings center
+• Choose the font and size, the caret's shape, width and speed, how much focus mode dims, whether headings center
 • Every shortcut on one sheet (Command-/), and a command bar (Command-K) for everything else
 
 Glassine is open source under the MIT license: github.com/a-libre/glassine

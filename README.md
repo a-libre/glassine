@@ -54,7 +54,7 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 ## What it does
 
 - **Glass.** The window is a blur of whatever is behind it, tinted by the theme. Nine built-in themes, dark by default; make your own in Settings with live preview, and export them as JSON.
-- **Smooth caret.** The insertion point glides between positions instead of jumping. Speed, blink style and width are adjustable.
+- **Smooth caret.** The insertion point glides between positions instead of jumping. Speed, blink style, width and shape are adjustable — eight shapes, from a plain bar to a pin, a proofreader's wedge, a ghost block and a comet.
 - **A library, not a file picker.** Documents live in `iCloud Drive/Glassine` as plain `.md` files and folders. New document is ⌘N; the file takes its name from the first line as you write.
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
 - **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘S — and a Shelf at the bottom for what isn't current, out of the way without being archived.
@@ -130,7 +130,7 @@ Return inside a list continues the list; Return on an empty item ends it.
 
 ## Caret
 
-Settings → Editor, under Caret. Smooth movement on or off, glide time (default 270 ms, up to 500), whether to also glide while typing or only for arrow keys and clicks, blink style (soft fade, classic, or never) and width. The caret takes its color from the theme. If Reduce Motion is on in System Settings, gliding is disabled automatically.
+Settings → Editor, under Caret. Smooth movement on or off, glide time (default 270 ms, up to 500), whether to also glide while typing or only for arrow keys and clicks, blink style (soft fade, classic, or never), width, and shape: Bar, Pin, Serif, Wedge, Ghost, Comet, Glow or Hollow. The caret takes its color from the theme. If Reduce Motion is on in System Settings, gliding is disabled automatically.
 
 ## Themes
 
