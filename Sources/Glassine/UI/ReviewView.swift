@@ -361,6 +361,7 @@ enum ReviewHTML {
     th { font-weight: 600; }
     .tag { color: var(--accent); }
     .date, .chip { display: inline-block; color: var(--accent); border-radius: 999px; padding: 0 0.55em; font-size: 0.92em; line-height: 1.5; white-space: nowrap; \
+    text-indent: 0; text-align: center; hyphens: manual; \
     background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 24%, transparent), color-mix(in srgb, var(--accent) 12%, transparent)); \
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); }
     ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
@@ -405,7 +406,7 @@ enum ReviewHTML {
             return """
             body { background: transparent; color: #2b2118; font-family: "Iowan Old Style", "Palatino", ui-serif, "New York", Georgia, serif; }
             html { font-size: calc(18px * var(--scale)); }
-            article { max-width: 38rem; background: #f6f0e4; margin: 3.4rem auto 4rem; padding: 4rem 3.6rem 4.5rem; border-radius: 4px; \
+            article { max-width: 38rem; background: #f6f0e4; margin: 3.4rem auto 4rem; padding: 4rem 3.6rem 4.5rem; border-radius: 9px; \
             box-shadow: 0 30px 60px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2); line-height: 1.72; text-align: justify; hyphens: auto; }
             h1, h2, h3, h4 { text-align: center; font-weight: 500; letter-spacing: 0.02em; color: #1e160f; }
             h1 { font-size: 1.9em; margin: 0.2em 0 1.2em; font-variant: small-caps; letter-spacing: 0.08em; }
@@ -428,7 +429,7 @@ enum ReviewHTML {
             return """
             body { --accent: #d97757; background: transparent; color: #e7dfd0; font-family: "Iowan Old Style", "Palatino", ui-serif, "New York", Georgia, serif; }
             html { font-size: calc(18px * var(--scale)); }
-            article { max-width: 38rem; background: #2a2622; margin: 3.4rem auto 4rem; padding: 4rem 3.6rem 4.5rem; border-radius: 4px; \
+            article { max-width: 38rem; background: #2a2622; margin: 3.4rem auto 4rem; padding: 4rem 3.6rem 4.5rem; border-radius: 9px; \
             box-shadow: 0 30px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04); line-height: 1.72; text-align: justify; hyphens: auto; }
             h1, h2, h3, h4 { text-align: center; font-weight: 500; letter-spacing: 0.02em; color: #f3ecdc; }
             h1 { font-size: 1.9em; margin: 0.2em 0 1.2em; font-variant: small-caps; letter-spacing: 0.08em; }

@@ -91,15 +91,22 @@ final class GlassineLayoutManager: NSLayoutManager {
             var n = 0
             let runFirst = self.rectArray(forCharacterRange: charRange, withinSelectedCharacterRange: none,
                                           in: container, rectCount: &n).flatMap { n > 0 ? $0[0] : nil }
+            // Each piece is as wide as its glyphs and as tall as their type — from
+            // the ascender to the descender about the baseline — rather than the
+            // whole line fragment, so a short word gets a pill and not an egg.
             var pieces: [(line: CGFloat, rect: NSRect)] = []
             for g in glyphs.location..<glyphs.upperBoundValue where drawn(g) {
                 let line = lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
                 let box = boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: container)
                 guard box.width > 0 else { continue }
+                let font = (textStorage?.attribute(.font, at: characterIndexForGlyph(at: g), effectiveRange: nil) as? NSFont)
+                    ?? NSFont.systemFont(ofSize: 16)
+                let baseline = line.minY + location(forGlyphAt: g).y
+                let type = NSRect(x: box.minX, y: baseline - font.ascender, width: box.width, height: font.ascender - font.descender)
                 if let i = pieces.firstIndex(where: { $0.line == line.minY }) {
-                    pieces[i].rect = pieces[i].rect.union(box)
+                    pieces[i].rect = pieces[i].rect.union(type)
                 } else {
-                    pieces.append((line.minY, box))
+                    pieces.append((line.minY, type))
                 }
             }
             // Those are container coordinates; the run's own first rect, which we
@@ -112,7 +119,7 @@ final class GlassineLayoutManager: NSLayoutManager {
         if capsules.isEmpty { capsules = rects }
         for var rect in capsules {
             // A capsule lit from the top, with a hairline edge: enough to read as a chip.
-            rect = rect.insetBy(dx: -DateToken.capsulePadding, dy: -1.5)
+            rect = rect.insetBy(dx: -DateToken.capsulePadding, dy: -2)
             let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
             let alpha = color.alphaComponent
             if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),

@@ -320,6 +320,16 @@ final class GlassineTextView: NSTextView {
         updateCaret(animated: false)
     }
 
+    /// A capsule reaches a few points past its glyphs, and a chip at the start
+    /// or end of a line reaches past the text container. The text system
+    /// invalidates only the container's part of a line, so the overhang would
+    /// be drawn once and never again — a flat left edge on a chip that starts a
+    /// line. Every invalidation is widened by the reach, so the whole capsule
+    /// is always repainted with its line.
+    override func setNeedsDisplay(_ rect: NSRect, avoidAdditionalLayout flag: Bool) {
+        super.setNeedsDisplay(rect.insetBy(dx: -(DateToken.capsulePadding + 2), dy: -2), avoidAdditionalLayout: flag)
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         updateInsets()
