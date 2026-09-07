@@ -516,7 +516,19 @@ enum FileCoordination {
         var writeError: Error?
         NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { u in
             do {
+                // An atomic write puts a new file in the old one's place, and a
+                // new file was created just now. The document keeps the date it
+                // was really made, so sorting by date created means something.
+                // (Read through the file manager: a URL caches its resource
+                // values, and this one is asked again at every save.)
+                let created = (try? FileManager.default.attributesOfItem(atPath: u.path))?[.creationDate] as? Date
                 try Data(text.utf8).write(to: u, options: .atomic)
+                if let created {
+                    var keep = URL(fileURLWithPath: u.path)
+                    var values = URLResourceValues()
+                    values.creationDate = created
+                    try? keep.setResourceValues(values)
+                }
             } catch {
                 writeError = error
             }
