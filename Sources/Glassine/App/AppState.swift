@@ -294,7 +294,20 @@ final class AppState: ObservableObject {
     /// The card a document is being opened from, while the open animation runs.
     @Published var zoomingCard: String?
 
+    /// Whether the open document came from a day in the Timelapse, so Esc
+    /// can take it back there rather than to the mosaic.
+    private(set) var cameFromDaily = false
+
     func open(_ ref: DocumentRef, fromCard: Bool = false) {
+        // Where Esc goes back to: a document opened from the Timelapse returns
+        // there; one opened from the mosaic, the sidebar or anywhere else goes
+        // to the mosaic. Reopening the document already showing (after a
+        // rename, say) keeps whatever the answer was.
+        if showingDaily {
+            cameFromDaily = true
+        } else if galleryOnScreen || document?.relativePath != ref.id {
+            cameFromDaily = false
+        }
         if fromCard, galleryOnScreen || showingDaily, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             zoomingCard = ref.id
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
@@ -714,24 +727,33 @@ final class AppState: ObservableObject {
         if showingGallery { showingGallery = false } else { zoomOutToGallery() }
     }
 
-    /// Esc from the editor: zoom out to the mosaic.
+    /// Esc from the editor: zoom out to where the document was opened from —
+    /// the Timelapse if it came from a day there, the mosaic otherwise.
     func escapeFromEditor() {
-        zoomOutToGallery()
+        zoomOut(toDaily: cameFromDaily)
+    }
+
+    func zoomOutToGallery() {
+        zoomOut(toDaily: false)
     }
 
     /// The reverse of opening from a card: the page shrinks back into its
     /// card. The plate goes over the page first, so there is a frame for the
-    /// card to come from; a beat later the mosaic comes in and its card takes
-    /// that frame and settles into place. From Review, or with Reduce Motion
-    /// on, the mosaic simply appears.
-    func zoomOutToGallery() {
+    /// card to come from; a beat later the mosaic — or the Timelapse — comes
+    /// in and its card takes that frame and settles into place. From Review,
+    /// or with Reduce Motion on, the view simply appears.
+    private func zoomOut(toDaily daily: Bool) {
+        let show: () -> Void = { [weak self] in
+            guard let self else { return }
+            if daily { self.showDaily() } else { self.showingGallery = true }
+        }
         guard let id = document?.relativePath, !reviewMode,
               !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
-            showingGallery = true
+            show()
             return
         }
         zoomingCard = id
-        DispatchQueue.main.async { [weak self] in self?.showingGallery = true }
+        DispatchQueue.main.async(execute: show)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
             if self?.zoomingCard == id { self?.zoomingCard = nil }
         }
