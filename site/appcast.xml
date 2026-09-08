@@ -1,0 +1,19 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Glassine</title>
+        <item>
+            <title>0.2.3</title>
+            <pubDate>Mon, 07 Sep 2026 23:30:54 -0700</pubDate>
+            <link>https://glassine.ink</link>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>0.2.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>Glassine 0.2.3</h2>
+<p>What changed is in the <a href="https://docs.glassine.ink/about/changelog">changelog</a>.</p>
+]]></description>
+            <enclosure url="https://github.com/a-libre/glassine/releases/download/v0.2.3/Glassine-0.2.3.dmg" length="3060599" type="application/octet-stream" sparkle:edSignature="Qm+NA1VVkMTkC8BvEQa+DXeL0cqKUu2Uo7SegSGTi2NM34KtAxnfgrlWRyVL7rty1WrsGNNBBgdRW0sgELstDg=="/>
+        </item>
+    </channel>
+</rss>
