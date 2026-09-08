@@ -49,7 +49,7 @@ The first launch asks for permission to access iCloud Drive. Say yes — that's 
 
 You can also open `Package.swift` in Xcode and press Run, which is handy for debugging; the assembled `.app` from `build.sh` is what you want for daily use (it has the icon and a stable identity for macOS permissions).
 
-**Glassine Writer**, the same app built for the Mac App Store, was submitted for review on September 3, 2026; the link goes here when it is live. A notarized `.dmg` for direct download follows. Until then, building from source is the way to run it. Both routes are described in [RELEASING.md](RELEASING.md): `release.sh` makes the `.dmg`, `appstore.sh` the store package. `./build.sh --appstore` builds the store flavor locally: sandboxed, with its own iCloud folder instead of reading iCloud Drive directly.
+**Direct download:** [Glassine.dmg](https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg) — notarized, macOS 14 or later, drag to Applications; it checks for a new version once a day and installs it itself. Every version is under [Releases](https://github.com/a-libre/glassine/releases). **Glassine Writer**, the same app built for the Mac App Store, is in review; the link goes here when it is live. Both routes are described in [RELEASING.md](RELEASING.md): `release.sh` makes the `.dmg`, `appstore.sh` the store package. `./build.sh --appstore` builds the store flavor locally: sandboxed, with its own iCloud folder instead of reading iCloud Drive directly.
 
 ## What it does
 

@@ -10,11 +10,13 @@ Glassine needs macOS 14 (Sonoma) or later. There is one app, built two ways: a s
 
 The App Store listing is called **Glassine Writer** — the name "Glassine" alone was already reserved there. The app itself, its window, its icon and its files are all still Glassine.
 
-The first version, 0.2.3, was submitted to App Review on September 3, 2026. When it is live, the link will be here and in the [README](https://github.com/a-libre/glassine#install).
+Version 0.2.3 is in App Review. When it is live, the link will be here and in the [README](https://github.com/a-libre/glassine#install).
 
 ## Direct download
 
-A notarized `.dmg` for the direct version will be published under [Releases](https://github.com/a-libre/glassine/releases) on GitHub. The direct version checks GitHub once a day for a newer release and tells you under Help → Check for Updates…; you can turn that off under Settings → General.
+[**Glassine.dmg**](https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg) — notarized, signed with a Developer ID, so it opens without a warning. Open it and drag Glassine to Applications. Every version is under [Releases](https://github.com/a-libre/glassine/releases) on GitHub.
+
+The direct version updates itself: once a day it checks a feed at glassine.ink, and when there is a newer version it says so, downloads it, verifies its signature and installs it in place, relaunching into the new one. Help → Check for Updates… asks now; Settings → General turns the daily check off.
 
 ## Build from source
 
@@ -59,7 +61,7 @@ If iCloud Drive is turned off on the Mac, documents stay local. Everything else 
 | Sandbox | Yes | No |
 | Default library | The app's own iCloud folder, shown as "Glassine" in iCloud Drive | `iCloud Drive/Glassine` |
 | Other folders | Chosen through a file dialog; remembered with a security-scoped bookmark | Any path |
-| Updates | Through the App Store | Help → Check for Updates…, and a daily check you can turn off |
-| Network | Holds the sandbox's outgoing-connection permission only because Review's web view cannot start without it; never opens a connection of its own | The daily update check asks GitHub for the latest release, nothing more |
+| Updates | Through the App Store | Installs itself: a daily check you can turn off, and Help → Check for Updates… |
+| Network | Holds the sandbox's outgoing-connection permission only because Review's web view cannot start without it; never opens a connection of its own | The daily update check reads a small feed from glassine.ink and, when there is a new version, downloads it from GitHub — nothing more |
 
 The [privacy page](/about/privacy) says the same in more detail.

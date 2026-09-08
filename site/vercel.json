@@ -12,7 +12,8 @@
     { "source": "/changelog", "destination": "https://docs.glassine.ink/about/changelog", "permanent": false },
     { "source": "/support", "destination": "/#support", "permanent": false },
     { "source": "/source", "destination": "https://github.com/a-libre/glassine", "permanent": false },
-    { "source": "/download", "destination": "https://github.com/a-libre/glassine/releases", "permanent": false }
+    { "source": "/download", "destination": "https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg", "permanent": false },
+    { "source": "/releases", "destination": "https://github.com/a-libre/glassine/releases", "permanent": false }
   ],
   "headers": [
     { "source": "/(.*)", "headers": [
