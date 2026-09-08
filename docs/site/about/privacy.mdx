@@ -16,7 +16,7 @@ The Mac App Store version runs in the App Sandbox. It holds the sandbox's permis
 
 ## Checking for updates (direct download only)
 
-The version downloaded from GitHub, outside the App Store, asks GitHub once a day whether a newer release exists. That request carries the version of Glassine you are running and, like any web request, your IP address. GitHub's [privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) covers what they do with it. Settings → General turns the check off.
+The version downloaded outside the App Store updates itself with [Sparkle](https://sparkle-project.org), an open-source framework. Once a day it fetches a small file — the update feed — from glassine.ink. That request carries the version of Glassine you are running and, like any web request, your IP address; Sparkle's option to send a profile of your Mac is off, and there is no server on the Glassine side keeping anything about the request. When a newer version exists, the disk image is downloaded from GitHub, whose [privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) covers that download. Settings → General turns the check off.
 
 Nothing about your documents, your library, or how you use the app is ever sent.
 

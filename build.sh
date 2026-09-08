@@ -5,7 +5,7 @@
 #   ./build.sh --run      build, then open the app
 #   ./build.sh --install  build, copy to /Applications, and open it
 #   ./build.sh --debug    debug build (faster compile)
-#   ./build.sh --appstore the App Store flavor: sandboxed, no GitHub update check.
+#   ./build.sh --appstore the App Store flavor: sandboxed, without Sparkle (the store updates it).
 #                         Ad-hoc signed here, so no iCloud container — the library
 #                         goes to the sandbox's Documents folder or a folder you pick.
 #                         appstore.sh signs it for real.
@@ -37,7 +37,27 @@ ENTITLEMENTS=""
 if [[ "$FLAVOR" == "appstore" ]]; then
   SWIFT_ARGS+=(--scratch-path .build-appstore -Xswiftc -DAPPSTORE)
   ENTITLEMENTS="Resources/Glassine-Sandbox-Dev.entitlements"
+  # Package.swift reads this and leaves Sparkle out: the store is the updater there.
+  export GLASSINE_APPSTORE=1
+else
+  # The direct flavor carries Sparkle in Contents/Frameworks; the executable looks there.
+  SWIFT_ARGS+=(-Xlinker -rpath -Xlinker @executable_path/../Frameworks)
 fi
+
+# Sparkle's pieces are signed one by one, innermost first, the way its
+# documentation asks; a --deep signature of the app would hand them the app's
+# identifier. $1 is the identity; anything after it goes to codesign as well.
+sign_sparkle() {
+  local identity="$1"; shift
+  local fw="$APP/Contents/Frameworks/Sparkle.framework"
+  [[ -d "$fw" ]] || return 0
+  local piece
+  for piece in "$fw/Versions/B/XPCServices/Installer.xpc" "$fw/Versions/B/XPCServices/Downloader.xpc" \
+               "$fw/Versions/B/Autoupdate" "$fw/Versions/B/Updater.app" "$fw"; do
+    [[ -e "$piece" ]] || continue
+    codesign --force --sign "$identity" --preserve-metadata=entitlements "$@" "$piece" 2>&1 | grep -v 'replacing existing signature' || true
+  done
+}
 
 echo "▸ Compiling ($CONFIG, $FLAVOR)…"
 swift build "${SWIFT_ARGS[@]}" 2>&1 | grep -v '^\[' || true
@@ -53,6 +73,21 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+
+if [[ "$FLAVOR" == "appstore" ]]; then
+  # No updater in the store flavor, so the keys that would point one at the feed go too.
+  for key in SUFeedURL SUPublicEDKey SUEnableAutomaticChecks SUScheduledCheckInterval; do
+    /usr/libexec/PlistBuddy -c "Delete :$key" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
+  done
+else
+  SPARKLE="$(find .build/artifacts -type d -name Sparkle.framework -path '*macos*' -print -quit 2>/dev/null || true)"
+  if [[ ! -d "$SPARKLE" ]]; then
+    echo "Sparkle.framework is not under .build/artifacts — run: swift package resolve" >&2
+    exit 1
+  fi
+  mkdir -p "$APP/Contents/Frameworks"
+  ditto "$SPARKLE" "$APP/Contents/Frameworks/Sparkle.framework"
+fi
 
 # Icon: build .icns from the iconset when it is missing or older than any of
 # the iconset's files, so a regenerated icon is picked up without a manual rm.
@@ -85,7 +120,8 @@ if [[ -n "$ENTITLEMENTS" ]]; then
   codesign --force --deep --sign - --identifier com.alexlibre.glassine --entitlements "$ENTITLEMENTS" "$APP" 2>&1 | grep -v 'replacing existing signature' || true
   codesign -d --entitlements - "$APP" 2>/dev/null | grep -q 'app-sandbox' || { echo "Sandbox entitlements did not apply — see the codesign output above." >&2; exit 1; }
 else
-  codesign --force --deep --sign - --identifier com.alexlibre.glassine "$APP" >/dev/null 2>&1
+  sign_sparkle -
+  codesign --force --sign - --identifier com.alexlibre.glassine "$APP" >/dev/null 2>&1
 fi
 echo "▸ Built $APP ($FLAVOR)"
 

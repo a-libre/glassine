@@ -20,10 +20,13 @@ opens a connection of its own, and there is nothing it would send.
 
 ## Checking for updates (direct download only)
 
-The version downloaded from GitHub, outside the App Store, asks GitHub once a
-day whether a newer release exists. That request carries the version of
-Glassine you are running and, like any web request, your IP address. GitHub's
-privacy statement covers what they do with it:
+The version downloaded outside the App Store updates itself with Sparkle, an
+open-source framework. Once a day it fetches a small file, the update feed,
+from glassine.ink. That request carries the version of Glassine you are
+running and, like any web request, your IP address; Sparkle's option to send
+a profile of your Mac is off, and Glassine has no server that would keep
+anything about the request. When a newer version exists, the disk image is
+downloaded from GitHub, whose privacy statement covers that download:
 https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
 
 Nothing about your documents, your library, or how you use the app is ever

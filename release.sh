@@ -9,6 +9,8 @@
 #   2. xcrun notarytool store-credentials "glassine-notary" --apple-id you@example.com --team-id TEAMID
 #      (it asks for an app-specific password from appleid.apple.com)
 #   3. Optional: brew install gh && gh auth login   (for automatic GitHub Releases)
+#   4. Once: .build/artifacts/sparkle/Sparkle/bin/generate_keys — the key that signs
+#      the update feed goes into this Mac's keychain, and its public half into Info.plist.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -47,6 +49,19 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+SPARKLE_BIN="$(find .build/artifacts -type d -name bin -path '*parkle*' -print -quit 2>/dev/null || true)"
+if [[ ! -x "$SPARKLE_BIN/generate_appcast" ]]; then
+  echo "Sparkle's tools are not under .build/artifacts — run: swift package resolve" >&2
+  exit 1
+fi
+if ! security find-generic-password -s "https://sparkle-project.org" >/dev/null 2>&1; then
+  echo "No Sparkle signing key in the keychain. Run once: $SPARKLE_BIN/generate_keys" >&2
+  exit 1
+fi
+FEED_URL="https://glassine.ink/appcast.xml"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$PLIST" 2>/dev/null)" == "$FEED_URL" ]] || {
+  echo "Info.plist's SUFeedURL is not $FEED_URL" >&2; exit 1; }
+
 # --- Version bump ------------------------------------------------------------------------
 BUILD_NUMBER="$(( $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST") + 1 ))"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
@@ -58,8 +73,16 @@ echo "▸ Version $VERSION (build $BUILD_NUMBER)"
 [[ -d "$APP" ]] || { echo "build.sh did not produce $APP" >&2; exit 1; }
 
 # --- Sign (hardened runtime + secure timestamp, required for notarization) -----------------
+# Sparkle's pieces first, innermost outward, each with the hardened runtime,
+# then the app itself: a --deep signature would hand them the app's identifier.
 echo "▸ Signing"
-codesign --force --deep --options runtime --timestamp \
+FW="$APP/Contents/Frameworks/Sparkle.framework"
+for piece in "$FW/Versions/B/XPCServices/Installer.xpc" "$FW/Versions/B/XPCServices/Downloader.xpc" \
+             "$FW/Versions/B/Autoupdate" "$FW/Versions/B/Updater.app" "$FW"; do
+  [[ -e "$piece" ]] || continue
+  codesign --force --options runtime --timestamp --preserve-metadata=entitlements --sign "$IDENTITY" "$piece"
+done
+codesign --force --options runtime --timestamp \
   --entitlements Resources/Glassine.entitlements \
   --sign "$IDENTITY" --identifier "$BUNDLE_ID" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
@@ -98,11 +121,36 @@ if [[ $DRY_RUN -eq 1 ]]; then
 fi
 
 git push origin main --tags
-if command -v gh >/dev/null 2>&1; then
-  gh release create "v$VERSION" "$DMG" --title "Glassine $VERSION" --generate-notes
+# Two copies of the disk image go up: the versioned one, and Glassine.dmg,
+# whose address never changes — releases/latest/download/Glassine.dmg — so the
+# site's download button and the /download shortcut point at it forever.
+STABLE="$DIST/$APP_NAME.dmg"
+cp "$DMG" "$STABLE"
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  gh release create "v$VERSION" "$DMG" "$STABLE" --title "Glassine $VERSION" --generate-notes
   echo "▸ Published: https://github.com/a-libre/glassine/releases/tag/v$VERSION"
 else
-  echo "▸ Tag pushed. GitHub CLI isn't installed, so create the release by hand:"
+  echo "▸ Tag pushed. The GitHub CLI is not signed in (gh auth login), so create the release by hand:"
   echo "    https://github.com/a-libre/glassine/releases/new?tag=v$VERSION"
-  echo "  and attach $DMG. (Or: brew install gh && gh auth login, and next time this is automatic.)"
+  echo "  and attach both $DMG and $STABLE — the second is the address the site links to."
 fi
+
+# --- The feed Sparkle reads ------------------------------------------------------------------
+# One entry, this release: the disk image on GitHub, signed with the key in
+# this Mac's keychain, and a note that points at the changelog. Vercel serves
+# it at $FEED_URL once the commit lands; running copies see it within a day.
+echo "▸ Writing site/appcast.xml"
+FEED_DIR="$(mktemp -d)"
+cp "$DMG" "$FEED_DIR/"
+cat > "$FEED_DIR/$APP_NAME-$VERSION.html" <<EOF
+<h2>Glassine $VERSION</h2>
+<p>What changed is in the <a href="https://docs.glassine.ink/about/changelog">changelog</a>.</p>
+EOF
+"$SPARKLE_BIN/generate_appcast" --embed-release-notes --link "https://glassine.ink" \
+  --download-url-prefix "https://github.com/a-libre/glassine/releases/download/v$VERSION/" \
+  -o site/appcast.xml "$FEED_DIR"
+rm -rf "$FEED_DIR"
+git add site/appcast.xml
+git commit -q -m "Appcast: $VERSION"
+git push -q origin main
+echo "▸ Feed committed and pushed"

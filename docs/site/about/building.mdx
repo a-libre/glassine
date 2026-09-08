@@ -4,7 +4,7 @@ description: "The repository, the build script, the two flavors, and how this si
 icon: "hammer"
 ---
 
-Glassine is a Swift package — SwiftUI for the chrome, AppKit for the editor — with no dependencies and no Xcode project. A shell script assembles the app. The source is at [github.com/a-libre/glassine](https://github.com/a-libre/glassine) under the MIT license.
+Glassine is a Swift package — SwiftUI for the chrome, AppKit for the editor — with one dependency, Sparkle, for the direct download's updates, and no Xcode project. A shell script assembles the app. The source is at [github.com/a-libre/glassine](https://github.com/a-libre/glassine) under the MIT license.
 
 ## Build
 
@@ -22,7 +22,7 @@ cd glassine
 | `./build.sh --run` | Build and open it from there, without installing |
 | `./build.sh --install` | Build, copy to `/Applications` (asking a running copy to quit first), open |
 | `./build.sh --debug` | A faster, unoptimised compile while you are changing things |
-| `./build.sh --appstore` | The sandboxed App Store flavor, locally |
+| `./build.sh --appstore` | The sandboxed App Store flavor, locally — without Sparkle, since the store is its updater |
 
 Edit anything under `Sources/Glassine/` and run `./build.sh --run`; incremental builds take a few seconds. Opening `Package.swift` in Xcode and pressing Run works for debugging, but the assembled app from `build.sh` is the one to use day to day — it has the icon and a stable identity for macOS permissions.
 

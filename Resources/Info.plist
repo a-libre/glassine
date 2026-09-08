@@ -28,6 +28,14 @@
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://glassine.ink/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>oy/tGqKivAFt/EWSDYrzObZntov7oMgW/PSABQIMaYY=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>Glassine keeps your library in a folder you choose.</string>
 	<key>NSHighResolutionCapable</key>

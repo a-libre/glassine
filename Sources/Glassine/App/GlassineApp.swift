@@ -135,12 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         DispatchQueue.main.async { AppDelegate.retireSystemFindShortcut() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { AppDelegate.retireSystemFindShortcut() }
-        #if !APPSTORE
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
-            if AppState.shared.settings.data.checkForUpdates {
-                UpdateChecker.checkAutomaticallyIfDue()
-            }
-        }
+        #if canImport(Sparkle)
+        Updater.start(checkingAutomatically: AppState.shared.settings.data.checkForUpdates)
         #endif
     }
 
@@ -341,8 +337,8 @@ struct GlassineCommands: Commands {
             Button("Glassine Shortcuts") { state.showingShortcuts.toggle() }
                 .keyboardShortcut("/", modifiers: .command)
             Button("Open Library Folder") { state.revealLibrary() }
-            #if !APPSTORE
-            Button("Check for Updates…") { UpdateChecker.check(userInitiated: true) }
+            #if canImport(Sparkle)
+            Button("Check for Updates…") { Updater.shared.check() }
             #endif
             Divider()
             Button("Copy Debug Info") { state.copyDebugInfo() }

@@ -156,19 +156,24 @@ struct GeneralSettings: View {
                 Text("Changes are written about half a second after you stop typing, and at least every few seconds while you type. Nothing to remember.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            #if APPSTORE
+            #if canImport(Sparkle)
             Section("Updates") {
-                Text("Glassine \(Distribution.version) · App Store. Updates arrive through the App Store.")
+                Toggle("Check for new versions once a day", isOn: Binding(
+                    get: { state.settings.data.checkForUpdates },
+                    set: { state.settings.data.checkForUpdates = $0; Updater.shared.checksAutomatically = $0 }
+                ))
+                HStack {
+                    Text("Glassine \(Updater.currentVersion)").foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Check Now") { Updater.shared.check() }
+                }
+                Text("A new version is offered here, downloaded, checked against its signature and installed in place; Glassine relaunches into it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             #else
             Section("Updates") {
-                Toggle("Check for new versions once a day", isOn: data.checkForUpdates)
-                HStack {
-                    Text("Glassine \(UpdateChecker.currentVersion)").foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Check Now") { UpdateChecker.check(userInitiated: true) }
-                }
+                Text("Glassine \(Distribution.version) · App Store. Updates arrive through the App Store.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             #endif
         }

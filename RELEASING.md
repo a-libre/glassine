@@ -24,7 +24,16 @@ How a signed, notarized build gets from this folder to a download link. Everythi
    brew install gh && gh auth login
    ```
 
-   Without it, the script prints the link to create the release by hand and you attach the `.dmg`.
+   Without it, the script prints the link to create the release by hand and you attach the two `.dmg` files.
+
+4. **The update key.** The direct download updates itself with [Sparkle](https://sparkle-project.org), which trusts only feeds signed with a key you hold. Make it once:
+
+   ```bash
+   swift package resolve
+   .build/artifacts/sparkle/Sparkle/bin/generate_keys
+   ```
+
+   The private half goes into this Mac's keychain (never the repository); the public half it prints belongs in `Resources/Info.plist` as `SUPublicEDKey`, which is already there for the key in use. A new key would strand every installed copy — they check updates against the old one — so keep this Mac's keychain, or export the key (`generate_keys -x`) somewhere safe.
 
 ## Every release
 
@@ -32,13 +41,13 @@ How a signed, notarized build gets from this folder to a download link. Everythi
 ./release.sh 0.2.0
 ```
 
-That does, in order: refuses to run with uncommitted changes; writes the version into `Info.plist` and bumps the build number; builds; signs with hardened runtime and a secure timestamp; submits the app to Apple's notary service and waits (usually 2–10 minutes); staples the ticket to the app; builds `dist/Glassine-0.2.0.dmg` with an Applications shortcut; signs, notarizes and staples the disk image too; commits, tags `v0.2.0`, pushes; and creates the GitHub Release with the `.dmg` attached.
+That does, in order: refuses to run with uncommitted changes; writes the version into `Info.plist` and bumps the build number; builds; signs Sparkle's pieces and then the app with hardened runtime and a secure timestamp; submits the app to Apple's notary service and waits (usually 2–10 minutes); staples the ticket to the app; builds `dist/Glassine-0.2.0.dmg` with an Applications shortcut; signs, notarizes and staples the disk image too; commits, tags `v0.2.0`, pushes; creates the GitHub Release with the `.dmg` attached twice — under its versioned name and as `Glassine.dmg`, whose address `releases/latest/download/Glassine.dmg` never changes and is what the site links to; and finally writes `site/appcast.xml`, the feed installed copies read, signed with the update key, and pushes it. Vercel publishes it at glassine.ink/appcast.xml within a minute.
 
 `./release.sh 0.2.0 --dry-run` does everything except push and publish, so you can open the `.dmg` and try it first.
 
 ## What users see
 
-They download the `.dmg`, drag Glassine to Applications, and it opens with no warnings. The app checks GitHub Releases once a day (Help → Check for Updates… does it on demand) and offers the download when a newer version exists. Settings → General turns the automatic check off.
+They download the `.dmg`, drag Glassine to Applications, and it opens with no warnings. Once a day the app reads the feed at glassine.ink (Help → Check for Updates… does it on demand); when there is a newer version it says so, downloads the disk image from GitHub, verifies the signature against the public key in its own Info.plist, replaces itself and relaunches. Settings → General turns the automatic check off.
 
 ## Versioning
 
@@ -50,7 +59,7 @@ Use three numbers. Bump the last for fixes (0.1.1), the middle for features (0.2
 
 ## The App Store
 
-The same source, built a second way: `./build.sh --appstore` compiles with `APPSTORE` set, which turns on the App Sandbox and leaves out the GitHub update check (the store handles updates). The store listing is called **Glassine Writer** because plain "Glassine" was already reserved in App Store Connect; the app itself is still Glassine everywhere.
+The same source, built a second way: `./build.sh --appstore` compiles with `APPSTORE` set, which turns on the App Sandbox and leaves Sparkle out entirely — not linked, not in the bundle, its Info.plist keys stripped — because the store handles updates and its review does not allow another updater. The store listing is called **Glassine Writer** because plain "Glassine" was already reserved in App Store Connect; the app itself is still Glassine everywhere.
 
 ### What the sandbox changes
 
