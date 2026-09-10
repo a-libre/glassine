@@ -14,6 +14,9 @@ struct GlassineApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .defaultSize(width: 1120, height: 760)
+        // The scene's own Window-menu item is replaced by ours below, which
+        // also brings the window back when it has been closed.
+        .commandsRemoved()
         .commands { GlassineCommands(state: state) }
 
     }
@@ -170,13 +173,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.identifier?.rawValue.hasPrefix("main") == true || window.title == "Glassine"
     }
 
+    /// The one window, back on screen after it has been closed: Window →
+    /// Glassine, a click on the Dock icon, and any menu command that needs a
+    /// window come here. SwiftUI keeps the window when it is closed, so
+    /// ordering it front is enough.
+    @discardableResult
+    static func showMainWindow() -> Bool {
+        guard let window = NSApp.windows.first(where: isMainWindow) else { return false }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        return true
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            for window in NSApp.windows where AppDelegate.isMainWindow(window) {
-                window.makeKeyAndOrderFront(nil)
-                return false
-            }
-        }
+        if !flag, AppDelegate.showMainWindow() { return false }
         return true
     }
 }
@@ -184,21 +194,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// Menu bar commands. Everything here is reachable by keyboard.
 struct GlassineCommands: Commands {
     @ObservedObject var state: AppState
+    @Environment(\.openWindow) private var openWindow
+
+    /// The window first, then the command: the menus work with the window
+    /// closed, and a command that needs the window brings it back.
+    private func withWindow(_ action: @escaping () -> Void) {
+        if !AppDelegate.showMainWindow() { openWindow(id: "main") }
+        action()
+    }
 
     var body: some Commands {
         CommandGroup(replacing: .printItem) { }
 
         CommandGroup(replacing: .appSettings) {
-            Button("Settings…") { state.showingSettings = true }
+            Button("Settings…") { withWindow { state.showingSettings = true } }
                 .keyboardShortcut(",", modifiers: .command)
         }
 
         CommandGroup(replacing: .newItem) {
-            Button("New Document") { state.newDocument() }
+            Button("New Document") { withWindow { state.newDocument() } }
                 .keyboardShortcut("n", modifiers: .command)
-            Button("New Folder…") { state.promptNewFolder() }
+            Button("New Folder…") { withWindow { state.promptNewFolder() } }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
-            Button("Today's Note") { state.openTodaysNote() }
+            Button("Today's Note") { withWindow { state.openTodaysNote() } }
                 .keyboardShortcut("d", modifiers: [.command, .option])
             Divider()
             Button("Save Now") { state.document?.save() }
@@ -227,6 +245,11 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(state.document == nil)
             Button("Reveal Library in Finder") { state.revealLibrary() }
+        }
+
+        // Window → Glassine: the window itself, for after it has been closed.
+        CommandGroup(before: .windowList) {
+            Button("Glassine") { withWindow { } }
         }
 
         CommandGroup(after: .pasteboard) {
@@ -273,13 +296,13 @@ struct GlassineCommands: Commands {
         CommandGroup(after: .sidebar) {
             Button(state.settings.data.sidebarVisible ? "Hide Sidebar" : "Show Sidebar") { state.toggleSidebar() }
                 .keyboardShortcut("s", modifiers: .command)
-            Button("All Documents") { state.showGallery() }
+            Button("All Documents") { withWindow { state.showGallery() } }
                 .keyboardShortcut("p", modifiers: .command)
-            Button("Search Library") { state.focusSearch() }
+            Button("Search Library") { withWindow { state.focusSearch() } }
                 .keyboardShortcut("f", modifiers: .command)
-            Button("Command Bar") { state.toggleCommandBar() }
+            Button("Command Bar") { withWindow { state.toggleCommandBar() } }
                 .keyboardShortcut("k", modifiers: .command)
-            Button("Timelapse") { state.showDaily() }
+            Button("Timelapse") { withWindow { state.showDaily() } }
                 .keyboardShortcut("d", modifiers: .command)
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)
@@ -334,7 +357,7 @@ struct GlassineCommands: Commands {
         }
 
         CommandGroup(replacing: .help) {
-            Button("Glassine Shortcuts") { state.showingShortcuts.toggle() }
+            Button("Glassine Shortcuts") { withWindow { state.showingShortcuts.toggle() } }
                 .keyboardShortcut("/", modifiers: .command)
             Button("Open Library Folder") { state.revealLibrary() }
             #if canImport(Sparkle)

@@ -1,9 +1,25 @@
 # App Review notes — Glassine Writer
 
-The reply to Apple's *Guideline 2.1 – Information Needed – New App Submission*
-message (September 2026), and the text for the version page's App Review
-Information → Notes field. Both are ready to paste; the screen recording is
-attached to the reply.
+The replies to App Review, newest first, and the text for the version page's
+App Review Information → Notes field. All ready to paste.
+
+## Reply to the September 9 rejection (5.1.1(ii) purpose strings; Guideline 4 window)
+
+Hello,
+
+Thank you for the review. Both points are addressed in build 0.2.3 (10), which is attached to this submission.
+
+Guideline 5.1.1(ii) — purpose strings. The iCloud Drive prompt now explains what the app does with the folder and gives an example. The string reads: "Glassine keeps every document you write as a Markdown file in a Glassine folder in iCloud Drive, so your writing syncs to your other Macs and stays yours as plain files. It reads that folder to list your documents in the sidebar and writes to it as you type — for example, when you open the app it lists the notes in the folder, and when you edit one, the change is saved to that note's file." The Documents-folder string, used when iCloud Drive is off, was rewritten in the same way.
+
+Guideline 4 — reopening the window. The app keeps running when its window is closed, and there is now a Window → Glassine menu item that brings the window back. Clicking the Dock icon does the same, and so do the commands that need a window — File → New Document, View → All Documents, View → Timelapse, View → Search Library, and Settings — each of which reopens the window before acting.
+
+Nothing else changed in this build. The earlier answers (no sign-in, no external services, the outgoing-connection entitlement only for WebKit) still hold.
+
+Alex Libre
+
+## Reply to the September 5 request (Guideline 2.1 – Information Needed – New App Submission)
+
+The screen recording was attached to this reply.
 
 ## Reply to App Review
 

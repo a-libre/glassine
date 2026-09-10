@@ -29,7 +29,9 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>Glassine keeps your library in a folder you choose.</string>
+	<string>When iCloud Drive is turned off, Glassine keeps every document you write as a Markdown file in a Glassine folder inside Documents. It reads that folder to list your documents in the sidebar and writes to it as you type — for example, a new note becomes a new file there, and each edit is saved into that note's file.</string>
+	<key>NSFileProviderDomainUsageDescription</key>
+	<string>Glassine keeps every document you write as a Markdown file in a Glassine folder in iCloud Drive, so your writing syncs to your other Macs and stays yours as plain files. It reads that folder to list your documents in the sidebar and writes to it as you type — for example, when you open the app it lists the notes in the folder, and when you edit one, the change is saved to that note's file.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
