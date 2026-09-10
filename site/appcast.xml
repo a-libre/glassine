@@ -3,6 +3,19 @@
     <channel>
         <title>Glassine</title>
         <item>
+            <title>0.2.4</title>
+            <pubDate>Wed, 09 Sep 2026 19:00:17 -0700</pubDate>
+            <link>https://glassine.ink</link>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>0.2.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>Glassine 0.2.4</h2>
+<p>What changed is in the <a href="https://docs.glassine.ink/about/changelog">changelog</a>.</p>
+]]></description>
+            <enclosure url="https://github.com/a-libre/glassine/releases/download/v0.2.4/Glassine-0.2.4.dmg" length="3070347" type="application/octet-stream" sparkle:edSignature="Ky2Tj2VzW1UxIzsvUEx38yPkgTrH9QQUB9GaTvQCZUp4nl5VfMER/DAhkq6shVU28BB+T5KE78Kzh37x3gLQDQ=="/>
+        </item>
+        <item>
             <title>0.2.3</title>
             <pubDate>Mon, 07 Sep 2026 23:30:54 -0700</pubDate>
             <link>https://glassine.ink</link>
