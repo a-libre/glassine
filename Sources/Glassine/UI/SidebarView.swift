@@ -328,13 +328,12 @@ struct SidebarView: View {
                 .opacity(0.35)
                 .contentTransition(.numericText())
                 .animation(.easeOut(duration: 0.25), value: state.library.allDocuments.count)
-            SettingsLink {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 12))
-                    .opacity(0.5)
+            // Settings is an overlay in this window, not a window of its own, so
+            // this is a plain button: a SettingsLink asks for a Settings scene
+            // the app no longer has, and does nothing.
+            SidebarIconButton(systemName: "gearshape", help: "Settings (⌘,)") {
+                state.showingSettings = true
             }
-            .buttonStyle(.plain)
-            .help("Settings (⌘,)")
         }
         .padding(.horizontal, 14)
         .frame(height: 34)

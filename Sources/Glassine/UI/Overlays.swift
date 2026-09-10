@@ -14,7 +14,8 @@ struct SearchFieldFrameKey: PreferenceKey {
 
 /// ⌘F from anywhere: the search box glides from its spot in the mosaic header to
 /// the middle of the window and takes the keyboard. The mosaic filters live
-/// behind it; arrows walk the results, Return opens, Esc clears and closes.
+/// behind it; arrows walk the results, Return opens, Esc clears and sends it
+/// gliding back the way it came.
 struct SearchOverlay: View {
     @EnvironmentObject var state: AppState
     @FocusState private var focused: Bool
@@ -29,21 +30,33 @@ struct SearchOverlay: View {
             let hasOrigin = origin != .zero
             let start = hasOrigin ? CGPoint(x: origin.midX, y: origin.midY) : target
 
+            // Home is the header's field; the middle of the window is where it
+            // works. It sits home before it has come out and again while it goes
+            // back, and the going back runs on the same spring as the coming out.
+            let retreating = state.searchRetreating
+            let home = !centered || retreating
+
             ZStack(alignment: .topLeading) {
                 // Click anywhere else to put it back.
                 Color.black.opacity(0.001)
                     .contentShape(Rectangle())
-                    .onTapGesture { state.showingSearch = false }
+                    .onTapGesture { state.hideSearch() }
 
                 bar
-                    .frame(width: centered ? 460 : (hasOrigin ? origin.width : 460),
-                           height: centered ? 46 : (hasOrigin ? origin.height : 46))
-                    .position(centered ? target : start)
-                    .opacity(centered ? 1 : (hasOrigin ? 0.85 : 0))
+                    .frame(width: home ? (hasOrigin ? origin.width : 460) : 460,
+                           height: home ? (hasOrigin ? origin.height : 46) : 46)
+                    .position(home ? start : target)
+                    .opacity(home ? (hasOrigin ? 0.85 : 0) : 1)
+                    .animation(.spring(response: 0.34, dampingFraction: 0.82), value: retreating)
+                    .allowsHitTesting(!retreating)
             }
             .onAppear {
                 DispatchQueue.main.async { focused = true }
                 withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) { centered = true }
+            }
+            .onChange(of: retreating) { _, going in
+                // The keyboard goes back with it, so nothing is typed into a bar in flight.
+                if going { focused = false }
             }
         }
         .ignoresSafeArea()

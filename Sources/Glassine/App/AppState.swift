@@ -38,6 +38,8 @@ final class AppState: ObservableObject {
     /// ⌘F overlay. The mosaic's inline box reports its frame so the overlay can
     /// glide out of it; the value lives outside @Published because it changes on layout.
     @Published var showingSearch = false
+    /// The overlay is on its way back to the header: it glides home before it goes.
+    @Published var searchRetreating = false
     var searchFieldFrame: CGRect = .zero
 
     /// ⌘K command bar.
@@ -273,8 +275,28 @@ final class AppState: ObservableObject {
         showingSearch = true
     }
 
-    func showDaily() {
+    /// Esc, or a click beside it: the search bar glides back to its spot in
+    /// the header the way it came, and is taken down once it has landed. The
+    /// reverse of focusSearch(), at the same pace.
+    func hideSearch() {
+        guard showingSearch, !searchRetreating else { return }
+        searchRetreating = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) { [weak self] in
+            guard let self, self.searchRetreating else { return }
+            self.showingSearch = false
+            self.searchRetreating = false
+        }
+    }
+
+    /// The overlay goes at once — for a change of view, where there is no
+    /// header for it to return to.
+    private func dropSearch() {
         showingSearch = false
+        searchRetreating = false
+    }
+
+    func showDaily() {
+        dropSearch()
         showingCommandBar = false
         reviewMode = false
         showingDaily = true
@@ -285,7 +307,7 @@ final class AppState: ObservableObject {
         if showingCommandBar {
             commandQuery = ""
             commandSelection = 0
-            showingSearch = false
+            dropSearch()
         }
     }
 
@@ -316,7 +338,7 @@ final class AppState: ObservableObject {
         }
         showingGallery = false
         showingDaily = false
-        showingSearch = false
+        dropSearch()
         showingCommandBar = false
         if let current = document, current.relativePath == ref.id { return }
         closeCurrentDocument()

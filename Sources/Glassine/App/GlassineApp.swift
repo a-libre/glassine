@@ -44,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if state.showingSearch, event.keyCode == 53 {
                 state.searchText = ""
-                state.showingSearch = false
+                state.hideSearch()
                 return nil
             }
             if state.showingShortcuts, event.keyCode == 53 || (flags == .command && event.charactersIgnoringModifiers == "/") {
