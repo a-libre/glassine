@@ -13,8 +13,9 @@ dist/
 build.log
 install.log
 
-# Generated from Resources/AppIcon.iconset by build.sh
+# Generated from Resources/AppIcon.iconset and AppIcon-Dark.iconset by build.sh
 Resources/AppIcon.icns
+Resources/AppIcon-Dark.icns
 
 # Xcode
 xcuserdata/

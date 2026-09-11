@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Generates AppIcon.iconset (PNGs) for Glassine. Run once; build.sh turns it into .icns.
+With --dark, the same drawing in the dark palette, into AppIcon-Dark.iconset.
 
 The mark is the wordmark's lowercase g on a sheet of paper, with ruled lines
 running in from the left and fading out — lines of text arriving at the letter.
@@ -24,9 +25,36 @@ ICON = 824
 R = ICON * 0.2237
 OFF = (S - ICON) / 2
 
-PAPER_TOP, PAPER_BOTTOM = (249, 248, 245), (238, 237, 233)
-INK_TOP, INK_BOTTOM = (38, 38, 41), (62, 62, 66)
-RULE = (40, 40, 44)
+import sys
+
+# Two palettes for the one drawing. The paper icon is the sheet by day: warm
+# white, ink darkening toward the top. The dark icon is the same sheet at
+# night — charcoal, the letter in paper-white lightening toward the top, the
+# ruled lines pale — for Docks that live in dark mode.
+PALETTES = {
+    "light": dict(
+        paper=((249, 248, 245), (238, 237, 233)),
+        ink=((38, 38, 41), (62, 62, 66)),
+        rule=(40, 40, 44),
+        sheen=(255, 255, 255, 60),
+        edge=(0, 0, 0, 22),
+    ),
+    "dark": dict(
+        paper=((50, 50, 55), (33, 33, 37)),
+        ink=((244, 243, 239), (218, 217, 213)),
+        rule=(236, 236, 240),
+        sheen=(255, 255, 255, 26),
+        edge=(255, 255, 255, 30),
+    ),
+}
+VARIANT = "dark" if "--dark" in sys.argv else "light"
+P = PALETTES[VARIANT]
+PAPER_TOP, PAPER_BOTTOM = P["paper"]
+INK_TOP, INK_BOTTOM = P["ink"]
+RULE = P["rule"]
+if VARIANT == "dark":
+    OUT = os.path.join(HERE, "AppIcon-Dark.iconset")
+    os.makedirs(OUT, exist_ok=True)
 
 # --- The letter -------------------------------------------------------------------------------
 # Measured from the wordmark's g, in a 279×428 box: a near-monoline bowl, a
@@ -97,7 +125,7 @@ def build(size):
     n = art.width
     # A breath of light across the top, so the paper reads as a surface.
     sheen = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(sheen).ellipse([-n * 0.2, -n * 0.6, n * 1.2, n * 0.4], fill=(255, 255, 255, 60))
+    ImageDraw.Draw(sheen).ellipse([-n * 0.2, -n * 0.6, n * 1.2, n * 0.4], fill=P["sheen"])
     art = Image.alpha_composite(art, sheen.filter(ImageFilter.GaussianBlur(n * 0.08)))
 
     # Letter geometry in art pixels
@@ -143,9 +171,9 @@ def build(size):
     ink.putalpha(letter)
     art = Image.alpha_composite(art, ink)
 
-    # A hairline edge so the sheet has a boundary on a white desktop too.
+    # A hairline edge so the sheet has a boundary on a desktop of its own tone too.
     edge = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(edge).rounded_rectangle([0.5, 0.5, n - 1.5, n - 1.5], radius=R * k * ss, outline=(0, 0, 0, 22), width=max(1, int(3 * k * ss)))
+    ImageDraw.Draw(edge).rounded_rectangle([0.5, 0.5, n - 1.5, n - 1.5], radius=R * k * ss, outline=P["edge"], width=max(1, int(3 * k * ss)))
     art = Image.alpha_composite(art, edge)
 
     art.putalpha(squircle(n, 1) if ss == 1 else squircle(n, 2))
@@ -163,7 +191,7 @@ def build(size):
 
 
 if __name__ == "__main__":
-    build(1024).save(os.path.join(HERE, "AppIcon-1024.png"))
+    build(1024).save(os.path.join(HERE, "AppIcon-1024.png" if VARIANT == "light" else "AppIcon-Dark-1024.png"))
     for px in (16, 32, 128, 256, 512):
         for scale in (1, 2):
             n = px * scale

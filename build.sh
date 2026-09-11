@@ -99,6 +99,13 @@ fi
 if [[ -f Resources/AppIcon.icns ]]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 fi
+# The dark icon, for the Dock when the Mac is in dark mode (Support/AppIcon.swift).
+if [[ -d Resources/AppIcon-Dark.iconset ]]; then
+  if [[ ! -f Resources/AppIcon-Dark.icns || -n "$(find Resources/AppIcon-Dark.iconset -newer Resources/AppIcon-Dark.icns -print -quit)" ]]; then
+    iconutil -c icns Resources/AppIcon-Dark.iconset -o Resources/AppIcon-Dark.icns
+  fi
+  cp Resources/AppIcon-Dark.icns "$APP/Contents/Resources/AppIcon-Dark.icns"
+fi
 if [[ -f Resources/wordmark.png ]]; then
   cp Resources/wordmark.png "$APP/Contents/Resources/wordmark.png"
 fi
