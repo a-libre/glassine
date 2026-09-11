@@ -99,7 +99,7 @@ struct SettingsData: Codable, Equatable {
     var caretBlink: CaretBlink = .soft
     var caretWidth: Double = 4
     var caretShape: CaretShape = .bar
-    /// Left alone for some seconds, the caret hops, bounces, flips, wiggles,
+    /// Left alone for a few seconds, the caret hops, bounces, flips, wiggles,
     /// stretches or leans, and again every so often until the typing resumes.
     var caretTricks: Bool = true
 
@@ -137,6 +137,9 @@ struct SettingsData: Codable, Equatable {
     var backdrop: String = BackdropPreset.desktopID
     var backdropDrift: Bool = true
     var backdropFrost: Double = 0.3
+    /// The paper grain over a backdrop — its own, since the theme's is tuned
+    /// for the desktop's blur.
+    var backdropGrain: Double = 0.08
     var expandedFolders: [String] = []
     var starred: [String] = []
     var recents: [String: Date] = [:]
@@ -239,6 +242,7 @@ struct SettingsData: Codable, Equatable {
         backdrop = try c.decodeIfPresent(String.self, forKey: .backdrop) ?? d.backdrop
         backdropDrift = try c.decodeIfPresent(Bool.self, forKey: .backdropDrift) ?? d.backdropDrift
         backdropFrost = try c.decodeIfPresent(Double.self, forKey: .backdropFrost) ?? d.backdropFrost
+        backdropGrain = try c.decodeIfPresent(Double.self, forKey: .backdropGrain) ?? d.backdropGrain
         expandedFolders = try c.decodeIfPresent([String].self, forKey: .expandedFolders) ?? d.expandedFolders
         starred = try c.decodeIfPresent([String].self, forKey: .starred) ?? d.starred
         recents = try c.decodeIfPresent([String: Date].self, forKey: .recents) ?? d.recents

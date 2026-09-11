@@ -105,6 +105,9 @@ final class AppState: ObservableObject {
     @Published var showingSettings = false
     /// Which settings pane is up (0–3); Tab and ⇧Tab walk it around.
     @Published var settingsTab = 0
+    /// Which half of the Themes pane is showing — the themes, or what sits
+    /// behind the glass — kept here so Settings reopens where it was left.
+    @Published var themesPanePart: ThemesPanePart = .themes
     var styleConfig: StyleConfig { StyleConfig(theme: theme, settings: settings.data) }
 
     private var cancellables = Set<AnyCancellable>()
@@ -173,7 +176,7 @@ final class AppState: ObservableObject {
         case "review": if document != nil { reviewMode = true }
         case "daily": showDaily()
         case "settings": showingSettings = true; settingsTab = 1
-        case "backdrops": showingSettings = true; settingsTab = 2
+        case "backdrops": showingSettings = true; settingsTab = 2; themesPanePart = .backdrops
         default: break
         }
     }

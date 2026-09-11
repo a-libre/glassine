@@ -1808,10 +1808,10 @@ final class GlassineTextView: NSTextView {
 
     // MARK: - Idle tricks
 
-    /// What the caret gets up to while nobody is typing: some seconds after
-    /// it last moved it does one of these, and another every so often until
-    /// it moves again. Never the same one twice running. Any keystroke, click
-    /// or move ends the show at once.
+    /// What the caret gets up to while nobody is typing: a few seconds after
+    /// it last moved it does one of these, and another every several seconds
+    /// until it moves again. Never the same one twice running. Any keystroke,
+    /// click or move ends the show at once.
     enum CaretTrick: String, CaseIterable {
         case hop, bounce, flip, wiggle, stretch, lean
 
@@ -1890,8 +1890,8 @@ final class GlassineTextView: NSTextView {
         }
     }
 
-    /// The next trick, some seconds off — sooner for the first after the caret
-    /// settles, later between one and the next — unless the caret moves first.
+    /// The next trick — two and a half to four seconds after the caret settles,
+    /// four to nine between one and the next — unless the caret moves first.
     /// The self-photographing mode can ask for a particular trick at a
     /// particular moment: `-glassine.trickAfter 2 -glassine.trick flip`.
     private func scheduleTrick(after delay: TimeInterval? = nil) {
@@ -1901,7 +1901,7 @@ final class GlassineTextView: NSTextView {
         let work = DispatchWorkItem { [weak self] in self?.performTrick() }
         trickWork = work
         let asked = UserDefaults.standard.string(forKey: "glassine.trickAfter").flatMap(Double.init)
-        let wait = delay ?? asked ?? .random(in: 7...12)
+        let wait = delay ?? asked ?? .random(in: 2.5...4)
         ScreenshotMode.note("trick in \(wait)s")
         DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
     }
@@ -1939,7 +1939,7 @@ final class GlassineTextView: NSTextView {
             guard let self, self.caretVisible else { return }
             self.restartBlink()
         }
-        scheduleTrick(after: .random(in: 9...20))
+        scheduleTrick(after: .random(in: 4...9))
     }
 
     override func mouseDown(with event: NSEvent) {

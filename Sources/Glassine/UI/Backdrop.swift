@@ -294,16 +294,16 @@ final class BackdropView: NSView {
         }
     }
 
-    /// The palette, as the shader wants it: five colours the folds run
-    /// through and one for the bright edge, plus the ground. The set's hues
-    /// and saturations are kept; the lightness is the theme's — on a dark
-    /// theme deep, never bright, over a ground close to black; on a light
-    /// theme pale over near white. The slots are dealt so that a set of
-    /// three still sweeps between two of its colours.
+    /// The palette, as the shader wants it: the set's colours in order — a
+    /// ramp the folds run round, so every colour has folds of its own — one
+    /// for the bright edge, and the ground. The set's hues and saturations
+    /// are kept; the lightness is the theme's — on a dark theme deep, never
+    /// bright, over a ground close to black; on a light theme pale over near
+    /// white. Frost is the shader's to apply.
     private func applyConfig() {
         let dark = config.isDark
-        let frost = CGFloat(config.frost)
         let colors = config.colors.isEmpty ? BackdropPreset.dusk.colors : config.colors
+        let count = min(colors.count, BackdropPreset.maxColors)
         func hsb(_ i: Int) -> (h: CGFloat, s: CGFloat, b: CGFloat) {
             let c = colors[i % colors.count].nsColor.usingColorSpace(.deviceRGB) ?? .gray
             return (c.hueComponent, c.saturationComponent, c.brightnessComponent)
@@ -314,23 +314,23 @@ final class BackdropView: NSView {
         }
         let ground = hsb(0)
         uniforms.ground = rgb(NSColor(
-            hue: ground.h, saturation: ground.s * (dark ? 0.7 : 0.2) * (1 - 0.5 * frost),
+            hue: ground.h, saturation: ground.s * (dark ? 0.7 : 0.2),
             brightness: dark ? 0.045 : 0.965, alpha: 1))
+        uniforms.ground.w = Float(count)   // how many of the slots the ramp runs round
         var slots: [SIMD4<Float>] = []
-        for i in [0, 2, 3, 1, 4] {
+        for i in 0..<BackdropPreset.maxColors {
             let c = hsb(i)
             let saturation = dark ? min(0.92, c.s) : min(0.7, c.s * 0.85)
-            let brightness = dark ? (min(max(c.b, 0.32), 0.62) + 0.1 * frost) : min(max(c.b, 0.78), 0.9)
-            slots.append(rgb(NSColor(hue: c.h, saturation: saturation * (1 - 0.55 * frost),
-                                     brightness: brightness, alpha: 1)))
+            let brightness = dark ? min(max(c.b, 0.32), 0.62) : min(max(c.b, 0.78), 0.9)
+            slots.append(rgb(NSColor(hue: c.h, saturation: saturation, brightness: brightness, alpha: 1)))
         }
         // The edge: the same silk, catching the light.
         let edge = hsb(1)
-        slots.append(rgb(NSColor(hue: edge.h, saturation: (dark ? 0.35 : 0.12) * (1 - 0.5 * frost),
+        slots.append(rgb(NSColor(hue: edge.h, saturation: dark ? 0.35 : 0.12,
                                  brightness: dark ? 0.85 : 1, alpha: 1)))
         uniforms.colors = (slots[0], slots[1], slots[2], slots[3], slots[4], slots[5])
         uniforms.dark = dark ? 1 : 0
-        uniforms.frost = Float(frost)
+        uniforms.frost = Float(config.frost)
         metalLayer.backgroundColor = NSColor(red: CGFloat(uniforms.ground.x), green: CGFloat(uniforms.ground.y),
                                              blue: CGFloat(uniforms.ground.z), alpha: 1).cgColor
     }
@@ -373,20 +373,23 @@ final class BackdropView: NSView {
         buffer.commit()
     }
 
-    /// Laid out to match `Uniforms` in the shader.
+    /// Laid out to match `Uniforms` in the shader. `ground.w` carries the
+    /// number of colours in the ramp.
     private struct BackdropUniforms {
         var time: Float = 0
         var aspect: Float = 1
         var dark: Float = 1
         var frost: Float = 0
-        var ground = SIMD4<Float>(0, 0, 0, 1)
+        var ground = SIMD4<Float>(0, 0, 0, 3)
         var colors: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>) =
             (.zero, .zero, .zero, .zero, .zero, .zero)
     }
 
     /// One triangle over the whole layer, and a fragment shader that warps a
     /// field of value noise through itself twice (after Quílez), reads the
-    /// folds off it as sweeping bands, and lights them.
+    /// folds off it as sweeping bands, runs the set's colours round them as
+    /// a ramp — so three, four or five colours are on screen at once, each
+    /// with folds of its own — and lights them.
     private static let shader = """
     #include <metal_stdlib>
     using namespace metal;
@@ -422,6 +425,30 @@ final class BackdropView: NSView {
         return v;
     }
 
+    static float luma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
+    static float chroma(float3 c) { return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b)); }
+
+    // A blend that keeps its colour: mixed in RGB, then the chroma put back
+    // to what the two ends would average, so two hues far apart do not go
+    // grey between them.
+    static float3 chromaMix(float3 a, float3 b, float t) {
+        float3 m = mix(a, b, t);
+        float target = mix(chroma(a), chroma(b), t);
+        float L = luma(m);
+        return saturate(L + (m - L) * (target / max(chroma(m), 1e-4)));
+    }
+
+    // The set's colours as a loop: u from 0 to 1 runs through all of them
+    // and back to the first.
+    static float3 ramp(constant float4* colors, int n, float u) {
+        float idx = u * float(n);
+        int i0 = int(floor(idx)) % n;
+        int i1 = (i0 + 1) % n;
+        float tt = fract(idx);
+        tt = tt * tt * (3.0 - 2.0 * tt);
+        return chromaMix(colors[i0].rgb, colors[i1].rgb, tt);
+    }
+
     fragment float4 backdropFragment(V2F in [[stage_in]], constant Uniforms& u [[buffer(0)]]) {
         float2 p = float2(in.uv.x * u.aspect, in.uv.y) + float2(3.7, 11.2);
         float t = u.time * 0.045;
@@ -441,20 +468,28 @@ final class BackdropView: NSView {
         float e1 = pow(1.0 - abs(b1), 9.0) * smoothstep(0.35, 0.65, r.y);
         float e2 = pow(1.0 - abs(b2), 9.0) * 0.5 * smoothstep(0.4, 0.7, q.x);
         float ridge = pow(1.0 - abs(b1), 3.0) * 0.5;
-        float3 c0 = u.colors[0].rgb, c1 = u.colors[1].rgb, c2 = u.colors[2].rgb;
-        float3 c3 = u.colors[3].rgb, c4 = u.colors[4].rgb, hi = u.colors[5].rgb;
-        float3 col = mix(c0, c3, 0.5 + 0.5 * b1);
-        col = mix(col, c1, (0.5 + 0.5 * b2) * 0.7);
-        col = mix(col, c2, smoothstep(0.3, 0.75, f) * 0.6);
-        col = mix(col, c4, saturate(r.x * 1.4 - 0.3) * 0.5);
+        // Where on the ramp each point sits: the folds carry it round, the
+        // detail and the warp shift it, and it creeps with time — so every
+        // colour of the set has folds of its own, and they trade places slowly.
+        float uu = fract(0.5 + 0.32 * b1 + 0.22 * b2 + 0.18 * (f - 0.5) + 0.35 * r.x + t * 0.05);
+        int n = max(1, int(u.ground.w));
+        float3 col = ramp(u.colors, n, uu);
+        float3 hi = u.colors[5].rgb;
         float light = 0.6 * lit + 0.4 * lit2;
+        // Frost: the folds pale, the edges soften, the whole loses colour —
+        // gently at first, since a little haze goes a long way over a dark
+        // ground, and all the way at 100%.
+        float fr = u.frost * u.frost;
+        float edges = (e1 * 0.18 + e2 * 0.1) * (1.0 - 0.6 * u.frost);
         float3 g = u.ground.rgb;
         float3 outc;
         if (u.dark > 0.5) {
-            outc = g + col * ((0.18 + 0.82 * light + ridge) * 0.8) + hi * (e1 * 0.18 + e2 * 0.1);
+            outc = g + 0.06 * fr + col * ((0.18 + 0.82 * light + ridge) * 0.8) + hi * edges;
         } else {
-            outc = mix(g, col, 0.35 + 0.65 * light) + hi * (e1 * 0.08 + e2 * 0.04);
+            outc = mix(g, col, 0.35 + 0.65 * light) + hi * edges * 0.45;
         }
+        float L = luma(outc);
+        outc = L + (outc - L) * (1.0 - 0.5 * fr);
         return float4(saturate(outc), 1.0);
     }
     """

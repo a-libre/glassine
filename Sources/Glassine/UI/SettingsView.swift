@@ -236,7 +236,7 @@ struct EditorSettings: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Toggle("Tricks when idle", isOn: data.caretTricks)
-                Text("Left alone for some seconds, the caret hops, bounces, flips, wiggles, stretches or leans — and again every so often until you type. The caret uses the theme's caret color (usually the accent). Reduce Motion in System Settings disables gliding and the tricks.")
+                Text("Left alone for a few seconds, the caret hops, bounces, flips, wiggles, stretches or leans — and again every several seconds until you type. The caret uses the theme's caret color (usually the accent). Reduce Motion in System Settings disables gliding and the tricks.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Modes") {
@@ -279,18 +279,16 @@ struct EditorSettings: View {
 
 // MARK: - Themes
 
+/// The two halves of the Themes pane: the themes, and what sits behind the glass.
+enum ThemesPanePart: String, CaseIterable, Identifiable {
+    case themes, backdrops
+    var id: String { rawValue }
+    var label: String { self == .themes ? "Theme" : "Behind the glass" }
+}
+
 struct ThemeSettings: View {
     @EnvironmentObject var state: AppState
     @State private var editing: Theme?
-    /// The pane has two halves: the themes, and what sits behind the glass.
-    /// (`-glassine.launchView backdrops` opens on the second, for the self-shots.)
-    @State private var part: Part = UserDefaults.standard.string(forKey: "glassine.launchView") == "backdrops" ? .backdrops : .themes
-
-    enum Part: String, CaseIterable, Identifiable {
-        case themes, backdrops
-        var id: String { rawValue }
-        var label: String { self == .themes ? "Theme" : "Behind the glass" }
-    }
 
     private var data: Binding<SettingsData> {
         Binding(get: { state.settings.data }, set: { state.settings.data = $0 })
@@ -300,7 +298,7 @@ struct ThemeSettings: View {
         VStack(spacing: 0) {
             partBar
             Divider()
-            switch part {
+            switch state.themesPanePart {
             case .themes:
                 appearanceBar
                 Divider()
@@ -311,11 +309,13 @@ struct ThemeSettings: View {
         }
     }
 
-    /// The switch between the themes and what sits behind the glass.
+    /// The switch between the themes and what sits behind the glass. It lives
+    /// in AppState, so Settings reopens on the half it was closed on.
     private var partBar: some View {
         HStack {
-            Picker("", selection: $part) {
-                ForEach(Part.allCases) { Text($0.label).tag($0) }
+            Spacer()
+            Picker("", selection: Binding(get: { state.themesPanePart }, set: { state.themesPanePart = $0 })) {
+                ForEach(ThemesPanePart.allCases) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -330,17 +330,20 @@ struct ThemeSettings: View {
     /// Either one theme all the time, or a light/dark pair that follows macOS.
     private var appearanceBar: some View {
         HStack(spacing: 14) {
+            Spacer()
             Picker("Appearance", selection: data.appearanceMode) {
                 ForEach(AppearanceMode.allCases) { Text($0.label).tag($0) }
             }
-            .frame(maxWidth: 320)
+            .fixedSize()
             if state.settings.data.appearanceMode == .system {
                 Picker("Light", selection: data.lightThemeID) {
                     ForEach(state.themes.all.filter { !$0.isDark }) { Text($0.name).tag($0.id) }
                 }
+                .fixedSize()
                 Picker("Dark", selection: data.darkThemeID) {
                     ForEach(state.themes.all.filter { $0.isDark }) { Text($0.name).tag($0.id) }
                 }
+                .fixedSize()
             }
             Spacer()
         }
@@ -574,14 +577,15 @@ struct BackdropEditor: View {
                             state.backdrops.update(p)
                         }
                     }
-                    Text("Three to five. Their hue and saturation are what count: the theme sets the lightness — deep on a dark theme, pale on a light one — so the text stays readable over every part. The first colour tints the ground and starts the main sweep; the others run through the folds.")
+                    Text("Three to five, and every one of them is on screen at once: the folds run round the set in this order, so each colour has folds of its own. Hue and saturation are what count — the theme sets the lightness, deep on a dark theme and pale on a light one, so the text stays readable over every part. The first colour also tints the ground.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .disabled(locked)
-                Section("Motion and frost") {
+                Section("Motion, frost and grain") {
                     Toggle("Drift", isOn: data.backdropDrift)
                     sliderRow("Frost", value: data.backdropFrost, range: 0...1, step: 0.05, format: "%.0f%%", scale: 100)
-                    Text("For every backdrop. Drift moves the folds, slowly; never under Reduce Motion. Frost pales and softens the colour.")
+                    sliderRow("Paper grain", value: data.backdropGrain, range: 0...0.2, step: 0.005, format: "%.1f%%", scale: 100)
+                    Text("For every backdrop. Drift moves the folds, slowly; never under Reduce Motion. Frost pales and softens the colour, gently at first and all the way at 100%. Paper grain lies over the folds the way the theme's grain lies over the desktop's blur; this one is its own, since silk wants more of it than glass.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
