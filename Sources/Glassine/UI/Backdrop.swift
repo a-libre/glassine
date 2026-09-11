@@ -199,7 +199,8 @@ struct BackdropConfig: Equatable {
 /// side, a shadowed side and a thin bright edge where it turns. A small
 /// Metal shader draws it — at a quarter of the window's size, since there is
 /// nothing sharp in it, and twenty times a second while it drifts — so it
-/// costs the writing nothing. Built dark first: on a dark theme the ground is
+/// costs the writing nothing: the frames are drawn on a queue of their own,
+/// never on the main thread. Built dark first: on a dark theme the ground is
 /// near black and the colour lives in the folds, deep rather than bright, so
 /// pale text stays readable over every part of it. The clock stops while the
 /// window is covered or hidden.
@@ -209,33 +210,45 @@ final class BackdropView: NSView {
             guard config != oldValue else { return }
             applyConfig()
             updateClock()
-            render()
+            requestFrame()
         }
     }
 
     private let metalLayer = CAMetalLayer()
-    private let device = MTLCreateSystemDefaultDevice()
-    private var queue: MTLCommandQueue?
-    private var pipeline: MTLRenderPipelineState?
+    private let gpu = BackdropView.sharedGPU
+    /// Everything the shader is told, as set on the main thread.
     private var uniforms = BackdropUniforms()
-    private var clock: Timer?
-    private var time: Float = 0
     private var occlusionObserver: NSObjectProtocol?
     private var motionObserver: NSObjectProtocol?
     private static let framesPerSecond = 20.0
     private static let renderScale: CGFloat = 0.25
+
+    // Drawing happens off the main thread. Asking a Metal layer for its next
+    // drawable can block for up to a second whenever the window server is
+    // not taking frames — the display dimmed, the window on another Space,
+    // a switch between apps — and twenty of those a second on the main
+    // thread was the editor going deaf for seconds after being left alone.
+    // So the clock ticks on its own queue, the frames are drawn there, and
+    // the main thread only ever hands over a copy of the uniforms.
+    private let renderQueue = DispatchQueue(label: "ink.glassine.backdrop", qos: .userInitiated)
+    private var clock: DispatchSourceTimer?          // main thread only
+    private var current = BackdropUniforms()         // render queue only
+    private var time: Float = 0                      // render queue only
+    private let inFlight = DispatchSemaphore(value: 2)
 
     init(config: BackdropConfig) {
         self.config = config
         super.init(frame: .zero)
         layer = metalLayer
         wantsLayer = true
-        metalLayer.device = device
+        metalLayer.device = gpu?.device
         metalLayer.pixelFormat = .bgra8Unorm
         metalLayer.framebufferOnly = true
         metalLayer.isOpaque = true
         metalLayer.magnificationFilter = .linear
-        setUpMetal()
+        // A frame that cannot be had within a second is a frame not worth
+        // waiting for; the next tick tries again.
+        metalLayer.allowsNextDrawableTimeout = true
         applyConfig()
         motionObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
@@ -245,7 +258,7 @@ final class BackdropView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     deinit {
-        clock?.invalidate()
+        clock?.cancel()
         if let o = occlusionObserver { NotificationCenter.default.removeObserver(o) }
         if let o = motionObserver { NSWorkspace.shared.notificationCenter.removeObserver(o) }
     }
@@ -260,7 +273,7 @@ final class BackdropView: NSView {
         if metalLayer.drawableSize != size {
             metalLayer.drawableSize = size
             uniforms.aspect = Float(size.width / size.height)
-            render()
+            requestFrame()
         }
     }
 
@@ -268,7 +281,7 @@ final class BackdropView: NSView {
         super.viewDidMoveToWindow()
         if let o = occlusionObserver { NotificationCenter.default.removeObserver(o) }
         occlusionObserver = nil
-        guard let window else { clock?.invalidate(); clock = nil; return }
+        guard let window else { clock?.cancel(); clock = nil; return }
         metalLayer.contentsScale = window.backingScaleFactor
         occlusionObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
@@ -279,20 +292,32 @@ final class BackdropView: NSView {
 
     // MARK: Metal
 
-    private func setUpMetal() {
-        guard let device else { return }
-        do {
-            let library = try device.makeLibrary(source: BackdropView.shader, options: nil)
-            let desc = MTLRenderPipelineDescriptor()
-            desc.vertexFunction = library.makeFunction(name: "backdropVertex")
-            desc.fragmentFunction = library.makeFunction(name: "backdropFragment")
-            desc.colorAttachments[0].pixelFormat = .bgra8Unorm
-            pipeline = try device.makeRenderPipelineState(descriptor: desc)
-            queue = device.makeCommandQueue()
-        } catch {
-            NSLog("Glassine: backdrop shader failed to build: \(error)")
+    /// The device, the compiled shader and a command queue, made once per
+    /// launch and shared by every backdrop view: compiling the shader takes
+    /// a moment, and there is no reason to take it twice.
+    private final class GPU {
+        let device: MTLDevice
+        let pipeline: MTLRenderPipelineState
+        let queue: MTLCommandQueue
+        init?() {
+            guard let device = MTLCreateSystemDefaultDevice() else { return nil }
+            do {
+                let library = try device.makeLibrary(source: BackdropView.shader, options: nil)
+                let desc = MTLRenderPipelineDescriptor()
+                desc.vertexFunction = library.makeFunction(name: "backdropVertex")
+                desc.fragmentFunction = library.makeFunction(name: "backdropFragment")
+                desc.colorAttachments[0].pixelFormat = .bgra8Unorm
+                pipeline = try device.makeRenderPipelineState(descriptor: desc)
+            } catch {
+                NSLog("Glassine: backdrop shader failed to build: \(error)")
+                return nil
+            }
+            guard let queue = device.makeCommandQueue() else { return nil }
+            self.device = device
+            self.queue = queue
         }
     }
+    private static let sharedGPU = GPU()
 
     /// The palette, as the shader wants it: the set's colours in order — a
     /// ramp the folds run round, so every colour has folds of its own — one
@@ -336,40 +361,59 @@ final class BackdropView: NSView {
     }
 
     /// Ticking while the window can be seen and the backdrop drifts; a
-    /// still picture otherwise.
+    /// still picture otherwise. The clock lives on the render queue.
     private func updateClock() {
         let visible = window?.occlusionState.contains(.visible) ?? false
         let running = visible && config.drifts && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if running, clock == nil {
             let step = 1 / BackdropView.framesPerSecond
-            let timer = Timer(timeInterval: step, repeats: true) { [weak self] _ in
+            let timer = DispatchSource.makeTimerSource(queue: renderQueue)
+            timer.schedule(deadline: .now() + step, repeating: step, leeway: .milliseconds(8))
+            timer.setEventHandler { [weak self] in
                 guard let self else { return }
                 self.time += Float(step)
-                self.render()
+                self.draw()
             }
-            RunLoop.main.add(timer, forMode: .common)
+            timer.resume()
             clock = timer
         } else if !running, let timer = clock {
-            timer.invalidate()
+            timer.cancel()
             clock = nil
         }
     }
 
-    private func render() {
-        guard let pipeline, let queue, metalLayer.drawableSize.width > 0,
-              let drawable = metalLayer.nextDrawable() else { return }
-        uniforms.time = time
+    /// From the main thread: the uniforms as they are now, and a frame with
+    /// them — at once if the clock is stopped, and otherwise ahead of the
+    /// next tick, so a change of colour or size shows without waiting.
+    private func requestFrame() {
+        let snapshot = uniforms
+        renderQueue.async { [weak self] in
+            guard let self else { return }
+            self.current = snapshot
+            self.draw()
+        }
+    }
+
+    /// On the render queue only.
+    private func draw() {
+        guard let gpu, metalLayer.drawableSize.width > 0 else { return }
+        // Two frames in flight at most; a tick that finds both busy is skipped.
+        guard inFlight.wait(timeout: .now()) == .success else { return }
+        guard let drawable = metalLayer.nextDrawable() else { inFlight.signal(); return }
+        current.time = time
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = drawable.texture
         pass.colorAttachments[0].loadAction = .dontCare
         pass.colorAttachments[0].storeAction = .store
-        guard let buffer = queue.makeCommandBuffer(),
-              let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) else { return }
-        encoder.setRenderPipelineState(pipeline)
-        withUnsafeBytes(of: &uniforms) { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 0) }
+        guard let buffer = gpu.queue.makeCommandBuffer(),
+              let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) else { inFlight.signal(); return }
+        encoder.setRenderPipelineState(gpu.pipeline)
+        withUnsafeBytes(of: &current) { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 0) }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
         buffer.present(drawable)
+        let gate = inFlight
+        buffer.addCompletedHandler { _ in gate.signal() }
         buffer.commit()
     }
 
