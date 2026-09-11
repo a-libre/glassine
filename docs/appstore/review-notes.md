@@ -7,15 +7,17 @@ App Review Information → Notes field. All ready to paste.
 
 Hello,
 
-Thank you for the review. Both points are addressed in build 0.2.3 (10), which is attached to this submission.
+Thank you for the review. Both points are addressed in build 0.2.3 (13), which is attached to this submission.
 
 Guideline 5.1.1(ii) — purpose strings. The iCloud Drive prompt now explains what the app does with the folder and gives an example. The string reads: "Glassine keeps every document you write as a Markdown file in a Glassine folder in iCloud Drive, so your writing syncs to your other Macs and stays yours as plain files. It reads that folder to list your documents in the sidebar and writes to it as you type — for example, when you open the app it lists the notes in the folder, and when you edit one, the change is saved to that note's file." The Documents-folder string, used when iCloud Drive is off, was rewritten in the same way.
 
 Guideline 4 — reopening the window. The app keeps running when its window is closed, and there is now a Window → Glassine menu item that brings the window back. Clicking the Dock icon does the same, and so do the commands that need a window — File → New Document, View → All Documents, View → Timelapse, View → Search Library, and Settings — each of which reopens the window before acting.
 
-Nothing else changed in this build. The earlier answers (no sign-in, no external services, the outgoing-connection entitlement only for WebKit) still hold.
+Otherwise this build holds a few small features added since the last one (an optional coloured backdrop inside the window, a caret that does small animations while idle, ⌘Z inside Settings) and no changes to permissions, entitlements or data handling. The earlier answers (no sign-in, no external services, the outgoing-connection entitlement only for WebKit) still hold.
 
 Alex Libre
+
+(Build 10, packaged on September 10 for this reply, must not be the one submitted: a change made for the Guideline 4 fix had removed the standard Edit and application menus — Select All, Undo, Cut, Copy, Paste, Hide, Quit and their keys. Build 13 has them back.)
 
 ## Reply to the September 5 request (Guideline 2.1 – Information Needed – New App Submission)
 
