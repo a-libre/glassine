@@ -21,6 +21,7 @@ struct StyleConfig: Equatable {
     let caretBlink: CaretBlink
     let caretWidth: CGFloat
     let caretShape: CaretShape
+    let caretTricks: Bool
 
     // Modes
     let typewriter: Bool
@@ -58,6 +59,7 @@ struct StyleConfig: Equatable {
         caretBlink = settings.caretBlink
         caretWidth = CGFloat(settings.caretWidth)
         caretShape = settings.caretShape
+        caretTricks = settings.caretTricks
         typewriter = settings.typewriterMode
         typewriterOnClick = settings.typewriterOnClick
         focus = settings.focusMode

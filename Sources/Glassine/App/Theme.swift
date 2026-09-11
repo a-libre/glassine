@@ -165,7 +165,17 @@ final class ThemeStore: ObservableObject {
     static let defaultsKey = "glassine.customThemes.v1"
 
     @Published var custom: [Theme] {
-        didSet { persist() }
+        didSet {
+            persist()
+            // Each edit of a theme is a step ⌘Z in Settings can take back;
+            // a run of edits to one theme inside a second is one step.
+            let before = oldValue
+            guard before != custom else { return }
+            let byID = Dictionary(before.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let nowByID = Dictionary(custom.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let keys = Set(byID.keys).union(nowByID.keys).filter { byID[$0] != nowByID[$0] }
+            SettingsUndo.shared.note(keys: Set(keys.map { "theme." + $0 })) { [weak self] in self?.custom = before }
+        }
     }
 
     init() {

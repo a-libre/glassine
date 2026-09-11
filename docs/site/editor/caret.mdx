@@ -6,6 +6,8 @@ icon: "text-cursor"
 
 The caret in Glassine is drawn by the app, not by the text system, so it can move the way a thing moves: when you press an arrow key, click somewhere, or type, it glides to the new position over about a quarter of a second, easing out, instead of vanishing from one place and appearing in another. It takes its colour from the theme — usually the accent — and its blink is a soft fade rather than an on-off flicker.
 
+When typing carries it to another line — a word wrapping at the margin, or Return — the glide takes a quarter longer than usual. The long diagonal back to the left is a bigger move than a step to the next letter, and the extra beat lets it read as one motion rather than a jump.
+
 Everything about it is in Settings → Editor, under *Caret*.
 
 | Setting | Default | What it does |
@@ -16,6 +18,7 @@ Everything about it is in Settings → Editor, under *Caret*.
 | Blink | Soft | *Soft* fades in and out. *Classic* is the traditional on-off blink. *Never* holds steady. |
 | Width | 4 pt | From 1 to 4 pt, in half-point steps. |
 | Shape | Bar | One of eight; see below. |
+| Tricks when idle | On | Left alone, the caret performs; see below. |
 
 ## Shapes
 
@@ -32,4 +35,8 @@ Every shape is built on the same bar, so it glides, blinks and takes the width a
 | Glow | A bar with a soft halo in its own colour. |
 | Hollow | The outline of a bar, empty inside. |
 
-If Reduce Motion is on in System Settings → Accessibility, gliding is turned off automatically and the caret behaves like a standard one. The same switch stills every other animation in the app; the [small delights page](/reference/small-delights) lists them.
+## Tricks
+
+Leave the caret alone for some seconds — seven to twelve — and it does a trick: a hop with a squash on landing, a bounce that settles in three, a flip (a cartwheel in the air), a wiggle like a shake of the head, a stretch like a yawn, or a lean, as if to look at the next word. Then another every so often, never the same one twice running, until you type, click or move it, which ends the show at once. Every shape performs, tail, halo and all; the blink holds steady while it does. *Tricks when idle* in the Caret settings turns them off.
+
+If Reduce Motion is on in System Settings → Accessibility, gliding and the tricks are turned off automatically and the caret behaves like a standard one. The same switch stills every other animation in the app; the [small delights page](/reference/small-delights) lists them.

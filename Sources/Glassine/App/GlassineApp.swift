@@ -14,9 +14,10 @@ struct GlassineApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .defaultSize(width: 1120, height: 760)
-        // The scene's own Window-menu item is replaced by ours below, which
-        // also brings the window back when it has been closed.
-        .commandsRemoved()
+        // Not `.commandsRemoved()`: that takes the standard menus with it —
+        // Edit's Undo, Cut, Copy, Paste and Select All, the app menu's Hide
+        // and Quit, Window's Minimize and Close — and every key on them.
+        // The scene's own Window-menu item is replaced in GlassineCommands.
         .commands { GlassineCommands(state: state) }
 
     }
@@ -30,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = nil
         NSWindow.allowsAutomaticWindowTabbing = false
         AppIcon.followAppearance()
+        // Whatever the launch itself set is not a change to take back.
+        DispatchQueue.main.async { SettingsUndo.shared.manager.removeAllActions() }
         ScreenshotMode.runIfRequested()
         // ⌘\ toggles the sidebar as well as ⌘S; menu items can carry only one shortcut.
         // ⌘F searches the library; the system's Find… item would otherwise claim it.
@@ -91,6 +94,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if event.charactersIgnoringModifiers?.lowercased() == "z",
                flags == .command || flags == [.command, .shift] {
                 let redo = flags.contains(.shift)
+                // With Settings open, ⌘Z takes back the last change to a
+                // setting — from any pane, menu or command — never the text
+                // behind the card. A field being edited in the card keeps its own.
+                if state.showingSettings {
+                    if let tv = window.firstResponder as? NSTextView, tv.isFieldEditor { return event }
+                    let undo = SettingsUndo.shared
+                    if redo ? undo.canRedo : undo.canUndo {
+                        if redo { undo.redo() } else { undo.undo() }
+                    }
+                    return nil
+                }
                 if let tv = window.firstResponder as? NSTextView,
                    let text = tv.undoManager, redo ? text.canRedo : text.canUndo {
                     return event
@@ -249,7 +263,8 @@ struct GlassineCommands: Commands {
         }
 
         // Window → Glassine: the window itself, for after it has been closed.
-        CommandGroup(before: .windowList) {
+        // It stands in for the item SwiftUI would put here for the scene.
+        CommandGroup(replacing: .singleWindowList) {
             Button("Glassine") { withWindow { } }
         }
 
@@ -347,6 +362,12 @@ struct GlassineCommands: Commands {
                 ForEach(state.themes.all) { t in
                     Text(t.name).tag(t.id)
                 }
+            }
+            Picker("Backdrop", selection: Binding(
+                get: { state.settings.data.backdrop },
+                set: { state.settings.data.backdrop = $0 }
+            )) {
+                ForEach(BackdropStyle.allCases) { b in Text(b.shortLabel).tag(b) }
             }
             Divider()
             Button("Bigger Text") { state.adjustFontSize(by: 1) }

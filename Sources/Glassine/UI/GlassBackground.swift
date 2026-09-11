@@ -60,13 +60,25 @@ struct GrainOverlay: NSViewRepresentable {
     }
 }
 
-/// The full window backdrop: blur + theme tint + grain.
+/// The full window background: the glass — a blur of what is behind the
+/// window, or a backdrop of the app's own — under the theme's tint and grain.
 struct GlassBackdrop: View {
     let theme: Theme
+    var backdrop: BackdropStyle = .desktop
+    var drifts: Bool = true
+    var frost: Double = 0.3
 
     var body: some View {
         ZStack {
-            if theme.material == .opaque {
+            if backdrop != .desktop {
+                BackdropCanvas(config: BackdropConfig(style: backdrop, theme: theme, drifts: drifts, frost: frost))
+                // The backdrop brings the colour; the theme's tint only harmonises
+                // it, so it lies lighter here than it does over the desktop's blur.
+                theme.tint.color.opacity((theme.material == .opaque ? 0.6 : theme.tintOpacity) * 0.45)
+                // Frost: a veil of light over the colour, the way frosted glass
+                // pales what is behind it. The washes lose saturation with it too.
+                Color.white.opacity(frost * (theme.isDark ? 0.14 : 0.4))
+            } else if theme.material == .opaque {
                 theme.tint.color
             } else {
                 VisualEffectBackground(material: theme.material.nsMaterial)

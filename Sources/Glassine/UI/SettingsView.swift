@@ -63,9 +63,10 @@ struct SettingsOverlay: View {
                     .opacity(tab == pane ? 1 : 0.6)
                 }
                 Spacer()
-                Text("Esc")
+                Text("⌘Z undoes · Esc")
                     .font(.system(size: 11))
                     .opacity(0.4)
+                    .help("⌘Z takes back the last change to a setting, ⇧⌘Z puts it back; Esc closes")
             }
             .padding(.horizontal, 16)
             .frame(height: 44)
@@ -156,6 +157,17 @@ struct GeneralSettings: View {
                 Text("Changes are written about half a second after you stop typing, and at least every few seconds while you type. Nothing to remember.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Behind the glass") {
+                Picker("Backdrop", selection: data.backdrop) {
+                    ForEach(BackdropStyle.allCases) { Text($0.label).tag($0) }
+                }
+                Toggle("Drift", isOn: data.backdropDrift)
+                    .disabled(state.settings.data.backdrop == .desktop)
+                sliderRow("Frost", value: data.backdropFrost, range: 0...1, step: 0.05, format: "%.0f%%", scale: 100)
+                    .disabled(state.settings.data.backdrop == .desktop)
+                Text("The glass shows whatever is behind the window. A backdrop puts folds of colour there instead, inside the window — deep and slow, like silk lit from one side — for a desk without a wallpaper worth looking through. Its lightness follows the theme. Drift moves it, slowly; never under Reduce Motion. Frost pales and softens it.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             #if canImport(Sparkle)
             Section("Updates") {
                 Toggle("Check for new versions once a day", isOn: Binding(
@@ -234,7 +246,8 @@ struct EditorSettings: View {
                     Text(state.settings.data.caretShape.blurb)
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Text("The caret uses the theme's caret color (usually the accent). Reduce Motion in System Settings disables gliding.")
+                Toggle("Tricks when idle", isOn: data.caretTricks)
+                Text("Left alone for some seconds, the caret hops, bounces, flips, wiggles, stretches or leans — and again every so often until you type. The caret uses the theme's caret color (usually the accent). Reduce Motion in System Settings disables gliding and the tricks.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Modes") {

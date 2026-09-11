@@ -944,6 +944,10 @@ final class AppState: ObservableObject {
             let mark = theme.id == t.id ? "  ✓" : ""
             add("theme-\(t.id)", "Theme: \(t.name)\(mark)") { [weak self] in self?.chooseTheme(t.id) }
         }
+        for b in BackdropStyle.allCases {
+            let mark = settings.data.backdrop == b ? "  ✓" : ""
+            add("backdrop-\(b.rawValue)", "Backdrop: \(b.shortLabel)\(mark)") { [weak self] in self?.settings.data.backdrop = b }
+        }
         add("float", settings.data.floatOnTop ? "Stop floating over other windows" : "Float over other windows", keys: "⌘.") { [weak self] in self?.toggleFloating() }
         add("settings", "Settings…", keys: "⌘,") { [weak self] in self?.showingSettings = true }
         add("shortcuts", "Shortcuts", keys: "⌘/") { [weak self] in self?.showingShortcuts = true }

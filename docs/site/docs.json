@@ -64,7 +64,7 @@
       },
       {
         "group": "Appearance",
-        "pages": ["appearance/themes", "appearance/typography"]
+        "pages": ["appearance/themes", "appearance/backdrop", "appearance/typography"]
       },
       {
         "group": "Reference",

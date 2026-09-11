@@ -33,6 +33,12 @@ final class GlassineTextView: NSTextView {
     /// a solid path in the caret colour over a faint one — as sublayers, so
     /// a change of shape never touches the motion.
     private let caretLayer = CALayer()
+    /// Between the box and the shape: the layer the idle tricks turn and
+    /// toss. It pivots on the bar's centre, so a hop or a flip never touches
+    /// the box's own glide.
+    private let caretTrickLayer = CALayer()
+    private var trickWork: DispatchWorkItem?
+    private var lastTrick: CaretTrick?
     private let caretShapeLayer = CAShapeLayer()
     /// The faint piece: a tint, flat or fading along its length, cut to its path.
     private let caretFaintLayer = CAGradientLayer()
@@ -142,9 +148,11 @@ final class GlassineTextView: NSTextView {
         caretLayer.shadowOffset = .zero
         caretLayer.shadowRadius = 6
         caretLayer.shadowOpacity = 0
+        caretTrickLayer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        caretLayer.addSublayer(caretTrickLayer)
         for l in [caretFaintLayer, caretShapeLayer] {
             l.anchorPoint = CGPoint(x: 0, y: 0)
-            caretLayer.addSublayer(l)
+            caretTrickLayer.addSublayer(l)
         }
         caretFaintLayer.startPoint = CGPoint(x: 0, y: 0.5)
         caretFaintLayer.endPoint = CGPoint(x: 1, y: 0.5)
@@ -1642,31 +1650,44 @@ final class GlassineTextView: NSTextView {
         }
         let wasVisible = caretVisible
         caretVisible = true
+        let previous = lastCaretRect
         let moved = !rect.equalTo(lastCaretRect)
         lastCaretRect = rect
 
         let animate = animated && wasVisible && moved && config.smoothCaret && !GlassineTextView.reduceMotion && !suppressAnimationOnce
+        // Typing that carries the caret to another line — a word wrapping at
+        // the margin, a Return — gets a quarter more glide: the long diagonal
+        // back to the left is a bigger move than a step to the next letter,
+        // and the extra beat lets it read as one motion rather than a jump.
+        let typedToAnotherLine = moved && wasVisible && abs(rect.minY - previous.minY) > 1
+            && (pendingEditRange != nil || CACurrentMediaTime() - lastEditAt < 0.05)
         // Sublayers of a flipped NSView's backing layer use the view's own (top-down)
         // coordinates, whatever `isGeometryFlipped` reports.
         let layerRect = rect
+        if moved { cancelTrick() }
         CATransaction.begin()
         if animate {
-            CATransaction.setAnimationDuration(config.caretDuration)
+            CATransaction.setAnimationDuration(config.caretDuration * (typedToAnotherLine ? 1.25 : 1))
             CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(controlPoints: 0.25, 0.8, 0.3, 1.0))
         } else {
             CATransaction.setDisableActions(true)
         }
         caretLayer.frame = layerRect
+        if caretTrickLayer.bounds.size != rect.size {
+            caretTrickLayer.bounds = CGRect(origin: .zero, size: rect.size)
+            caretTrickLayer.position = CGPoint(x: rect.width / 2, y: rect.height / 2)
+        }
         layoutCaretShape(in: rect)
         CATransaction.commit()
 
         if moved || !wasVisible {
             restartBlink()
+            scheduleTrick()
         }
     }
 
     private func setCaretScale(_ scale: CGFloat) {
-        for l in [caretLayer, caretShapeLayer, caretFaintLayer, caretFaintMask] { l.contentsScale = scale }
+        for l in [caretLayer, caretTrickLayer, caretShapeLayer, caretFaintLayer, caretFaintMask] { l.contentsScale = scale }
     }
 
     private struct CaretGeometryKey: Equatable {
@@ -1745,6 +1766,7 @@ final class GlassineTextView: NSTextView {
         guard caretVisible || caretLayer.opacity != 0 else { return }
         caretVisible = false
         blinkWork?.cancel()
+        cancelTrick()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         caretLayer.removeAllAnimations()
@@ -1782,6 +1804,142 @@ final class GlassineTextView: NSTextView {
         }
         blinkWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.55, execute: work)
+    }
+
+    // MARK: - Idle tricks
+
+    /// What the caret gets up to while nobody is typing: some seconds after
+    /// it last moved it does one of these, and another every so often until
+    /// it moves again. Never the same one twice running. Any keystroke, click
+    /// or move ends the show at once.
+    enum CaretTrick: String, CaseIterable {
+        case hop, bounce, flip, wiggle, stretch, lean
+
+        /// Runs the trick on the layer and says how long it takes. The layer
+        /// pivots on its centre; y grows downward, so "up" is negative.
+        @discardableResult
+        func run(on layer: CALayer, height: CGFloat) -> TimeInterval {
+            let up = -max(8, height * 0.9)
+            let easeOut = CAMediaTimingFunction(name: .easeOut)
+            let easeIn = CAMediaTimingFunction(name: .easeIn)
+            let ease = CAMediaTimingFunction(name: .easeInEaseOut)
+            let linear = CAMediaTimingFunction(name: .linear)
+            let duration: TimeInterval
+            let anims: [CAKeyframeAnimation]
+            switch self {
+            case .hop:
+                // Crouch, jump, land with a squash.
+                duration = 0.8
+                anims = [
+                    Self.frames("transform.translation.y", [0, up, 0, 0], [0, 0.4, 0.8, 1], [easeOut, easeIn, linear]),
+                    Self.frames("transform.scale.y", [1, 0.78, 1.12, 1, 1, 0.8, 1], [0, 0.08, 0.28, 0.5, 0.8, 0.88, 1]),
+                ]
+            case .bounce:
+                // Three, each smaller, like a dropped ball.
+                duration = 1.15
+                anims = [
+                    Self.frames("transform.translation.y", [0, up, 0, up * 0.5, 0, up * 0.22, 0, 0],
+                                [0, 0.2, 0.4, 0.56, 0.72, 0.82, 0.92, 1],
+                                [easeOut, easeIn, easeOut, easeIn, easeOut, easeIn, linear]),
+                    Self.frames("transform.scale.y", [1, 0.78, 1, 1, 0.84, 1, 1, 0.9, 1, 1, 0.94, 1, 1],
+                                [0, 0.04, 0.1, 0.38, 0.42, 0.46, 0.7, 0.73, 0.76, 0.905, 0.925, 0.945, 1]),
+                ]
+            case .flip:
+                // A cartwheel in the air.
+                duration = 0.95
+                anims = [
+                    Self.frames("transform.translation.y", [0, up * 1.2, 0, 0], [0, 0.42, 0.84, 1], [easeOut, easeIn, linear]),
+                    Self.frames("transform.rotation.z", [0, .pi * 2, .pi * 2], [0, 0.84, 1], [ease, linear]),
+                ]
+            case .wiggle:
+                // A shake of the head.
+                duration = 0.75
+                anims = [
+                    Self.frames("transform.rotation.z", [0, 0.26, -0.22, 0.17, -0.11, 0.05, 0],
+                                [0, 0.15, 0.32, 0.5, 0.68, 0.85, 1], cubic: true),
+                ]
+            case .stretch:
+                // A yawn: tall, held, settled.
+                duration = 1.0
+                anims = [
+                    Self.frames("transform.scale.y", [1, 1.38, 1.38, 0.9, 1.04, 1], [0, 0.3, 0.5, 0.75, 0.9, 1], cubic: true),
+                ]
+            case .lean:
+                // A look ahead at the next word.
+                duration = 0.95
+                anims = [
+                    Self.frames("transform.rotation.z", [0, 0.32, 0.32, 0], [0, 0.3, 0.65, 1], [ease, linear, ease]),
+                    Self.frames("transform.translation.x", [0, 6, 6, 0], [0, 0.3, 0.65, 1], [ease, linear, ease]),
+                ]
+            }
+            for a in anims {
+                a.duration = duration
+                layer.add(a, forKey: "trick.\(a.keyPath ?? "")")
+            }
+            return duration
+        }
+
+        private static func frames(_ keyPath: String, _ values: [CGFloat], _ times: [Double],
+                                   _ timing: [CAMediaTimingFunction]? = nil, cubic: Bool = false) -> CAKeyframeAnimation {
+            let a = CAKeyframeAnimation(keyPath: keyPath)
+            a.values = values
+            a.keyTimes = times.map { NSNumber(value: $0) }
+            if cubic { a.calculationMode = .cubic } else if let timing { a.timingFunctions = timing }
+            a.isRemovedOnCompletion = true
+            return a
+        }
+    }
+
+    /// The next trick, some seconds off — sooner for the first after the caret
+    /// settles, later between one and the next — unless the caret moves first.
+    /// The self-photographing mode can ask for a particular trick at a
+    /// particular moment: `-glassine.trickAfter 2 -glassine.trick flip`.
+    private func scheduleTrick(after delay: TimeInterval? = nil) {
+        trickWork?.cancel()
+        trickWork = nil
+        guard config.caretTricks, !GlassineTextView.reduceMotion else { return }
+        let work = DispatchWorkItem { [weak self] in self?.performTrick() }
+        trickWork = work
+        let asked = UserDefaults.standard.string(forKey: "glassine.trickAfter").flatMap(Double.init)
+        let wait = delay ?? asked ?? .random(in: 7...12)
+        ScreenshotMode.note("trick in \(wait)s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
+    }
+
+    private func cancelTrick() {
+        trickWork?.cancel()
+        trickWork = nil
+        guard caretTrickLayer.animationKeys()?.isEmpty == false else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        caretTrickLayer.removeAllAnimations()
+        CATransaction.commit()
+    }
+
+    private func performTrick() {
+        trickWork = nil
+        ScreenshotMode.note("trick? visible=\(caretVisible) key=\(window?.isKeyWindow ?? false) first=\(window?.firstResponder === self) on=\(config.caretTricks) reduce=\(GlassineTextView.reduceMotion)")
+        guard caretVisible, window?.isKeyWindow == true, window?.firstResponder === self,
+              config.caretTricks, !GlassineTextView.reduceMotion else { return }
+        var choices = CaretTrick.allCases
+        if let last = lastTrick, choices.count > 1 { choices.removeAll { $0 == last } }
+        let asked = UserDefaults.standard.string(forKey: "glassine.trick").flatMap(CaretTrick.init(rawValue:))
+        guard let trick = asked ?? choices.randomElement() else { return }
+        lastTrick = trick
+        // Steady while it performs: a flip at the low ebb of a blink would go unseen.
+        blinkWork?.cancel()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        caretLayer.removeAnimation(forKey: "blink")
+        caretLayer.opacity = 1
+        CATransaction.commit()
+        let duration = trick.run(on: caretTrickLayer, height: caretLayer.bounds.height)
+        ScreenshotMode.note("trick \(trick.rawValue) \(duration)s h=\(caretLayer.bounds.height) frame=\(caretLayer.frame) trick=\(caretTrickLayer.frame)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            guard let self, self.caretVisible else { return }
+            self.restartBlink()
+        }
+        scheduleTrick(after: .random(in: 9...20))
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -2110,7 +2268,7 @@ final class GlassineTextView: NSTextView {
         clip bounds: \(clip) length: \(textStorage?.length ?? -1) glyphs: \(layoutManager?.numberOfGlyphs ?? -1)
         extraLineFragment: \(layoutManager?.extraLineFragmentRect ?? .zero)
         config: font=\(config.fontFamily) \(config.fontSize)pt lh=\(config.lineHeightMultiple) col=\(config.columnWidth) top=\(config.topInset)
-        caret: smooth=\(config.smoothCaret) dur=\(config.caretDuration) typing=\(config.smoothWhileTyping) blink=\(config.caretBlink) w=\(config.caretWidth) shape=\(config.caretShape)
+        caret: smooth=\(config.smoothCaret) dur=\(config.caretDuration) typing=\(config.smoothWhileTyping) blink=\(config.caretBlink) w=\(config.caretWidth) shape=\(config.caretShape) tricks=\(config.caretTricks)
         modes: typewriter=\(config.typewriter) focus=\(config.focus) reduceMotion=\(GlassineTextView.reduceMotion)
         """
     }

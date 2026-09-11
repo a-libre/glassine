@@ -99,6 +99,9 @@ struct SettingsData: Codable, Equatable {
     var caretBlink: CaretBlink = .soft
     var caretWidth: Double = 4
     var caretShape: CaretShape = .bar
+    /// Left alone for some seconds, the caret hops, bounces, flips, wiggles,
+    /// stretches or leans, and again every so often until the typing resumes.
+    var caretTricks: Bool = true
 
     // Modes
     var typewriterMode: Bool = true
@@ -128,6 +131,12 @@ struct SettingsData: Codable, Equatable {
     /// The window floats over other apps' windows, and stays put when Stage
     /// Manager switches sets. ⌘. toggles it.
     var floatOnTop: Bool = false
+    /// What sits behind the glass: the desktop, or a slow wash of colour
+    /// inside the window (Backdrop.swift), drifting unless told not to,
+    /// frosted this much.
+    var backdrop: BackdropStyle = .desktop
+    var backdropDrift: Bool = true
+    var backdropFrost: Double = 0.3
     var expandedFolders: [String] = []
     var starred: [String] = []
     var recents: [String: Date] = [:]
@@ -147,6 +156,41 @@ struct SettingsData: Codable, Equatable {
     var checkForUpdates: Bool = true
 
     init() {}
+
+    /// The settings without the bookkeeping that changes on its own as the
+    /// app is used — the library and what is open in it, recents, stars,
+    /// caret positions, the sidebar, the Review style — so two states compare
+    /// as preferences. `withBookkeeping(of:)` keeps the same list.
+    var preferences: SettingsData {
+        var p = self
+        p.libraryPath = nil
+        p.libraryBookmark = nil
+        p.lastOpenedDocument = nil
+        p.expandedFolders = []
+        p.starred = []
+        p.recents = [:]
+        p.caretPositions = [:]
+        p.sidebarVisible = true
+        p.sidebarWidth = 0
+        p.reviewStyle = .glass
+        return p
+    }
+
+    /// These preferences with `other`'s bookkeeping.
+    func withBookkeeping(of other: SettingsData) -> SettingsData {
+        var p = self
+        p.libraryPath = other.libraryPath
+        p.libraryBookmark = other.libraryBookmark
+        p.lastOpenedDocument = other.lastOpenedDocument
+        p.expandedFolders = other.expandedFolders
+        p.starred = other.starred
+        p.recents = other.recents
+        p.caretPositions = other.caretPositions
+        p.sidebarVisible = other.sidebarVisible
+        p.sidebarWidth = other.sidebarWidth
+        p.reviewStyle = other.reviewStyle
+        return p
+    }
 
     // Tolerant decoding so new fields can be added without invalidating saved settings.
     init(from decoder: Decoder) throws {
@@ -173,6 +217,7 @@ struct SettingsData: Codable, Equatable {
         caretBlink = try c.decodeIfPresent(CaretBlink.self, forKey: .caretBlink) ?? d.caretBlink
         caretWidth = try c.decodeIfPresent(Double.self, forKey: .caretWidth) ?? d.caretWidth
         caretShape = try c.decodeIfPresent(CaretShape.self, forKey: .caretShape) ?? d.caretShape
+        caretTricks = try c.decodeIfPresent(Bool.self, forKey: .caretTricks) ?? d.caretTricks
         typewriterMode = try c.decodeIfPresent(Bool.self, forKey: .typewriterMode) ?? d.typewriterMode
         typewriterOnClick = try c.decodeIfPresent(Bool.self, forKey: .typewriterOnClick) ?? d.typewriterOnClick
         focusMode = try c.decodeIfPresent(Bool.self, forKey: .focusMode) ?? d.focusMode
@@ -191,6 +236,9 @@ struct SettingsData: Codable, Equatable {
         sidebarVisible = try c.decodeIfPresent(Bool.self, forKey: .sidebarVisible) ?? d.sidebarVisible
         sidebarWidth = try c.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? d.sidebarWidth
         floatOnTop = try c.decodeIfPresent(Bool.self, forKey: .floatOnTop) ?? d.floatOnTop
+        backdrop = try c.decodeIfPresent(BackdropStyle.self, forKey: .backdrop) ?? d.backdrop
+        backdropDrift = try c.decodeIfPresent(Bool.self, forKey: .backdropDrift) ?? d.backdropDrift
+        backdropFrost = try c.decodeIfPresent(Double.self, forKey: .backdropFrost) ?? d.backdropFrost
         expandedFolders = try c.decodeIfPresent([String].self, forKey: .expandedFolders) ?? d.expandedFolders
         starred = try c.decodeIfPresent([String].self, forKey: .starred) ?? d.starred
         recents = try c.decodeIfPresent([String: Date].self, forKey: .recents) ?? d.recents
@@ -209,7 +257,17 @@ final class AppSettings: ObservableObject {
     static let defaultsKey = "glassine.settings.v1"
 
     @Published var data: SettingsData {
-        didSet { scheduleSave() }
+        didSet {
+            scheduleSave()
+            // A change of preference is a step ⌘Z in Settings can take back;
+            // the bookkeeping that changes as the app is used is not.
+            let before = oldValue.preferences, after = data.preferences
+            guard before != after else { return }
+            SettingsUndo.shared.note(keys: SettingsUndo.changedKeys(before, after)) { [weak self] in
+                guard let self else { return }
+                self.data = before.withBookkeeping(of: self.data)
+            }
+        }
     }
 
     private let saveDebouncer = Debouncer(delay: 0.3)

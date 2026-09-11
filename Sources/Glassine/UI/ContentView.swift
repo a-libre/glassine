@@ -11,7 +11,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            GlassBackdrop(theme: theme)
+            GlassBackdrop(theme: theme, backdrop: state.settings.data.backdrop,
+                          drifts: state.settings.data.backdropDrift, frost: state.settings.data.backdropFrost)
 
             HStack(spacing: 0) {
                 if sidebarVisible {

@@ -345,7 +345,14 @@ struct SidebarView: View {
 
     private var sidebarBackground: some View {
         ZStack {
-            VisualEffectBackground(material: .sidebar)
+            // Over a backdrop there is nothing to frost — the folds are smooth
+            // already, and the blur materials cannot see a Metal layer anyway —
+            // so the sidebar is a veil over the colour rather than a blur of it.
+            if state.settings.data.backdrop == .desktop {
+                VisualEffectBackground(material: .sidebar)
+            } else {
+                (theme.isDark ? Color.black : Color.white).opacity(0.18)
+            }
             LinearGradient(
                 colors: [sidebarTint.opacity(theme.sidebarOpacity), sidebarTint.opacity(theme.sidebarOpacity * 0.7)],
                 startPoint: .top, endPoint: .bottom
