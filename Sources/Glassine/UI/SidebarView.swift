@@ -348,7 +348,7 @@ struct SidebarView: View {
             // Over a backdrop there is nothing to frost — the folds are smooth
             // already, and the blur materials cannot see a Metal layer anyway —
             // so the sidebar is a veil over the colour rather than a blur of it.
-            if state.settings.data.backdrop == .desktop {
+            if state.settings.data.backdrop == BackdropPreset.desktopID {
                 VisualEffectBackground(material: .sidebar)
             } else {
                 (theme.isDark ? Color.black : Color.white).opacity(0.18)

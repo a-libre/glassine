@@ -131,10 +131,10 @@ struct SettingsData: Codable, Equatable {
     /// The window floats over other apps' windows, and stays put when Stage
     /// Manager switches sets. ⌘. toggles it.
     var floatOnTop: Bool = false
-    /// What sits behind the glass: the desktop, or a slow wash of colour
-    /// inside the window (Backdrop.swift), drifting unless told not to,
-    /// frosted this much.
-    var backdrop: BackdropStyle = .desktop
+    /// What sits behind the glass: the desktop, or folds of colour inside
+    /// the window (Backdrop.swift) — the id of a built-in set or one of the
+    /// user's own — drifting unless told not to, frosted this much.
+    var backdrop: String = BackdropPreset.desktopID
     var backdropDrift: Bool = true
     var backdropFrost: Double = 0.3
     var expandedFolders: [String] = []
@@ -236,7 +236,7 @@ struct SettingsData: Codable, Equatable {
         sidebarVisible = try c.decodeIfPresent(Bool.self, forKey: .sidebarVisible) ?? d.sidebarVisible
         sidebarWidth = try c.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? d.sidebarWidth
         floatOnTop = try c.decodeIfPresent(Bool.self, forKey: .floatOnTop) ?? d.floatOnTop
-        backdrop = try c.decodeIfPresent(BackdropStyle.self, forKey: .backdrop) ?? d.backdrop
+        backdrop = try c.decodeIfPresent(String.self, forKey: .backdrop) ?? d.backdrop
         backdropDrift = try c.decodeIfPresent(Bool.self, forKey: .backdropDrift) ?? d.backdropDrift
         backdropFrost = try c.decodeIfPresent(Double.self, forKey: .backdropFrost) ?? d.backdropFrost
         expandedFolders = try c.decodeIfPresent([String].self, forKey: .expandedFolders) ?? d.expandedFolders

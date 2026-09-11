@@ -8,6 +8,7 @@ final class AppState: ObservableObject {
 
     let settings: AppSettings
     let themes: ThemeStore
+    let backdrops = BackdropStore()
     @Published private(set) var library: LibraryStore
     @Published private(set) var document: DocumentModel?
     @Published var selection: String?          // relative path of the selected document
@@ -122,6 +123,7 @@ final class AppState: ObservableObject {
         // Republish nested object changes so views observing AppState refresh.
         settings.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         themes.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        backdrops.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         bindLibrary()
 
         bootstrapLibrary()
@@ -171,6 +173,7 @@ final class AppState: ObservableObject {
         case "review": if document != nil { reviewMode = true }
         case "daily": showDaily()
         case "settings": showingSettings = true; settingsTab = 1
+        case "backdrops": showingSettings = true; settingsTab = 2
         default: break
         }
     }
@@ -944,9 +947,9 @@ final class AppState: ObservableObject {
             let mark = theme.id == t.id ? "  ✓" : ""
             add("theme-\(t.id)", "Theme: \(t.name)\(mark)") { [weak self] in self?.chooseTheme(t.id) }
         }
-        for b in BackdropStyle.allCases {
-            let mark = settings.data.backdrop == b ? "  ✓" : ""
-            add("backdrop-\(b.rawValue)", "Backdrop: \(b.shortLabel)\(mark)") { [weak self] in self?.settings.data.backdrop = b }
+        for b in backdrops.all {
+            let mark = settings.data.backdrop == b.id ? "  ✓" : ""
+            add("backdrop-\(b.id)", "Backdrop: \(b.name)\(mark)") { [weak self] in self?.settings.data.backdrop = b.id }
         }
         add("float", settings.data.floatOnTop ? "Stop floating over other windows" : "Float over other windows", keys: "⌘.") { [weak self] in self?.toggleFloating() }
         add("settings", "Settings…", keys: "⌘,") { [weak self] in self?.showingSettings = true }

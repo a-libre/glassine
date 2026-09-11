@@ -10,72 +10,168 @@ import SwiftUI
 /// a plain grey desktop, or a picture that fights the page. A backdrop puts
 /// folds of colour behind the glass instead, inside the window — deep,
 /// sweeping, slowly moving — so the glass has something worth looking
-/// through wherever it is.
-enum BackdropStyle: String, Codable, CaseIterable, Identifiable {
-    case desktop, aurora, dusk, ocean, ember, moss, rose, graphite
+/// through wherever it is. A backdrop is a set of three to five colours: the
+/// built-in sets, or one of the user's own, made by duplicating a set and
+/// changing its colours in Settings → Themes → Behind the glass.
+struct BackdropPreset: Codable, Identifiable, Hashable {
+    var id: String
+    var name: String
+    /// Three to five. Their hue and saturation are what count; the theme sets
+    /// the lightness — deep on a dark theme, pale on a light one — so the
+    /// text stays readable over every part. The first sets the ground.
+    var colors: [HexColor]
+    var isBuiltIn: Bool = false
 
-    var id: String { rawValue }
+    static let desktopID = "desktop"
+    static let auroraID = "aurora"
+    static let minColors = 3
+    static let maxColors = 5
 
-    var label: String {
-        switch self {
-        case .desktop: return "The desktop, through the glass"
-        case .aurora: return "Aurora — the theme's own colours"
-        case .dusk: return "Dusk — violet and indigo"
-        case .ocean: return "Ocean — blue and teal"
-        case .ember: return "Ember — red, orange and gold"
-        case .moss: return "Moss — green and lime"
-        case .rose: return "Rose — pink, mauve and peach"
-        case .graphite: return "Graphite — grey, barely tinted"
+    var isDesktop: Bool { id == BackdropPreset.desktopID }
+    var isAurora: Bool { id == BackdropPreset.auroraID }
+
+    /// The colours the folds run through under this theme. Aurora's come
+    /// from the theme itself — its tint and its accent, and hues either side.
+    func colors(for theme: Theme) -> [HexColor] {
+        guard isAurora else { return colors }
+        let tint = theme.tint.nsColor.usingColorSpace(.deviceRGB) ?? .gray
+        let accent = theme.accent.nsColor.usingColorSpace(.deviceRGB) ?? .blue
+        let t = tint.hueComponent * 360
+        let a = accent.hueComponent * 360
+        // Little saturation in the tint means a neutral theme: keep the
+        // colours quiet rather than inventing a colour it never had.
+        let s = max(0.3, min(0.75, tint.saturationComponent + 0.3))
+        let between = t + (((a - t + 540).truncatingRemainder(dividingBy: 360)) - 180) / 2
+        return [hsb(t, s), hsb(a, min(0.85, s + 0.15)), hsb(t + 30, s * 0.9), hsb(between, s), hsb(t - 30, s * 0.9)]
+    }
+
+    /// A line about the set, for the editor.
+    var blurb: String {
+        switch id {
+        case BackdropPreset.desktopID: return "No backdrop: the window is a blur of whatever is behind it — the desktop, or the windows behind."
+        case BackdropPreset.auroraID: return "The theme's own colours — its tint and its accent, and hues either side of them — run through the folds. Changes with the theme."
+        case "dusk": return "Indigo, cobalt and violet, with a thread of magenta."
+        case "nebula": return "Magenta, indigo and teal."
+        case "ocean": return "Navy, cyan and teal, with a touch of violet."
+        case "borealis": return "Green, teal and violet."
+        case "ember": return "Crimson, orange and gold, with plum."
+        case "sunset": return "Violet, orange, rose and gold."
+        case "moss": return "Green, lime and teal, with gold."
+        case "rose": return "Rose, peach, mauve and coral."
+        case "graphite": return "Grey, barely tinted."
+        default: return ""
         }
     }
 
-    var shortLabel: String {
-        switch self {
-        case .desktop: return "Desktop"
-        case .aurora: return "Aurora"
-        default: return rawValue.capitalized
+    /// A colour by hue (degrees) and saturation, at the middle lightness the
+    /// theme will move anyway.
+    static func hsb(_ hue: CGFloat, _ saturation: CGFloat, _ brightness: CGFloat = 0.55) -> HexColor {
+        let h = ((hue.truncatingRemainder(dividingBy: 360)) + 360).truncatingRemainder(dividingBy: 360)
+        return HexColor(NSColor(hue: h / 360, saturation: saturation, brightness: brightness, alpha: 1))
+    }
+    private func hsb(_ hue: CGFloat, _ saturation: CGFloat) -> HexColor { BackdropPreset.hsb(hue, saturation) }
+
+    static let desktop = BackdropPreset(id: desktopID, name: "Desktop", colors: [], isBuiltIn: true)
+    static let aurora = BackdropPreset(id: auroraID, name: "Aurora", colors: [], isBuiltIn: true)
+    static let dusk = BackdropPreset(id: "dusk", name: "Dusk", isBuiltIn: true,
+                                     hues: [(250, 0.8), (218, 0.85), (282, 0.75), (312, 0.6), (262, 0.7)])
+    static let nebula = BackdropPreset(id: "nebula", name: "Nebula", isBuiltIn: true,
+                                       hues: [(300, 0.7), (240, 0.8), (182, 0.75), (268, 0.7), (335, 0.6)])
+    static let ocean = BackdropPreset(id: "ocean", name: "Ocean", isBuiltIn: true,
+                                      hues: [(222, 0.85), (190, 0.8), (168, 0.7), (255, 0.55), (205, 0.8)])
+    static let borealis = BackdropPreset(id: "borealis", name: "Borealis", isBuiltIn: true,
+                                         hues: [(145, 0.75), (185, 0.7), (265, 0.6), (100, 0.65), (200, 0.7)])
+    static let ember = BackdropPreset(id: "ember", name: "Ember", isBuiltIn: true,
+                                      hues: [(352, 0.8), (24, 0.9), (42, 0.85), (322, 0.6), (10, 0.8)])
+    static let sunset = BackdropPreset(id: "sunset", name: "Sunset", isBuiltIn: true,
+                                       hues: [(275, 0.7), (25, 0.85), (345, 0.7), (45, 0.8), (245, 0.75)])
+    static let moss = BackdropPreset(id: "moss", name: "Moss", isBuiltIn: true,
+                                     hues: [(130, 0.7), (85, 0.7), (175, 0.6), (50, 0.6), (155, 0.7)])
+    static let rose = BackdropPreset(id: "rose", name: "Rose", isBuiltIn: true,
+                                     hues: [(340, 0.7), (20, 0.65), (300, 0.5), (5, 0.7), (330, 0.6)])
+    static let graphite = BackdropPreset(id: "graphite", name: "Graphite", isBuiltIn: true,
+                                         hues: [(220, 0.08), (240, 0.06), (200, 0.08), (260, 0.06), (230, 0.05)])
+    static let builtIns: [BackdropPreset] = [desktop, aurora, dusk, nebula, ocean, borealis, ember, sunset, moss, rose, graphite]
+
+    init(id: String, name: String, colors: [HexColor], isBuiltIn: Bool = false) {
+        self.id = id
+        self.name = name
+        self.colors = colors
+        self.isBuiltIn = isBuiltIn
+    }
+
+    private init(id: String, name: String, isBuiltIn: Bool, hues: [(CGFloat, CGFloat)]) {
+        self.init(id: id, name: name, colors: hues.map { BackdropPreset.hsb($0.0, $0.1) }, isBuiltIn: isBuiltIn)
+    }
+
+    func renamed(_ newName: String) -> BackdropPreset {
+        var p = self
+        p.id = UUID().uuidString
+        p.name = newName
+        p.isBuiltIn = false
+        return p
+    }
+}
+
+/// The user's own backdrops, kept beside the custom themes.
+final class BackdropStore: ObservableObject {
+    static let defaultsKey = "glassine.customBackdrops.v1"
+
+    @Published var custom: [BackdropPreset] {
+        didSet {
+            persist()
+            // Each edit is a step ⌘Z in Settings can take back; a run of
+            // edits to one backdrop inside a second is one step.
+            let before = oldValue
+            guard before != custom else { return }
+            let byID = Dictionary(before.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let nowByID = Dictionary(custom.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let keys = Set(byID.keys).union(nowByID.keys).filter { byID[$0] != nowByID[$0] }
+            SettingsUndo.shared.note(keys: Set(keys.map { "backdrop." + $0 })) { [weak self] in self?.custom = before }
         }
     }
 
-    /// The hues (in degrees) and saturations of the colours the folds run
-    /// through. Their lightness comes from the theme, so a dark theme gets
-    /// deep silk and a light one a pale morning, whichever palette is picked.
-    func washes(for theme: Theme) -> [Wash] {
-        switch self {
-        case .desktop:
-            return []
-        case .aurora:
-            let tint = theme.tint.nsColor.usingColorSpace(.deviceRGB) ?? .gray
-            let accent = theme.accent.nsColor.usingColorSpace(.deviceRGB) ?? .blue
-            let t = tint.hueComponent * 360
-            let a = accent.hueComponent * 360
-            // Little saturation in the tint means a neutral theme: keep the
-            // colours quiet rather than inventing a colour it never had.
-            let s = max(0.25, min(0.6, tint.saturationComponent + 0.15))
-            let between = t + (((a - t + 540).truncatingRemainder(dividingBy: 360)) - 180) / 2
-            return [Wash(t, s), Wash(t + 22, s * 0.9), Wash(t - 26, s * 0.9),
-                    Wash(a, min(0.65, s + 0.2)), Wash(between, s * 0.8), Wash(t + 8, s)]
-        case .dusk:
-            return [Wash(262, 0.55), Wash(232, 0.55), Wash(280, 0.5), Wash(214, 0.5), Wash(292, 0.42), Wash(248, 0.5)]
-        case .ocean:
-            return [Wash(208, 0.55), Wash(190, 0.5), Wash(226, 0.55), Wash(174, 0.45), Wash(216, 0.5), Wash(198, 0.5)]
-        case .ember:
-            return [Wash(14, 0.6), Wash(30, 0.6), Wash(354, 0.5), Wash(42, 0.55), Wash(330, 0.4), Wash(20, 0.55)]
-        case .moss:
-            return [Wash(130, 0.45), Wash(96, 0.45), Wash(160, 0.4), Wash(76, 0.4), Wash(176, 0.35), Wash(118, 0.45)]
-        case .rose:
-            return [Wash(340, 0.45), Wash(356, 0.45), Wash(320, 0.4), Wash(18, 0.4), Wash(300, 0.3), Wash(346, 0.45)]
-        case .graphite:
-            return [Wash(220, 0.05), Wash(240, 0.04), Wash(200, 0.05), Wash(260, 0.04), Wash(220, 0.03), Wash(230, 0.05)]
+    init() {
+        if let data = UserDefaults.standard.data(forKey: BackdropStore.defaultsKey),
+           let decoded = try? JSONDecoder().decode([BackdropPreset].self, from: data) {
+            custom = decoded
+        } else {
+            custom = []
         }
     }
 
-    struct Wash: Equatable {
-        var hue: CGFloat      // degrees
-        var saturation: CGFloat
-        init(_ hue: CGFloat, _ saturation: CGFloat) {
-            self.hue = ((hue.truncatingRemainder(dividingBy: 360)) + 360).truncatingRemainder(dividingBy: 360)
-            self.saturation = saturation
+    var all: [BackdropPreset] { BackdropPreset.builtIns + custom }
+
+    func preset(id: String) -> BackdropPreset {
+        all.first(where: { $0.id == id }) ?? BackdropPreset.desktop
+    }
+
+    func update(_ preset: BackdropPreset) {
+        guard !preset.isBuiltIn else { return }
+        if let i = custom.firstIndex(where: { $0.id == preset.id }) {
+            custom[i] = preset
+        } else {
+            custom.append(preset)
+        }
+    }
+
+    /// A copy to edit. Aurora's copy takes the colours it has under the
+    /// theme of the moment; the desktop has none to copy, so its copy is Dusk's.
+    @discardableResult
+    func duplicate(_ preset: BackdropPreset, for theme: Theme) -> BackdropPreset {
+        var copy = preset.renamed(preset.name + " Copy")
+        copy.colors = preset.isDesktop ? BackdropPreset.dusk.colors : preset.colors(for: theme)
+        custom.append(copy)
+        return copy
+    }
+
+    func delete(_ preset: BackdropPreset) {
+        custom.removeAll { $0.id == preset.id }
+    }
+
+    private func persist() {
+        if let data = try? JSONEncoder().encode(custom) {
+            UserDefaults.standard.set(data, forKey: BackdropStore.defaultsKey)
         }
     }
 }
@@ -83,13 +179,13 @@ enum BackdropStyle: String, Codable, CaseIterable, Identifiable {
 /// Everything the view needs to draw a backdrop, and nothing that changes
 /// without the drawing having to.
 struct BackdropConfig: Equatable {
-    var washes: [BackdropStyle.Wash]
+    var colors: [HexColor]
     var isDark: Bool
     var drifts: Bool
     var frost: Double
 
-    init(style: BackdropStyle, theme: Theme, drifts: Bool, frost: Double) {
-        washes = style.washes(for: theme)
+    init(preset: BackdropPreset, theme: Theme, drifts: Bool, frost: Double) {
+        colors = preset.colors(for: theme)
         isDark = theme.isDark
         self.drifts = drifts && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         self.frost = frost
@@ -199,35 +295,40 @@ final class BackdropView: NSView {
     }
 
     /// The palette, as the shader wants it: five colours the folds run
-    /// through and one for the bright edge, plus the ground. On a dark theme
-    /// the colours are deep — saturated, never bright — and the ground is
-    /// close to black; on a light theme they are pale over near white.
+    /// through and one for the bright edge, plus the ground. The set's hues
+    /// and saturations are kept; the lightness is the theme's — on a dark
+    /// theme deep, never bright, over a ground close to black; on a light
+    /// theme pale over near white. The slots are dealt so that a set of
+    /// three still sweeps between two of its colours.
     private func applyConfig() {
         let dark = config.isDark
         let frost = CGFloat(config.frost)
-        let washes = config.washes.isEmpty ? [BackdropStyle.Wash(230, 0.3)] : config.washes
-        func wash(_ i: Int) -> BackdropStyle.Wash { washes[i % washes.count] }
+        let colors = config.colors.isEmpty ? BackdropPreset.dusk.colors : config.colors
+        func hsb(_ i: Int) -> (h: CGFloat, s: CGFloat, b: CGFloat) {
+            let c = colors[i % colors.count].nsColor.usingColorSpace(.deviceRGB) ?? .gray
+            return (c.hueComponent, c.saturationComponent, c.brightnessComponent)
+        }
         func rgb(_ c: NSColor) -> SIMD4<Float> {
             let s = c.usingColorSpace(.sRGB) ?? c
             return SIMD4(Float(s.redComponent), Float(s.greenComponent), Float(s.blueComponent), 1)
         }
-        let ground = wash(0)
+        let ground = hsb(0)
         uniforms.ground = rgb(NSColor(
-            hue: ground.hue / 360, saturation: ground.saturation * (dark ? 0.7 : 0.2) * (1 - 0.5 * frost),
+            hue: ground.h, saturation: ground.s * (dark ? 0.7 : 0.2) * (1 - 0.5 * frost),
             brightness: dark ? 0.045 : 0.965, alpha: 1))
-        var rng = SeededGenerator(seed: 0x6C61_7373_696E_65)   // the same silk every launch
-        var colors: [SIMD4<Float>] = []
-        for i in 0..<5 {
-            let w = wash(i)
-            let saturation = dark ? min(0.92, w.saturation * 1.5) : min(0.7, w.saturation * 1.1)
-            let brightness = dark ? (0.45 + 0.15 * rng.next() + 0.1 * frost) : (0.8 + 0.06 * rng.next())
-            colors.append(rgb(NSColor(hue: w.hue / 360, saturation: saturation * (1 - 0.55 * frost),
-                                      brightness: brightness, alpha: 1)))
+        var slots: [SIMD4<Float>] = []
+        for i in [0, 2, 3, 1, 4] {
+            let c = hsb(i)
+            let saturation = dark ? min(0.92, c.s) : min(0.7, c.s * 0.85)
+            let brightness = dark ? (min(max(c.b, 0.32), 0.62) + 0.1 * frost) : min(max(c.b, 0.78), 0.9)
+            slots.append(rgb(NSColor(hue: c.h, saturation: saturation * (1 - 0.55 * frost),
+                                     brightness: brightness, alpha: 1)))
         }
         // The edge: the same silk, catching the light.
-        colors.append(rgb(NSColor(hue: wash(1).hue / 360, saturation: (dark ? 0.35 : 0.12) * (1 - 0.5 * frost),
-                                  brightness: dark ? 0.85 : 1, alpha: 1)))
-        uniforms.colors = (colors[0], colors[1], colors[2], colors[3], colors[4], colors[5])
+        let edge = hsb(1)
+        slots.append(rgb(NSColor(hue: edge.h, saturation: (dark ? 0.35 : 0.12) * (1 - 0.5 * frost),
+                                 brightness: dark ? 0.85 : 1, alpha: 1)))
+        uniforms.colors = (slots[0], slots[1], slots[2], slots[3], slots[4], slots[5])
         uniforms.dark = dark ? 1 : 0
         uniforms.frost = Float(frost)
         metalLayer.backgroundColor = NSColor(red: CGFloat(uniforms.ground.x), green: CGFloat(uniforms.ground.y),
@@ -281,21 +382,6 @@ final class BackdropView: NSView {
         var ground = SIMD4<Float>(0, 0, 0, 1)
         var colors: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>) =
             (.zero, .zero, .zero, .zero, .zero, .zero)
-    }
-
-    /// A small deterministic generator (SplitMix64), so the palette's
-    /// lightness varies the same way every launch.
-    private struct SeededGenerator {
-        private var state: UInt64
-        init(seed: UInt64) { state = seed }
-        mutating func next() -> CGFloat {
-            state &+= 0x9E37_79B9_7F4A_7C15
-            var z = state
-            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
-            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
-            z ^= z >> 31
-            return CGFloat(z >> 11) / CGFloat(1 << 53)
-        }
     }
 
     /// One triangle over the whole layer, and a fragment shader that warps a

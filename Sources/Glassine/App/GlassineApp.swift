@@ -367,7 +367,7 @@ struct GlassineCommands: Commands {
                 get: { state.settings.data.backdrop },
                 set: { state.settings.data.backdrop = $0 }
             )) {
-                ForEach(BackdropStyle.allCases) { b in Text(b.shortLabel).tag(b) }
+                ForEach(state.backdrops.all) { b in Text(b.name).tag(b.id) }
             }
             Divider()
             Button("Bigger Text") { state.adjustFontSize(by: 1) }

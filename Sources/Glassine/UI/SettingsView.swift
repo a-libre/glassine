@@ -157,17 +157,6 @@ struct GeneralSettings: View {
                 Text("Changes are written about half a second after you stop typing, and at least every few seconds while you type. Nothing to remember.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Behind the glass") {
-                Picker("Backdrop", selection: data.backdrop) {
-                    ForEach(BackdropStyle.allCases) { Text($0.label).tag($0) }
-                }
-                Toggle("Drift", isOn: data.backdropDrift)
-                    .disabled(state.settings.data.backdrop == .desktop)
-                sliderRow("Frost", value: data.backdropFrost, range: 0...1, step: 0.05, format: "%.0f%%", scale: 100)
-                    .disabled(state.settings.data.backdrop == .desktop)
-                Text("The glass shows whatever is behind the window. A backdrop puts folds of colour there instead, inside the window — deep and slow, like silk lit from one side — for a desk without a wallpaper worth looking through. Its lightness follows the theme. Drift moves it, slowly; never under Reduce Motion. Frost pales and softens it.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             #if canImport(Sparkle)
             Section("Updates") {
                 Toggle("Check for new versions once a day", isOn: Binding(
@@ -293,6 +282,15 @@ struct EditorSettings: View {
 struct ThemeSettings: View {
     @EnvironmentObject var state: AppState
     @State private var editing: Theme?
+    /// The pane has two halves: the themes, and what sits behind the glass.
+    /// (`-glassine.launchView backdrops` opens on the second, for the self-shots.)
+    @State private var part: Part = UserDefaults.standard.string(forKey: "glassine.launchView") == "backdrops" ? .backdrops : .themes
+
+    enum Part: String, CaseIterable, Identifiable {
+        case themes, backdrops
+        var id: String { rawValue }
+        var label: String { self == .themes ? "Theme" : "Behind the glass" }
+    }
 
     private var data: Binding<SettingsData> {
         Binding(get: { state.settings.data }, set: { state.settings.data = $0 })
@@ -300,10 +298,33 @@ struct ThemeSettings: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            appearanceBar
+            partBar
             Divider()
-            themeSplit
+            switch part {
+            case .themes:
+                appearanceBar
+                Divider()
+                themeSplit
+            case .backdrops:
+                backdropSplit
+            }
         }
+    }
+
+    /// The switch between the themes and what sits behind the glass.
+    private var partBar: some View {
+        HStack {
+            Picker("", selection: $part) {
+                ForEach(Part.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            Spacer()
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     /// Either one theme all the time, or a light/dark pair that follows macOS.
@@ -326,6 +347,56 @@ struct ThemeSettings: View {
         .controlSize(.small)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    // MARK: Behind the glass
+
+    private var currentBackdrop: BackdropPreset { state.backdrops.preset(id: state.settings.data.backdrop) }
+
+    /// The backdrops — built in and the user's own — beside the editor for
+    /// the selected one, the way the themes are laid out.
+    private var backdropSplit: some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                List(selection: Binding(
+                    get: { state.settings.data.backdrop },
+                    set: { if let id = $0 { state.settings.data.backdrop = id } }
+                )) {
+                    Section("Built in") {
+                        ForEach(BackdropPreset.builtIns) { b in BackdropRowLabel(preset: b, theme: state.theme).tag(b.id) }
+                    }
+                    if !state.backdrops.custom.isEmpty {
+                        Section("Mine") {
+                            ForEach(state.backdrops.custom) { b in BackdropRowLabel(preset: b, theme: state.theme).tag(b.id) }
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+                HStack(spacing: 6) {
+                    Button {
+                        let copy = state.backdrops.duplicate(currentBackdrop, for: state.theme)
+                        state.settings.data.backdrop = copy.id
+                    } label: { Image(systemName: "plus") }
+                    .help("Duplicate the selected backdrop so you can change its colours")
+                    Button {
+                        let b = currentBackdrop
+                        guard !b.isBuiltIn else { return }
+                        state.backdrops.delete(b)
+                        state.settings.data.backdrop = BackdropPreset.dusk.id
+                    } label: { Image(systemName: "minus") }
+                    .disabled(currentBackdrop.isBuiltIn)
+                    Spacer()
+                }
+                .buttonStyle(.borderless)
+                .padding(8)
+            }
+            .frame(width: 190)
+
+            Divider()
+
+            BackdropEditor(preset: currentBackdrop)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 
     private var themeSplit: some View {
@@ -399,6 +470,123 @@ struct ThemeSettings: View {
         if panel.runModal() == .OK, let url = panel.url {
             try? state.themes.export(state.theme, to: url)
         }
+    }
+}
+
+/// A backdrop in the list: its colours as a strip, and its name.
+struct BackdropRowLabel: View {
+    let preset: BackdropPreset
+    let theme: Theme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Group {
+                if preset.isDesktop {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                } else {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(LinearGradient(colors: preset.colors(for: theme).map(\.color), startPoint: .leading, endPoint: .trailing))
+                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(Color.primary.opacity(0.15)))
+                }
+            }
+            .frame(width: 18, height: 18)
+            Text(preset.name)
+        }
+    }
+}
+
+/// The selected backdrop: its colours, to change on one of the user's own,
+/// and the drift and frost that apply to all of them.
+struct BackdropEditor: View {
+    @EnvironmentObject var state: AppState
+    let preset: BackdropPreset
+
+    private var data: Binding<SettingsData> {
+        Binding(get: { state.settings.data }, set: { state.settings.data = $0 })
+    }
+
+    private var colors: [HexColor] { preset.colors(for: state.theme) }
+
+    private func colorBinding(_ i: Int) -> Binding<Color> {
+        Binding(
+            get: { colors.indices.contains(i) ? colors[i].color : .gray },
+            set: { newValue in
+                var p = preset
+                guard p.colors.indices.contains(i) else { return }
+                p.colors[i] = HexColor(newValue)
+                state.backdrops.update(p)
+            }
+        )
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(get: { preset.name }, set: { var p = preset; p.name = $0; state.backdrops.update(p) })
+    }
+
+    var body: some View {
+        let locked = preset.isBuiltIn
+        Form {
+            if preset.isDesktop {
+                Section {
+                    Text(preset.blurb)
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("Pick a set of colours to put folds of colour inside the window instead — deep and slow, like silk lit from one side — for a desk without a wallpaper worth looking through. Press + on a set to make a copy whose colours are yours to change.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            } else {
+                if locked {
+                    Section {
+                        HStack {
+                            Image(systemName: "lock").foregroundStyle(.secondary)
+                            Text("Built-in backdrops can't be edited. Press + to duplicate “\(preset.name)” and make it yours.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Section("Name") {
+                    if locked {
+                        LabeledContent("Name", value: preset.name)
+                        Text(preset.blurb).font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        TextField("Name", text: nameBinding)
+                    }
+                }
+                Section("Colours") {
+                    ForEach(colors.indices, id: \.self) { i in
+                        HStack {
+                            ColorPicker(i == 0 ? "Ground and first fold" : "Colour \(i + 1)", selection: colorBinding(i), supportsOpacity: false)
+                            if !locked, colors.count > BackdropPreset.minColors {
+                                Button {
+                                    var p = preset
+                                    p.colors.remove(at: i)
+                                    state.backdrops.update(p)
+                                } label: { Image(systemName: "minus.circle") }
+                                .buttonStyle(.borderless)
+                                .help("Remove this colour")
+                            }
+                        }
+                    }
+                    if !locked, colors.count < BackdropPreset.maxColors {
+                        Button("Add a colour") {
+                            var p = preset
+                            p.colors.append(p.colors.last ?? BackdropPreset.hsb(250, 0.8))
+                            state.backdrops.update(p)
+                        }
+                    }
+                    Text("Three to five. Their hue and saturation are what count: the theme sets the lightness — deep on a dark theme, pale on a light one — so the text stays readable over every part. The first colour tints the ground and starts the main sweep; the others run through the folds.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .disabled(locked)
+                Section("Motion and frost") {
+                    Toggle("Drift", isOn: data.backdropDrift)
+                    sliderRow("Frost", value: data.backdropFrost, range: 0...1, step: 0.05, format: "%.0f%%", scale: 100)
+                    Text("For every backdrop. Drift moves the folds, slowly; never under Reduce Motion. Frost pales and softens the colour.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
