@@ -451,7 +451,9 @@ final class BackdropView: NSView {
 
     fragment float4 backdropFragment(V2F in [[stage_in]], constant Uniforms& u [[buffer(0)]]) {
         float2 p = float2(in.uv.x * u.aspect, in.uv.y) + float2(3.7, 11.2);
-        float t = u.time * 0.045;
+        // The one speed everything drifts at: slow enough that the eye never
+        // catches it moving, only that it has moved. (0.045 was distracting.)
+        float t = u.time * 0.016;
         // Two rounds of warping on a smooth field: the sweeps come from
         // here, and stay long and soft because the field is.
         float2 pw = p * 0.7;
