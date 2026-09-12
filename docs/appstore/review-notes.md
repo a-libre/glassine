@@ -3,7 +3,19 @@
 The replies to App Review, newest first, and the text for the version page's
 App Review Information → Notes field. All ready to paste.
 
-## Reply to the September 9 rejection (5.1.1(ii) purpose strings; Guideline 4 window)
+## Reply to the September 12 rejection (Guideline 4 — no Quit in the app menu; build 10 reviewed)
+
+Hello,
+
+Thank you for the review. You are right: build 10 had no Quit item, and no application menu to speak of. The change that added the Window → Glassine item for the previous note (Guideline 4, reopening the window) used SwiftUI's `commandsRemoved()` on the window scene, which removes the standard menus along with the scene's own item — the application menu's Quit, Hide and Hide Others, and the Edit menu's Undo, Cut, Copy, Paste and Select All, with their shortcuts. I found the defect the day after uploading build 10 and it is fixed in build 0.2.3 (17), attached to this submission, which replaces the scene's item alone and leaves the standard menus in place.
+
+In build 17 the Glassine menu has About, Settings…, Services, Hide Glassine, Hide Others, Show All and Quit Glassine (⌘Q); the Edit menu has Undo, Redo, Cut, Copy, Paste, Delete and Select All; the Window menu has Minimize, Zoom and Glassine (which brings the window back after it has been closed, the previous note). I verified each item by reading the running app's menu bar.
+
+The earlier points still hold in this build: the iCloud Drive and Documents-folder permission prompts say what the app does with the folder and give an example; the window reopens from Window → Glassine, from the Dock icon and from any command that needs it. Build 17 also carries the small features and fixes released to the direct-download version since (an optional coloured backdrop inside the window, a caret that does small animations while idle, ⌘Z inside Settings, and a fix for keystrokes being delayed after the window had been covered) — none of which change permissions, entitlements or data handling. No sign-in, no external services; the outgoing-connection entitlement is for WebKit only.
+
+Alex Libre
+
+## Reply to the September 9 rejection (5.1.1(ii) purpose strings; Guideline 4 window) — superseded by the reply above; build 10 went in with it and was itself defective
 
 Hello,
 
@@ -17,7 +29,7 @@ Otherwise this build holds a few small features added since the last one (an opt
 
 Alex Libre
 
-(Build 10, packaged on September 10 for this reply, must not be the one submitted: a change made for the Guideline 4 fix had removed the standard Edit and application menus — Select All, Undo, Cut, Copy, Paste, Hide, Quit and their keys. Build 13 has them back.)
+(Build 10, packaged on September 10 for this reply, was the one reviewed on September 12 and was rejected for the missing Quit item: a change made for the Guideline 4 fix had removed the standard Edit and application menus. Builds 13 and 17 have them back; 17 is the one to submit.)
 
 ## Reply to the September 5 request (Guideline 2.1 – Information Needed – New App Submission)
 
