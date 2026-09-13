@@ -138,17 +138,41 @@ final class GlassineLayoutManager: NSLayoutManager {
         edge.stroke()
     }
 
-    /// A horizontal rule: its dashes are not drawn (see the text view's glyph
-    /// generation), and a line across the middle of the column stands in for
-    /// them — unless the caret is on that line, when the dashes show instead.
+    /// Where the Markdown shows as written: the sentence the caret is in.
+    private var revealRange: NSRange {
+        (firstTextView as? GlassineTextView)?.syntaxRevealRange ?? NSRange(location: NSNotFound, length: 0)
+    }
+
+    /// A horizontal rule's dashes are laid out like any text — so their line
+    /// is measured like any line — but not drawn, unless the caret is on
+    /// that line. The rule itself is drawn in drawBackground.
+    override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        guard let storage = textStorage else { super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin); return }
+        let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        var hasRule = false
+        storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, _, stop in
+            if value != nil { hasRule = true; stop.pointee = true }
+        }
+        guard hasRule else { super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin); return }
+        let reveal = revealRange
+        storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
+            if value != nil, !NSLocationInRange(range.location, reveal) { return }
+            let piece = NSIntersectionRange(self.glyphRange(forCharacterRange: range, actualCharacterRange: nil), glyphsToShow)
+            if piece.length > 0 { super.drawGlyphs(forGlyphRange: piece, at: origin) }
+        }
+    }
+
+    /// A horizontal rule: a line across the middle of the column, where the
+    /// dashes are — unless the caret is on that line, when the dashes show instead.
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
         guard let storage = textStorage else { return }
         let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        let reveal = revealRange
         storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
-            guard let color = value as? NSColor else { return }
+            guard let color = value as? NSColor, !NSLocationInRange(range.location, reveal) else { return }
             let glyphs = self.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-            guard glyphs.length > 0, self.propertyForGlyph(at: glyphs.location) == .null,
+            guard glyphs.length > 0,
                   let container = self.textContainer(forGlyphAt: glyphs.location, effectiveRange: nil) else { return }
             let line = self.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
             let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 16)

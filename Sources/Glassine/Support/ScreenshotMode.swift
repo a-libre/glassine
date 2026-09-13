@@ -83,6 +83,21 @@ enum ScreenshotMode {
                 if defaults.bool(forKey: "glassine.shootSlash") {
                     editor.insertText("/", replacementRange: editor.selectedRange())
                 }
+                // A second selection a beat later (`-glassine.shootSelectThen 12,0`),
+                // for what happens when the caret leaves a line; and a trip
+                // through Review and back (`-glassine.shootBounce review`).
+                if let spec = defaults.string(forKey: "glassine.shootSelectThen") {
+                    let parts = spec.split(separator: ",").compactMap { Int($0) }
+                    if parts.count == 2 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            GlassineTextView.current?.setSelectedRange(NSRange(location: parts[0], length: parts[1]))
+                        }
+                    }
+                }
+                if defaults.string(forKey: "glassine.shootBounce") == "review" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { AppState.shared.toggleReview() }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { AppState.shared.toggleReview() }
+                }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 // The window alone, asked for by its number: the one window of ours,

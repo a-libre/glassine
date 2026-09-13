@@ -80,7 +80,9 @@ final class GlassineTextView: NSTextView {
     private var slashSelection = 0
     private var slashItems: [SlashItem] = []
     /// With Markdown hidden, the stretch of text whose markers are showing.
-    private var syntaxRevealRange = NSRange(location: NSNotFound, length: 0)
+    /// The stretch around the caret whose Markdown shows as written; the
+    /// layout manager reads it to know whether a rule's dashes are on view.
+    private(set) var syntaxRevealRange = NSRange(location: NSNotFound, length: 0)
 
     static let minimumSideMargin: CGFloat = 40
 
@@ -995,21 +997,20 @@ final class GlassineTextView: NSTextView {
             return ns.substring(with: r.clamped(to: storage.length)).components(separatedBy: "\n").count
         }
         guard new.location != old.location || paragraphs(new) != paragraphs(old) else { return }
-        // Only a paragraph whose glyphs change with the reveal is worth re-laying out.
-        func matters(_ r: NSRange) -> Bool {
+        // Only a paragraph whose glyphs change with the reveal is worth
+        // re-laying out; a rule's dashes change only in whether they are drawn.
+        func has(_ key: NSAttributedString.Key, in r: NSRange) -> Bool {
             var found = false
-            storage.enumerateAttributes(in: r, options: []) { attrs, _, stop in
-                if attrs[Syntax.ruleKey] != nil
-                    || (config.hideSyntax && (attrs[Syntax.hiddenKey] != nil || attrs[Syntax.bulletKey] != nil)) {
-                    found = true
-                    stop.pointee = true
-                }
+            storage.enumerateAttribute(key, in: r, options: []) { value, _, stop in
+                if value != nil { found = true; stop.pointee = true }
             }
             return found
         }
         for r in [old, new] where r.location != NSNotFound {
             let range = r.clamped(to: storage.length)
-            guard range.length > 0, matters(range) else { continue }
+            guard range.length > 0 else { continue }
+            if has(Syntax.ruleKey, in: range) { lm.invalidateDisplay(forCharacterRange: range) }
+            guard config.hideSyntax, has(Syntax.hiddenKey, in: range) || has(Syntax.bulletKey, in: range) else { continue }
             lm.invalidateGlyphs(forCharacterRange: range, changeInLength: 0, actualCharacterRange: nil)
             lm.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
             lm.invalidateDisplay(forCharacterRange: range)
@@ -2323,11 +2324,10 @@ extension GlassineTextView: NSLayoutManagerDelegate {
         let reveal = revealRange(in: storage)
         var hidden: [NSRange] = []
         var bullets: [NSRange] = []
-        // A horizontal rule keeps its dashes out of sight in either mode; the
-        // layout manager draws the line in their place.
-        storage.enumerateAttribute(Syntax.ruleKey, in: charRange, options: []) { value, r, _ in
-            if value != nil, !NSLocationInRange(r.location, reveal) { hidden.append(r) }
-        }
+        // A horizontal rule's dashes keep their glyphs and are simply not
+        // drawn (the layout manager's drawGlyphs): as glyphs that took no
+        // room, their line was measured differently by a full layout and by
+        // a partial one, and the rule moved when the caret passed through.
         if config.hideSyntax {
             storage.enumerateAttribute(Syntax.hiddenKey, in: charRange, options: []) { value, r, _ in
                 if value != nil, !NSLocationInRange(r.location, reveal) { hidden.append(r) }
