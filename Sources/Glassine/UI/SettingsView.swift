@@ -74,7 +74,7 @@ struct SettingsOverlay: View {
         var keywords: String {
             switch self {
             case .library:
-                return "library location folder icloud drive dropbox obsidian vault reveal finder change files name first line untitled sort documents last edited date created autosave saving"
+                return "library location folder icloud drive dropbox obsidian vault reveal finder change files name first line untitled sort documents last edited date created autosave saving sync github repository token sign in work mac second mac history"
             case .type:
                 return "type font face family size points line height paragraph spacing indent letter spacing tracking larger headings center headings markdown hide syntax markers page column width top margin layout"
             case .caret:
@@ -450,21 +450,30 @@ private struct LinkRow: View {
     }
 }
 
-/// A small text field in the card's own style.
+/// A small text field in the card's own style; `secure` for a token.
 private struct GlassTextField: View {
     let theme: Theme
     let placeholder: String
     @Binding var text: String
     var width: CGFloat = 200
+    var secure: Bool = false
+    var onSubmit: (() -> Void)? = nil
 
     var body: some View {
-        TextField(placeholder, text: $text)
-            .textFieldStyle(.plain)
-            .font(.system(size: 12.5))
-            .padding(.horizontal, 9)
-            .frame(width: width, height: 24)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.08 : 0.06)))
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(theme.text.color.opacity(0.1), lineWidth: 1))
+        Group {
+            if secure {
+                SecureField(placeholder, text: $text)
+            } else {
+                TextField(placeholder, text: $text)
+            }
+        }
+        .textFieldStyle(.plain)
+        .font(.system(size: 12.5))
+        .onSubmit { onSubmit?() }
+        .padding(.horizontal, 9)
+        .frame(width: width, height: 24)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(theme.text.color.opacity(theme.isDark ? 0.08 : 0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(theme.text.color.opacity(0.1), lineWidth: 1))
     }
 }
 
@@ -539,6 +548,8 @@ struct LibrarySection: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
+            SyncPanel()
+
             SettingsPanel(theme: theme, title: "Files") {
                 form.toggle("Name files after the first line", \.nameFilesFromFirstLine,
                             caption: "A new document starts as Untitled and takes its name from its first line as you write. Renaming a file yourself pins its name.",
@@ -556,6 +567,324 @@ struct LibrarySection: View {
                         .opacity(0.55)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Sync
+
+/// The library's sync with GitHub: connect, see how it stands, disconnect.
+/// Connecting happens inside the panel, no sheets — a code to enter on
+/// github.com when Glassine is registered to sign in that way, or a token
+/// pasted in — then a repository chosen or made.
+struct SyncPanel: View {
+    @EnvironmentObject var state: AppState
+
+    private enum Step { case summary, choose, token, code, repositories }
+    @State private var step: Step = .summary
+    @State private var repoField = ""
+    @State private var tokenField = ""
+    @State private var busy = false
+    @State private var error: String?
+    @State private var code: GitHubAPI.DeviceCode?
+    @State private var repos: [GitHubAPI.Repository] = []
+    @State private var chosenRepo = ""
+    @State private var newRepoName = "glassine-library"
+    @State private var making = false
+    @State private var signInTask: Task<Void, Never>?
+
+    private var theme: Theme { state.theme }
+    private var sync: SyncEngine { state.sync }
+
+    var body: some View {
+        SettingsPanel(theme: theme, title: "Sync") {
+            if sync.isConnected {
+                connected
+            } else {
+                switch step {
+                case .summary: summary
+                case .choose: choose
+                case .token: tokenForm
+                case .code: codeStep
+                case .repositories: repositoryStep
+                }
+            }
+            if let error {
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+            }
+        }
+        .onDisappear { signInTask?.cancel() }
+    }
+
+    // MARK: Connected
+
+    private var connected: some View {
+        Group {
+            SettingRow(theme: theme, title: "Repository", keywords: "github repository") {
+                HStack(spacing: 6) {
+                    Text(sync.repository ?? "")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .opacity(0.85)
+                    Button {
+                        if let repo = sync.repository, let url = URL(string: "https://github.com/\(repo)") { NSWorkspace.shared.open(url) }
+                    } label: {
+                        Image(systemName: "arrow.up.forward").font(.system(size: 9, weight: .semibold)).opacity(0.5)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open on github.com")
+                }
+            }
+            SettingRow(theme: theme, title: "Status", keywords: "sync now status") {
+                HStack(spacing: 10) {
+                    TimelineView(.periodic(from: .now, by: 5)) { _ in
+                        Text(sync.statusText)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(statusColour)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 260, alignment: .trailing)
+                    }
+                    Button("Sync Now") { sync.sync() }
+                        .buttonStyle(GlassButtonStyle(theme: theme))
+                        .disabled(sync.status == .syncing)
+                }
+            }
+            if let note = sync.note {
+                PanelNote(theme: theme, text: note)
+            }
+            SettingRow(theme: theme, title: "Disconnect",
+                       caption: "The documents stay on this Mac and in the repository; only the connection and the token go.",
+                       keywords: "sign out forget token") {
+                Button("Disconnect") { sync.disconnect(); step = .summary; error = nil }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+            }
+        }
+    }
+
+    private var statusColour: Color {
+        switch sync.status {
+        case .offline, .failed: return .orange
+        default: return theme.text.color.opacity(0.6)
+        }
+    }
+
+    // MARK: Not yet
+
+    private var summary: some View {
+        SettingRow(theme: theme, title: "Sync with GitHub",
+                   caption: "Keeps this library in a private repository of yours, so a second Mac — one you'd rather not sign into iCloud on — has the same documents, and every version of every note is kept. Nothing leaves this Mac until you connect.",
+                   keywords: "github repository sync connect") {
+            Button("Connect…") { error = nil; step = sync.canSignIn ? .choose : .token }
+                .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
+        }
+    }
+
+    private var choose: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sign in on github.com with a code Glassine shows you, or paste a token you made there.")
+                .font(.system(size: 11.5)).opacity(0.7)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button("Sign in with GitHub", action: signIn)
+                    .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
+                Button("Use a token") { step = .token }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+                Spacer()
+                Button("Cancel") { step = .summary }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+            }
+        }
+        .padding(12)
+    }
+
+    private var tokenForm: some View {
+        Group {
+            SettingRow(theme: theme, title: "Repository", caption: "owner/name — private, and empty to begin with.") {
+                GlassTextField(theme: theme, placeholder: "alex/notes", text: $repoField)
+            }
+            SettingRow(theme: theme, title: "Token",
+                       caption: "A fine-grained token for that one repository, with Contents: read and write. It goes in the keychain.") {
+                GlassTextField(theme: theme, placeholder: "github_pat_…", text: $tokenField, secure: true) { connectWithToken() }
+            }
+            HStack(spacing: 8) {
+                if busy {
+                    ProgressView().controlSize(.small)
+                    Text("Checking with GitHub…").font(.system(size: 11.5)).opacity(0.6)
+                } else {
+                    Button("Connect", action: connectWithToken)
+                        .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
+                        .disabled(repoField.isEmpty || tokenField.isEmpty)
+                        .opacity(repoField.isEmpty || tokenField.isEmpty ? 0.5 : 1)
+                    Button("Cancel") { step = .summary; error = nil }
+                        .buttonStyle(GlassButtonStyle(theme: theme))
+                }
+                Spacer()
+                Button("Make a token…") { open("https://github.com/settings/personal-access-tokens/new") }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+                Button("New repository…") {
+                    let name = repoField.split(separator: "/").last.map(String.init) ?? "glassine-library"
+                    open("https://github.com/new?name=\(name)&visibility=private")
+                }
+                .buttonStyle(GlassButtonStyle(theme: theme))
+                Button("How to") { open("https://docs.glassine.ink/library/sync") }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+            }
+            .padding(12)
+        }
+    }
+
+    private var codeStep: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Enter this code on github.com — it is on your clipboard, and the page is open:")
+                .font(.system(size: 11.5)).opacity(0.7)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 12) {
+                Text(code?.userCode ?? "")
+                    .font(.system(size: 22, weight: .semibold, design: .monospaced))
+                    .kerning(2)
+                    .textSelection(.enabled)
+                Button("Open github.com") { if let url = code?.verificationURL { NSWorkspace.shared.open(url) } }
+                    .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
+                Button("Copy Code") { copy(code?.userCode ?? "") }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+                Spacer()
+                ProgressView().controlSize(.small)
+                Text("Waiting…").font(.system(size: 11.5)).opacity(0.6)
+                Button("Cancel") { signInTask?.cancel(); step = .summary }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+            }
+        }
+        .padding(12)
+    }
+
+    private var repositoryStep: some View {
+        Group {
+            PanelNote(theme: theme, text: "Signed in as \(state.settings.data.syncLogin ?? "you"). Which repository holds the library? A private, empty one is best; one that already holds a Glassine library brings its documents here.")
+            if !repos.isEmpty {
+                SettingRow(theme: theme, title: "One of yours") {
+                    HStack(spacing: 8) {
+                        GlassMenu(theme: theme) {
+                            Text(chosenRepo.isEmpty ? "Choose…" : chosenRepo).font(.system(size: 12)).lineLimit(1).frame(maxWidth: 220)
+                        } content: {
+                            ForEach(repos, id: \.fullName) { r in
+                                Button(r.isPrivate ? r.fullName : "\(r.fullName) (public)") { chosenRepo = r.fullName }
+                            }
+                        }
+                        Button("Use") { useRepository(chosenRepo) }
+                            .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
+                            .disabled(chosenRepo.isEmpty || busy)
+                            .opacity(chosenRepo.isEmpty ? 0.5 : 1)
+                    }
+                }
+            }
+            SettingRow(theme: theme, title: "Or a new private one") {
+                HStack(spacing: 8) {
+                    GlassTextField(theme: theme, placeholder: "glassine-library", text: $newRepoName, width: 160) { createRepository() }
+                    Button("Create", action: createRepository)
+                        .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
+                        .disabled(newRepoName.isEmpty || busy)
+                }
+            }
+            HStack {
+                if busy {
+                    ProgressView().controlSize(.small)
+                    Text(making ? "Making it…" : "Connecting…").font(.system(size: 11.5)).opacity(0.6)
+                }
+                Spacer()
+                Button("Cancel") { step = .summary; error = nil }
+                    .buttonStyle(GlassButtonStyle(theme: theme))
+            }
+            .padding(12)
+        }
+    }
+
+    // MARK: Doing
+
+    private func open(_ url: String) {
+        if let u = URL(string: url) { NSWorkspace.shared.open(u) }
+    }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func connectWithToken() {
+        guard !busy, !repoField.isEmpty, !tokenField.isEmpty else { return }
+        busy = true
+        error = nil
+        Task { @MainActor in
+            do {
+                try await sync.connect(repository: repoField, token: tokenField)
+                tokenField = ""
+                step = .summary
+            } catch {
+                self.error = error.localizedDescription
+            }
+            busy = false
+        }
+    }
+
+    private func signIn() {
+        guard !busy else { return }
+        busy = true
+        error = nil
+        signInTask = Task { @MainActor in
+            do {
+                let c = try await sync.beginSignIn()
+                code = c
+                copy(c.userCode)
+                NSWorkspace.shared.open(c.verificationURL)
+                step = .code
+                _ = try await sync.finishSignIn(c)
+                repos = try await sync.repositories()
+                chosenRepo = ""
+                step = .repositories
+            } catch is CancellationError {
+                step = .summary
+            } catch {
+                self.error = error.localizedDescription
+                step = .choose
+            }
+            busy = false
+        }
+    }
+
+    private func useRepository(_ name: String) {
+        guard !busy, !name.isEmpty else { return }
+        busy = true
+        error = nil
+        Task { @MainActor in
+            do {
+                try await sync.use(repositoryNamed: name)
+                step = .summary
+            } catch {
+                self.error = error.localizedDescription
+            }
+            busy = false
+        }
+    }
+
+    private func createRepository() {
+        guard !busy, !newRepoName.isEmpty else { return }
+        busy = true
+        making = true
+        error = nil
+        Task { @MainActor in
+            do {
+                try await sync.createAndUse(repositoryNamed: newRepoName)
+                step = .summary
+            } catch {
+                self.error = error.localizedDescription
+            }
+            busy = false
+            making = false
         }
     }
 }

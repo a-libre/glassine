@@ -1,0 +1,67 @@
+---
+title: "Sync with GitHub"
+description: "The library kept in a private repository, for a second Mac you'd rather not sign into iCloud on — and a history of every note."
+icon: "arrows-rotate"
+---
+
+iCloud Drive is the simple way to have the same documents on every Mac, and the default. It needs the Mac signed into iCloud, though, and there are Macs — a work laptop, say — where that is not something you want to do. Sync with GitHub is the other way: Glassine keeps the library in a private repository of yours, and any Mac with Glassine and a token for that one repository has the same documents. Nothing else about any of your accounts touches that Mac.
+
+There is a second reason to want it even with iCloud: a repository keeps every version of every note. Every round of changes Glassine pushes is a commit, so nothing you wrote is ever gone — github.com shows the history of any file.
+
+<Note>
+Whatever the mechanism, the documents themselves end up on the disk of any Mac you sync to. If that Mac is managed by an employer, what is on its disk is theirs to see; sync only decides what *else* is exposed. Some acceptable-use policies forbid personal files on work machines altogether — worth a look first.
+</Note>
+
+## What you need
+
+A GitHub account (free is fine) and a private repository for the library. Glassine needs no git installed and runs no background process: it talks to GitHub's API itself, and only when it has something to say.
+
+## Connecting
+
+Settings → Library → Sync → **Connect…**.
+
+<Steps>
+  <Step title="Make the repository">
+    On github.com, **New repository**. Any name — *notes*, *glassine-library* — set to **Private**, and leave *Add a README* unchecked so it starts empty. (A repository that already holds a Glassine library works too: its documents come down to this Mac on the first round.) The **New repository…** button in the panel opens this page with the name filled in.
+  </Step>
+  <Step title="Make a token">
+    On github.com, Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token. Name it after the Mac. Under *Repository access* choose **Only select repositories** and pick the one you just made. Under *Permissions* → *Repository permissions* set **Contents** to **Read and write**; nothing else. Set the expiration as you like (GitHub allows up to a year; when it runs out, Glassine says so and you make another). Generate, and copy the token — GitHub shows it once. The **Make a token…** button in the panel opens this page.
+  </Step>
+  <Step title="Connect">
+    In the panel, enter the repository as *owner/name* — `alex/notes` — paste the token, and press **Connect**. Glassine checks the repository, keeps the token in the keychain, and runs the first round: on the first Mac that pushes the library up; on the second it brings the library down.
+  </Step>
+</Steps>
+
+Do the same on the other Mac, with a token of its own for the same repository. Its library can be a plain local folder (Settings → Library → Change…), no iCloud in sight.
+
+<Info>
+**Sign in with GitHub** — a code shown in Glassine, entered on github.com, no token to make or paste — appears in the panel once Glassine is registered with GitHub for it. Until then the token is the way.
+</Info>
+
+## How it syncs
+
+A round runs a few seconds after each save, every half minute while Glassine is in front, when it comes to the front, and when you ask (**Sync Now** in the panel, *Sync now* in the ⌘K command bar, or a click on the arrows in the sidebar's footer). A round reads the repository's branch, compares it with the library and with what both agreed on last time, brings down what changed there, and pushes what changed here as one commit — "Glassine on Alex's MacBook: edited Morning pages, added Ideas".
+
+The document you are typing in is left alone until its save lands; a change to it from the other Mac arrives a moment later.
+
+**Both Macs changed the same file** between rounds — it happens when one was offline — and neither side is thrown away: this Mac keeps its version, and the other Mac's is written beside it as *Name (conflict).md* (the way the editor already handles a file changed underneath it). Both go into the repository, so the other Mac sees both too. Read them, keep what you want, delete the rest.
+
+**Deleted on one Mac** means deleted on the other — moved to that Mac's Trash, not erased, and still in the repository's history.
+
+**Offline**, edits pile up here and go up the next time GitHub can be reached; the sidebar's arrows turn orange, and the panel says how many changes are waiting.
+
+## What goes up
+
+The documents — every file the library lists — including the Shelf and anything in folders. Hidden files, `.DS_Store`, and files of other kinds in the folder stay where they are. The library's settings, stars, recents and themes are the Mac's own and are not synced.
+
+## The sidebar's arrows
+
+With sync connected, two arrows sit in the sidebar's footer: dim between rounds, turning while one runs, orange when GitHub can't be reached or has said no. Hover for the words; click for a round now.
+
+## Disconnecting
+
+Settings → Library → Sync → **Disconnect**. The documents stay on this Mac and in the repository; only the connection and the token go. Moving the library to another folder disconnects it too, since the connection was for the old one.
+
+## Privacy
+
+With sync connected, Glassine sends the documents in the library to GitHub, under [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement), and nothing else — not the settings, not how you use the app. With it off, Glassine makes no connection at all. See [privacy](/about/privacy).

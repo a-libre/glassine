@@ -12,7 +12,9 @@
 	<true/>
 	<!-- Review draws the page with WKWebView, whose content process refuses to
 	     start in a sandbox without this ("does not have permission to communicate
-	     with network resources"). The app itself never opens a connection. -->
+	     with network resources"). The app itself opens a connection only when
+	     the user connects the library to a GitHub repository (Settings → Library
+	     → Sync), and then only to api.github.com. -->
 	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>

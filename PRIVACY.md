@@ -14,9 +14,20 @@ Glassine never sees them in transit and has no way to. Apple's iCloud privacy
 terms: https://www.apple.com/legal/privacy/
 
 The Mac App Store version of Glassine runs in the App Sandbox. It holds the
-sandbox's permission for outgoing connections only because Review, which draws
-the page with the system's web view, cannot start without it. The app never
-opens a connection of its own, and there is nothing it would send.
+sandbox's permission for outgoing connections because Review, which draws the
+page with the system's web view, cannot start without it, and for the one
+thing below that you can turn on.
+
+## Sync with GitHub (only if you turn it on)
+
+Settings → Library → Sync can keep the library in a private GitHub repository
+of yours. With it connected, Glassine sends the documents in the library to
+GitHub's API — and only those: not the settings, not how you use the app —
+under GitHub's privacy statement:
+https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
+The token you give it stays in the Mac's keychain. With sync off, which is how
+Glassine comes, the app opens no connection of its own and there is nothing it
+would send.
 
 ## Checking for updates (direct download only)
 
@@ -30,7 +41,7 @@ downloaded from GitHub, whose privacy statement covers that download:
 https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
 
 Nothing about your documents, your library, or how you use the app is ever
-sent.
+sent — except the documents themselves to GitHub, when you have connected sync.
 
 ## Changes
 

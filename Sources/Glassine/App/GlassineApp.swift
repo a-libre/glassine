@@ -27,6 +27,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyMonitor: Any?
     private var mouseMonitor: Any?
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // A sync round between a folder and a stand-in for a repository,
+        // then exit — the merge, tested with no network. See GitHubSync.swift.
+        _ = SyncEngine.runHeadlessTestIfRequested()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = nil
         NSWindow.allowsAutomaticWindowTabbing = false

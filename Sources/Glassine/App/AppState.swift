@@ -11,6 +11,8 @@ final class AppState: ObservableObject {
     let themes: ThemeStore
     let backdrops = BackdropStore()
     @Published private(set) var library: LibraryStore
+    /// The library kept in a GitHub repository of the user's, when it is.
+    let sync: SyncEngine
     @Published private(set) var document: DocumentModel?
     @Published var selection: String?          // relative path of the selected document
     @Published var selectedFolder: String = "" // relative path of the folder new docs go into
@@ -120,7 +122,9 @@ final class AppState: ObservableObject {
         let settings = AppSettings()
         self.settings = settings
         self.themes = ThemeStore()
-        self.library = LibraryStore(chosen: ChosenFolder(bookmark: settings.data.libraryBookmark, path: settings.data.libraryPath))
+        let library = LibraryStore(chosen: ChosenFolder(bookmark: settings.data.libraryBookmark, path: settings.data.libraryPath))
+        self.library = library
+        self.sync = SyncEngine(library: library, settings: settings)
         // A bookmark that had gone stale was refreshed on the way in; keep the fresh one.
         if let fresh = library.chosenBookmark, fresh != settings.data.libraryBookmark {
             settings.data.libraryBookmark = fresh
@@ -130,10 +134,23 @@ final class AppState: ObservableObject {
         settings.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         themes.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         backdrops.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        sync.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         bindLibrary()
 
         bootstrapLibrary()
         startPolling()
+
+        // Sync leaves the document being edited alone until it is saved, and
+        // tells the app when it has changed the library underneath it.
+        sync.busyPath = { [weak self] in
+            guard let doc = self?.document, doc.isDirty || doc.saveState == .saving else { return nil }
+            return doc.relativePath
+        }
+        sync.libraryChanged = { [weak self] in
+            self?.library.rescan()
+            self?.document?.checkExternalChanges()
+        }
+        sync.start()
 
         let nc = NotificationCenter.default
         DistributedNotificationCenter.default().addObserver(
@@ -812,6 +829,7 @@ final class AppState: ObservableObject {
         library = LibraryStore(chosen: chosen)
         bindLibrary()
         bootstrapLibrary()
+        sync.libraryDidChange(to: library)
     }
 
     // MARK: - View toggles
@@ -1022,6 +1040,9 @@ final class AppState: ObservableObject {
             add("backdrop-\(b.id)", "Backdrop: \(b.name)\(mark)") { [weak self] in self?.settings.data.backdrop = b.id }
         }
         add("float", settings.data.floatOnTop ? "Stop floating over other windows" : "Float over other windows", keys: "⌘.") { [weak self] in self?.toggleFloating() }
+        if sync.isConnected {
+            add("sync", "Sync now") { [weak self] in self?.sync.sync() }
+        }
         add("settings", "Settings…", keys: "⌘,") { [weak self] in self?.showingSettings = true }
         add("shortcuts", "Shortcuts", keys: "⌘/") { [weak self] in self?.showingShortcuts = true }
         return cmds

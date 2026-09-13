@@ -328,6 +328,9 @@ struct SidebarView: View {
                 .opacity(0.4)
                 .lineLimit(1)
             Spacer()
+            if state.sync.isConnected {
+                SyncGlyph()
+            }
             Text("\(state.library.allDocuments.count)")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .opacity(0.35)
@@ -711,6 +714,49 @@ struct SidebarIconButton: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .help(help)
+    }
+}
+
+/// The state of the sync with GitHub, in the sidebar's footer: two arrows,
+/// turning while a round runs, dim between rounds, warm when GitHub can't
+/// be reached or has said no. Click for a round now; hover for the words.
+struct SyncGlyph: View {
+    @EnvironmentObject var state: AppState
+    @State private var turning = false
+
+    private var theme: Theme { state.theme }
+
+    private var syncing: Bool { if case .syncing = state.sync.status { return true } else { return false } }
+    private var troubled: Bool {
+        switch state.sync.status {
+        case .offline, .failed: return true
+        default: return false
+        }
+    }
+
+    var body: some View {
+        Button {
+            state.sync.sync()
+        } label: {
+            Image(systemName: troubled ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(troubled ? Color.orange.opacity(0.85) : theme.text.color.opacity(syncing ? 0.8 : 0.35))
+                .rotationEffect(.degrees(turning ? 360 : 0))
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("GitHub: \(state.sync.statusText). Click to sync now.")
+        .onChange(of: syncing) { _, now in spin(now) }
+        .onAppear { spin(syncing) }
+    }
+
+    private func spin(_ on: Bool) {
+        if on {
+            withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) { turning = true }
+        } else {
+            withAnimation(.easeOut(duration: 0.3)) { turning = false }
+        }
     }
 }
 

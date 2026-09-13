@@ -55,7 +55,8 @@
           "library/search",
           "library/shelf",
           "library/timelapse",
-          "library/files"
+          "library/files",
+          "library/sync"
         ]
       },
       {

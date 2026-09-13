@@ -73,6 +73,10 @@ Change the location under Settings → Library if you'd rather use a different f
 
 The App Store build is sandboxed, so it cannot read iCloud Drive directly; it keeps its documents in an iCloud folder of its own, which Finder also shows as "Glassine" in iCloud Drive (with the app's icon). Pointing it at the folder above through Settings → Library works too, and the permission is remembered.
 
+## Sync with GitHub
+
+For a Mac you'd rather not sign into iCloud on — a work laptop — Settings → Library → Sync keeps the library in a private GitHub repository of yours instead: a fine-grained token for that one repository (Contents: read and write) is all the Mac needs, and nothing else about your accounts touches it. Glassine talks to GitHub's API itself — no git installed, no daemon — pushing each round of changes as one commit a few seconds after each save and pulling every half minute and on coming to the front, so the repository keeps every version of every note. A file changed on both Macs between rounds keeps this Mac's version and writes the other beside it as "… (conflict).md". [The manual page](https://docs.glassine.ink/library/sync) has the click-by-click.
+
 ## Saving
 
 Always on. Glassine writes about half a second after you stop typing, at least every four seconds while you type continuously, when you switch documents, when the app loses focus, and on quit. The small dot at the bottom-left tells you what's happening: grey means clean, accent-colored means unsaved edits are pending, and a brief "Saved" with an iCloud check appears after each write. File → Save Now forces a write if you want the reassurance.

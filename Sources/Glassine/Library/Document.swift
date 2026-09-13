@@ -226,6 +226,7 @@ final class DocumentModel: ObservableObject, Identifiable {
                         self.library.rescan()
                     }
                     self.saveState = self.isDirty ? .dirty : .saved
+                    NotificationCenter.default.post(name: .glassineDocumentSaved, object: nil)
                     self.savedIndicatorWork?.cancel()
                     let work = DispatchWorkItem { [weak self] in
                         guard let self, case .saved = self.saveState else { return }
@@ -254,6 +255,7 @@ final class DocumentModel: ObservableObject, Identifiable {
             knownModificationDate = url.contentModificationDate
             lastSavedAt = Date()
             saveState = .clean
+            NotificationCenter.default.post(name: .glassineDocumentSaved, object: nil)
         } catch {
             saveState = .failed(error.localizedDescription)
         }

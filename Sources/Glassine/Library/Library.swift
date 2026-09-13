@@ -198,6 +198,9 @@ final class LibraryStore: ObservableObject {
     func scanNow(readingContents: Bool = true) {
         let result = LibraryStore.scan(rootURL: rootURL, tagCache: &tagCache, readContents: readingContents)
         apply(result)
+        // The file operations rescan this way, so this is the moment the
+        // library changed by hand — sync takes note.
+        NotificationCenter.default.post(name: .glassineLibraryMutated, object: nil)
     }
 
     func rescan() {

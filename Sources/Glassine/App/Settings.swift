@@ -158,6 +158,13 @@ struct SettingsData: Codable, Equatable {
     // Updates
     var checkForUpdates: Bool = true
 
+    // Sync with GitHub (Library/GitHubSync.swift): the repository this Mac's
+    // library is kept in, its branch, and whose account it is. The token is
+    // in the keychain. Bookkeeping, not a preference: ⌘Z never disconnects.
+    var syncRepository: String? = nil
+    var syncBranch: String = "main"
+    var syncLogin: String? = nil
+
     init() {}
 
     /// The settings without the bookkeeping that changes on its own as the
@@ -176,6 +183,9 @@ struct SettingsData: Codable, Equatable {
         p.sidebarVisible = true
         p.sidebarWidth = 0
         p.reviewStyle = .glass
+        p.syncRepository = nil
+        p.syncBranch = "main"
+        p.syncLogin = nil
         return p
     }
 
@@ -192,6 +202,9 @@ struct SettingsData: Codable, Equatable {
         p.sidebarVisible = other.sidebarVisible
         p.sidebarWidth = other.sidebarWidth
         p.reviewStyle = other.reviewStyle
+        p.syncRepository = other.syncRepository
+        p.syncBranch = other.syncBranch
+        p.syncLogin = other.syncLogin
         return p
     }
 
@@ -254,6 +267,9 @@ struct SettingsData: Codable, Equatable {
         reviewStyle = try c.decodeIfPresent(ReviewStyle.self, forKey: .reviewStyle) ?? d.reviewStyle
         reviewFontScale = try c.decodeIfPresent(Double.self, forKey: .reviewFontScale) ?? d.reviewFontScale
         checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? d.checkForUpdates
+        syncRepository = try c.decodeIfPresent(String.self, forKey: .syncRepository) ?? d.syncRepository
+        syncBranch = try c.decodeIfPresent(String.self, forKey: .syncBranch) ?? d.syncBranch
+        syncLogin = try c.decodeIfPresent(String.self, forKey: .syncLogin) ?? d.syncLogin
     }
 }
 
