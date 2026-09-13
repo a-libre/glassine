@@ -18,6 +18,12 @@ Settings → General → Library → **Change…** points Glassine at any folder
 
 The App Store version's default library is an iCloud folder of the app's own, which Finder also shows as "Glassine" in iCloud Drive; the [install page](/install#what-differs-between-the-two-versions) has the differences.
 
+## Files from elsewhere
+
+Glassine opens Markdown and plain-text files that are not in the library too: double-click one in Finder (or right-click → Open With → Glassine), drop it on the Dock icon, or File → **Open…** (⌘O). The file opens *in place* — edited and saved where it is, never copied into the library — and shows in the sidebar under **Elsewhere** for as long as it is open, with the folder it lives in. It is not renamed after its first line, not listed in All Documents, Recents or the Timelapse, and not remembered for the next launch. File → **Add to Library** (also in the row's right-click menu) makes a copy at the top level of the library and opens that instead; the original stays where it was. Rename, Duplicate, Shelve and Move to Trash are for library documents and stay grey while a file from elsewhere is open; Reveal in Finder works as usual.
+
+To make Glassine the app that opens every `.md` file: select one in Finder, ⌘I (Get Info), choose Glassine under *Open with*, and click **Change All…**. The same works for `.txt`.
+
 ## Saving
 
 Always on; there is no Save. Glassine writes the file about half a second after you stop typing, at least every four seconds while you type continuously, when you switch documents, when the app loses focus, and on quit.

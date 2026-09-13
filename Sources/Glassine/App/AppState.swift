@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Central app state: settings, themes, the library and the open document.
 final class AppState: ObservableObject {
@@ -357,6 +358,61 @@ final class AppState: ObservableObject {
         settings.data.lastOpenedDocument = ref.id
     }
 
+    /// The document showing, when it is a file from outside the library.
+    var looseDocument: DocumentModel? { document?.isLoose == true ? document : nil }
+
+    /// A file by URL — from Finder's Open With, the Dock icon, or File →
+    /// Open…. One inside the library opens as itself; one from anywhere else
+    /// opens in place, edited and saved where it is and never copied in.
+    func openFile(at url: URL) {
+        let file = url.standardizedFileURL
+        let rootPath = library.rootURL.standardizedFileURL.path
+        if file.path.hasPrefix(rootPath + "/") {
+            let rel = library.relativePath(for: file)
+            if library.document(withID: rel) == nil { library.scanNow() }
+            if let ref = library.document(withID: rel) { open(ref); return }
+        }
+        showingGallery = false
+        showingDaily = false
+        reviewMode = false
+        dropSearch()
+        showingCommandBar = false
+        cameFromDaily = false
+        if let current = document, current.url.standardizedFileURL == file { return }
+        closeCurrentDocument()
+        let doc = DocumentModel(url: file, library: library, settings: settings)
+        wire(doc)
+        document = doc
+        selection = nil
+    }
+
+    /// File → Open…: any Markdown or text file, opened in place.
+    func openFilePanel() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.plainText, UTType("net.daringfireball.markdown")].compactMap { $0 }
+        panel.message = "Open a Markdown or text file where it is. It is not copied into the library."
+        if panel.runModal() == .OK, let url = panel.url { openFile(at: url) }
+    }
+
+    /// A copy of the file from elsewhere, at the top level of the library,
+    /// and that copy open in its place.
+    func addLooseDocumentToLibrary() {
+        guard let doc = looseDocument else { return }
+        doc.saveNow()
+        let ext = doc.url.pathExtension.isEmpty ? "md" : doc.url.pathExtension
+        let target = library.uniqueURL(in: library.rootURL, stem: doc.title, ext: ext)
+        do {
+            try FileCoordination.write(doc.text, to: target)
+        } catch {
+            errorMessage = "Couldn't add it to the library: \(error.localizedDescription)"
+            return
+        }
+        library.scanNow()
+        if let ref = library.document(withID: library.relativePath(for: target)) { open(ref) }
+    }
+
     func open(relativePath: String) {
         if let ref = library.document(withID: relativePath) { open(ref) }
     }
@@ -384,7 +440,7 @@ final class AppState: ObservableObject {
     }
 
     func caretMoved(to position: Int) {
-        guard let doc = document else { return }
+        guard let doc = document, !doc.isLoose else { return }
         settings.data.caretPositions[doc.relativePath] = position
     }
 
@@ -698,8 +754,12 @@ final class AppState: ObservableObject {
     }
 
     func revealCurrentDocument() {
-        guard let rel = document?.relativePath else { return }
-        library.revealInFinder(rel)
+        guard let doc = document else { return }
+        if doc.isLoose {
+            NSWorkspace.shared.activateFileViewerSelecting([doc.url])
+        } else {
+            library.revealInFinder(doc.relativePath)
+        }
     }
 
     func revealLibrary() {

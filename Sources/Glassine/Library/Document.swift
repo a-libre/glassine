@@ -18,6 +18,11 @@ final class DocumentModel: ObservableObject, Identifiable {
 
     let undoManager = UndoManager()
     let loadError: String?
+    /// A file from outside the library — opened from Finder, dropped on the
+    /// Dock icon, or File → Open… — edited and saved where it is. Its
+    /// `relativePath` is its absolute path, which no library id can be; it is
+    /// never renamed after its first line, never listed, never remembered.
+    let isLoose: Bool
 
     var title: String { url.deletingPathExtension().lastPathComponent }
     var isDirty: Bool { editGeneration != savedGeneration }
@@ -56,7 +61,9 @@ final class DocumentModel: ObservableObject, Identifiable {
         self.url = url
         self.library = library
         self.settings = settings
-        self.relativePath = library.relativePath(for: url)
+        let inside = url.standardizedFileURL.path.hasPrefix(library.rootURL.standardizedFileURL.path + "/")
+        self.isLoose = !inside
+        self.relativePath = inside ? library.relativePath(for: url) : url.standardizedFileURL.path
         var loaded = ""
         var err: String?
         do {
@@ -300,6 +307,8 @@ final class DocumentModel: ObservableObject, Identifiable {
     // MARK: - Renaming
 
     private var isAutoNamed: Bool {
+        // A file from elsewhere keeps the name it came with.
+        if isLoose { return false }
         // A day's note is its date. Whatever its first line becomes, the file
         // keeps the name the Daily view and ⌥⌘D look for.
         if DailyNotes.isDailyNote(relativePath: relativePath) { return false }

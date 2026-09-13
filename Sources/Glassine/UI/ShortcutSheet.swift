@@ -16,6 +16,7 @@ struct ShortcutSheet: View {
         Group(title: "Documents", rows: [
             ("⌘N", "New document"),
             ("⌘⇧N", "New folder"),
+            ("⌘O", "Open a file from anywhere"),
             ("⌥⌘D", "Today's note"),
             ("⌘R", "Rename"),
             ("⌘⇧⌫", "Shelve — out of the way, not gone"),

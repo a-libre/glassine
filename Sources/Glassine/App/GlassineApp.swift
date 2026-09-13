@@ -162,6 +162,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
+    /// Files handed to the app — Open With in Finder, a drop on the Dock
+    /// icon, `open -a Glassine`. The last one named is the one that opens.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.last else { return }
+        if !AppDelegate.showMainWindow() {
+            // The window is not up yet on a launch by file: come back once it is.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.application(application, open: urls)
+            }
+            return
+        }
+        AppState.shared.openFile(at: url)
+    }
+
     /// The Edit → Find → Find… item that SwiftUI adds carries ⌘F. Take that away so the
     /// menu bar shows ⌘F next to Search Library only; the item still works by mouse
     /// and Find in Document (⌘⇧F) opens the same find bar.
@@ -231,6 +245,8 @@ struct GlassineCommands: Commands {
                 .keyboardShortcut("n", modifiers: .command)
             Button("New Folder…") { withWindow { state.promptNewFolder() } }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("Open…") { withWindow { state.openFilePanel() } }
+                .keyboardShortcut("o", modifiers: .command)
             Button("Today's Note") { withWindow { state.openTodaysNote() } }
                 .keyboardShortcut("d", modifiers: [.command, .option])
             Divider()
@@ -240,17 +256,19 @@ struct GlassineCommands: Commands {
                 if let rel = state.document?.relativePath { state.promptRename(rel, isFolder: false) }
             }
             .keyboardShortcut("r", modifiers: .command)
-            .disabled(state.document == nil)
+            .disabled(state.document == nil || state.looseDocument != nil)
             Button("Duplicate") {
                 if let rel = state.document?.relativePath { state.duplicate(rel) }
             }
-            .disabled(state.document == nil)
+            .disabled(state.document == nil || state.looseDocument != nil)
+            Button("Add to Library") { state.addLooseDocumentToLibrary() }
+                .disabled(state.looseDocument == nil)
             Button(state.currentDocumentIsShelved ? "Unshelve" : "Shelve") { state.toggleShelvedCurrentDocument() }
                 .keyboardShortcut(.delete, modifiers: [.command, .shift])
-                .disabled(state.document == nil)
+                .disabled(state.document == nil || state.looseDocument != nil)
             Button("Move to Trash") { state.trashCurrentDocument() }
                 .keyboardShortcut(.delete, modifiers: .command)
-                .disabled(state.document == nil)
+                .disabled(state.document == nil || state.looseDocument != nil)
             Divider()
             Button("Export as PDF…") { state.exportPDF() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])

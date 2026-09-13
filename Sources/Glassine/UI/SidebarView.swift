@@ -28,6 +28,11 @@ struct SidebarView: View {
                     todayRow
                     newDocumentRow
                         .padding(.bottom, 8)
+                    if let loose = state.looseDocument {
+                        SectionHeader(title: "Elsewhere", expanded: .constant(true))
+                        LooseDocumentRow(doc: loose)
+                            .padding(.bottom, 8)
+                    }
                     if let filtered = state.filteredDocuments {
                         filterHeader
                         if filtered.isEmpty {
@@ -504,6 +509,50 @@ struct FolderRow: View {
         }
         if expanded {
             FolderContents(folder: folder, depth: depth + 1)
+        }
+    }
+}
+
+/// A file from outside the library, for as long as it is open: its name,
+/// where it lives, and the two things that can be done with it.
+struct LooseDocumentRow: View {
+    @EnvironmentObject var state: AppState
+    @ObservedObject var doc: DocumentModel
+
+    private var place: String {
+        (doc.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
+    }
+
+    var body: some View {
+        Button { } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 12))
+                    .opacity(0.9)
+                    .frame(width: 16)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(doc.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(1)
+                    Text(place)
+                        .font(.system(size: 10.5))
+                        .opacity(0.4)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                }
+                Spacer(minLength: 4)
+            }
+            .padding(.leading, 8)
+            .padding(.trailing, 8)
+            .frame(height: 34)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverRowStyle(theme: state.theme, selected: true))
+        .transition(.opacity.combined(with: .offset(y: -4)))
+        .help("Open from outside the library; edited and saved where it is")
+        .contextMenu {
+            Button("Add to Library") { state.addLooseDocumentToLibrary() }
+            Button("Reveal in Finder") { state.revealCurrentDocument() }
         }
     }
 }
