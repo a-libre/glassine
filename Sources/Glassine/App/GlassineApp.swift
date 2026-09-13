@@ -59,11 +59,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return nil
             }
             if state.showingSettings {
+                // Esc clears a search first, then closes the card.
                 if event.keyCode == 53 {
-                    state.showingSettings = false
+                    if !state.settingsQuery.isEmpty {
+                        state.settingsQuery = ""
+                    } else {
+                        state.showingSettings = false
+                    }
                     return nil
                 }
-                // Tab walks the panes; ⇧Tab walks back. A field being edited
+                // ⌘F puts the keyboard in the card's own search field.
+                if flags == .command, event.charactersIgnoringModifiers?.lowercased() == "f" {
+                    state.settingsSearchFocus += 1
+                    return nil
+                }
+                // Tab walks the sections; ⇧Tab walks back. A field being edited
                 // inside the card keeps its normal tabbing; the document editor
                 // behind the overlay does not get a tab typed into it.
                 let fieldEditing = (window.firstResponder as? NSTextView)?.isFieldEditor ?? false

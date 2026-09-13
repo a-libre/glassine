@@ -104,11 +104,13 @@ final class AppState: ObservableObject {
     @Published var showingShortcuts = false
     /// Settings as an overlay on the main window, so it can never get lost behind it.
     @Published var showingSettings = false
-    /// Which settings pane is up (0–3); Tab and ⇧Tab walk it around.
+    /// Which settings section is up — an index into SettingsOverlay.Pane —
+    /// kept here so Settings reopens where it was left; Tab and ⇧Tab walk it.
     @Published var settingsTab = 0
-    /// Which half of the Themes pane is showing — the themes, or what sits
-    /// behind the glass — kept here so Settings reopens where it was left.
-    @Published var themesPanePart: ThemesPanePart = .themes
+    /// What is typed into the search field at the top of Settings.
+    @Published var settingsQuery = ""
+    /// Bumped to put the keyboard in that field (⌘F while Settings is up).
+    @Published var settingsSearchFocus = 0
     var styleConfig: StyleConfig { StyleConfig(theme: theme, settings: settings.data) }
 
     private var cancellables = Set<AnyCancellable>()
@@ -171,13 +173,18 @@ final class AppState: ObservableObject {
         }
         // Review and the Daily view are not remembered between launches, so
         // docs/appstore/screenshots.sh asks for them by launch argument, and a
-        // check shot can ask for Settings on the Editor pane the same way:
+        // check shot can ask for Settings, on a section, the same way:
         //   open Glassine.app --args -glassine.launchView review
+        //   open Glassine.app --args -glassine.launchView settings:caret
         switch UserDefaults.standard.string(forKey: "glassine.launchView") {
         case "review": if document != nil { reviewMode = true }
         case "daily": showDaily()
-        case "settings": showingSettings = true; settingsTab = 1
-        case "backdrops": showingSettings = true; settingsTab = 2; themesPanePart = .backdrops
+        case "backdrops": showingSettings = true; settingsTab = SettingsOverlay.Pane.backdrop.index
+        case let view? where view.hasPrefix("settings"):
+            showingSettings = true
+            let name = view.split(separator: ":").dropFirst().first.map(String.init) ?? ""
+            settingsTab = (SettingsOverlay.Pane(rawValue: name) ?? .type).index
+            if let q = UserDefaults.standard.string(forKey: "glassine.settingsQuery") { settingsQuery = q }
         default: break
         }
     }
@@ -1091,7 +1098,7 @@ enum WelcomeDocument {
 
     ## A few things to try
 
-    - Watch the caret glide as you type. Tune it under **Glassine → Settings → Editor**.
+    - Watch the caret glide as you type. Tune it under **Glassine → Settings → Caret**.
     - Press ⌘S to hide the sidebar. Press it again to bring it back. ⌘P shows every document at once; ⌘F searches everything you have written.
     - Try ⌃⌘T for typewriter scrolling and ⌃⌘F for focus mode.
     - Themes live under **View → Theme**. Duplicate one in Settings to make it yours.

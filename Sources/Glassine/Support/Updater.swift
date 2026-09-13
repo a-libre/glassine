@@ -27,7 +27,7 @@ final class Updater {
     }
 
     /// Sparkle keeps this in the app's defaults; the setting in Settings →
-    /// General mirrors it.
+    /// About mirrors it.
     var checksAutomatically: Bool {
         get { controller.updater.automaticallyChecksForUpdates }
         set { controller.updater.automaticallyChecksForUpdates = newValue }

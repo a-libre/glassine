@@ -69,9 +69,9 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 
 `~/Library/Mobile Documents/com~apple~CloudDocs/Glassine/` — that's the "Glassine" folder at the top level of iCloud Drive in Finder. Every document is a plain `.md` file, folders are folders. Anything you drop in there from Finder or another Mac shows up in the sidebar within a few seconds; anything Glassine writes syncs the usual iCloud way.
 
-Change the location under Settings → General if you'd rather use a different folder (a Dropbox or Obsidian vault works fine).
+Change the location under Settings → Library if you'd rather use a different folder (a Dropbox or Obsidian vault works fine).
 
-The App Store build is sandboxed, so it cannot read iCloud Drive directly; it keeps its documents in an iCloud folder of its own, which Finder also shows as "Glassine" in iCloud Drive (with the app's icon). Pointing it at the folder above through Settings → General works too, and the permission is remembered.
+The App Store build is sandboxed, so it cannot read iCloud Drive directly; it keeps its documents in an iCloud folder of its own, which Finder also shows as "Glassine" in iCloud Drive (with the app's icon). Pointing it at the folder above through Settings → Library works too, and the permission is remembered.
 
 ## Saving
 
@@ -81,7 +81,7 @@ If a file changes on disk while it's open and you have no unsaved edits, Glassin
 
 ## Naming
 
-New documents start as "Untitled" and take their file name from the first line as you write (leading `#` and Markdown marks stripped). Rename a file yourself (⌘R or the sidebar's context menu) and Glassine stops touching its name. Turn the whole behavior off in Settings → General.
+New documents start as "Untitled" and take their file name from the first line as you write (leading `#` and Markdown marks stripped). Rename a file yourself (⌘R or the sidebar's context menu) and Glassine stops touching its name. Turn the whole behavior off in Settings → Library.
 
 ## Keyboard
 
@@ -116,7 +116,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘R | Rename |
 | ⌘⇧⌫ | Shelve — out of the sidebar, Recents and All Documents, into the Shelf section at the bottom; Unshelve puts it back where it was |
 | ⌘⌫ | Move to Trash (it goes to the macOS Trash, so it's recoverable) |
-| — | Check a task (click its box in the editor or in Review) and, a moment later, it sinks below the last unfinished item in its list, nested items in tow; uncheck it and it rises back to where it was. Settings → Editor turns that off |
+| — | Check a task (click its box in the editor or in Review) and, a moment later, it sinks below the last unfinished item in its list, nested items in tow; uncheck it and it rises back to where it was. Settings → Typing turns that off |
 | — | Drag a task box or a list bullet or number up or down to reorder the list, nested items in tow |
 | ⌘Z ⇧⌘Z | Undo and redo — typing first, then file operations: a new document, a rename, a move, a duplicate, a trash |
 | ⌘+ ⌘− ⌘0 | Text size |
@@ -124,19 +124,19 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘, | Settings |
 | ⌘⌥⇧D | Copy Debug Info (also in the Help menu) — caret geometry, layout and settings in one paste, for bug reports |
 
-Help → Check for Updates… looks at GitHub Releases; the app also checks once a day unless you turn that off in Settings → General.
+Help → Check for Updates… looks at GitHub Releases; the app also checks once a day unless you turn that off in Settings → About.
 
 Return inside a list continues the list; Return on an empty item ends it.
 
 ## Caret
 
-Settings → Editor, under Caret. Smooth movement on or off, glide time (default 270 ms, up to 500), whether to also glide while typing or only for arrow keys and clicks, blink style (soft fade, classic, or never), width, and shape: Bar, Pin, Serif, Wedge, Ghost, Comet, Glow or Hollow. The caret takes its color from the theme. If Reduce Motion is on in System Settings, gliding is disabled automatically.
+Settings → Caret, with a live line to watch it on. Smooth movement on or off, glide time (default 270 ms, up to 500), whether to also glide while typing or only for arrow keys and clicks, blink style (soft fade, classic, or never), width, and shape: Bar, Pin, Serif, Wedge, Ghost, Comet, Glow or Hollow. The caret takes its color from the theme. If Reduce Motion is on in System Settings, gliding is disabled automatically.
 
 ## Themes
 
 Nine built in: Dusk (default), Ocean, Lavender, Graphite, Sepia Night, Midnight, Moss, Frost and Paper. Pick one under View → Theme.
 
-To make your own: Settings → Themes, select the one closest to what you want, press **+** to duplicate it, then edit. Everything is live in the main window while you tweak. A theme controls the glass material, the tint color and how strongly it covers the blur, an optional paper grain, and the colors for text, headings, accent, Markdown syntax, quotes, code, links, caret and selection. Themes export as small JSON files (the ••• menu), so they're easy to share or keep in a dotfiles repo.
+To make your own: Settings → Theme, click the tile closest to what you want, press **Duplicate**, then edit. Everything is live in the main window while you tweak. A theme controls the glass material, the tint color and how strongly it covers the blur, an optional paper grain, and the colors for text, headings, accent, Markdown syntax, quotes, code, links, caret and selection. Themes export as small JSON files (**Export…**), so they're easy to share or keep in a dotfiles repo.
 
 Glass materials, roughly: *Soft glass* is the standard window blur, *Deep glass* is darker and blurrier, *Thin glass* lets more of the desktop through, *Frosted* is a light haze, and *Opaque* turns the blur off entirely.
 
@@ -162,11 +162,11 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Headings
 
-Headings are centered by default, in the editor and in Review alike; Settings → Editor turns that off (and switches off the larger heading sizes separately).
+Headings are centered by default, in the editor and in Review alike; Settings → Type turns that off (and switches off the larger heading sizes separately).
 
 ## Appearance
 
-Settings → Themes can follow the system: pick one light theme and one dark theme and Glassine switches with macOS. Otherwise the chosen theme stays put.
+Settings → Theme can follow the system: pick one light theme and one dark theme and Glassine switches with macOS. Otherwise the chosen theme stays put.
 
 ![Glassine in the Paper theme: a launch checklist on light glass](docs/screenshots/light.jpg)
 

@@ -1,20 +1,20 @@
 ---
 title: "Settings"
-description: "Every setting, pane by pane, with its default."
+description: "Every setting, section by section, with its default."
 icon: "settings"
 ---
 
-⌘, or Glassine → Settings…, or the gear at the bottom of the sidebar. Settings open as a card over the window rather than in a window of their own, so everything you change is visible behind it as you change it. ⇥ and ⇧⇥ move between the three panes; Esc closes the card.
+⌘, or Glassine → Settings…, or the gear at the bottom of the sidebar. Settings open as a card over the window rather than in a window of their own, so everything you change is visible behind it as you change it. A rail down the left lists the sections — Library; Type, Caret, Modes and Typing; Theme and Behind the glass; About — and the section you were on is the one you come back to. ⇥ and ⇧⇥ move between sections; Esc closes the card.
 
-**⌘Z takes back the last change** while the card is open, and ⇧⌘Z puts it back — whichever pane it was in, and changes made from the View menu or the command bar too. A slider dragged or a colour picked is one step, not a hundred.
+**Find a setting** at the top of the rail searches all of them: type *blink* and the rail keeps only the sections with something to show, the card turns to the first of them, and the rows that match light up while the rest step back. ⌘F puts the keyboard there; Esc clears it.
 
-## General
+**⌘Z takes back the last change** while the card is open, and ⇧⌘Z puts it back — whichever section it was in, and changes made from the View menu or the command bar too. A slider dragged or a colour picked is one step, not a hundred. A row whose value is not the default shows a small ↺ when the pointer is over it; that puts the one setting back.
 
-**Library**
+The Type section shows a piece of page set in the current type, and the Caret section a line with the caret gliding along it, blinking and shaped as it is set — so a setting shows what it does before you look behind the card.
 
-| Setting |  |
-|---|---|
-| Location | Where the library is, with *Reveal in Finder*, *Change…* to pick another folder, and *Use iCloud Drive* to return to the default. A line beneath says whether the folder syncs. |
+## Library
+
+**Location** — where the library is, with *Reveal in Finder*, *Change…* to pick another folder, and *Use iCloud Drive* to return to the default. A line beneath says whether the folder syncs.
 
 **Files**
 
@@ -25,37 +25,66 @@ icon: "settings"
 
 **Saving** — a note that nothing needs saving: changes are written about half a second after you stop typing and at least every few seconds while you type.
 
-**Updates** — in the direct version, *Check for new versions once a day* (on) and the version you are running. The App Store version shows its version and says updates arrive through the App Store.
+## Type
 
-## Editor
-
-**Type**
+**Face**
 
 | Setting | Default | Range |
 |---|---|---|
-| Font | Helvetica Neue | Any installed family; the system faces (New York, San Francisco, SF Rounded, SF Mono) head the list |
+| Font | Helvetica Neue | Any installed family; the system faces (New York, San Francisco, SF Rounded, SF Mono) head the list. The menu shows the name in the face itself |
 | Size | 16 pt | 11–32 |
+| Letter spacing | 0 pt | −1 to 2 |
+
+**Rhythm**
+
+| Setting | Default | Range |
+|---|---|---|
 | Line height | 1.55× | 1.0–2.2 |
 | Paragraph spacing | 0.65 em | 0–1.5 |
 | Paragraph indent | 0 em | 0–3. The first line of each body paragraph steps in; headings, lists and quotes keep their own margins |
-| Letter spacing | 0 pt | −1 to 2 |
-| Larger headings | On | |
-| Center headings | On | |
 
-**Markdown**
+**Headings and marks**
 
 | Setting | Default | |
 |---|---|---|
+| Larger headings | On | |
+| Center headings | On | |
 | Hide Markdown syntax | Off | The marks leave the page, except in the sentence being written; ⌃⌘M switches it. See [formatting](/editor/formatting#hiding-the-markdown) |
 
-**Layout**
+**Page**
 
 | Setting | Default | Range |
 |---|---|---|
 | Column width | 660 pt | 420–1100 |
 | Top margin | 96 pt | 24–240 |
 
-**Modes**
+## Caret
+
+**Movement**
+
+| Setting | Default | |
+|---|---|---|
+| Smooth movement | On | |
+| Glide time | 270 ms | 40–500 ms |
+| Smooth while typing | On | Off: the caret glides for arrow keys and clicks but snaps as you type |
+| Blink | Soft | Or *Classic*, or *Never* |
+
+**Look**
+
+| Setting | Default | |
+|---|---|---|
+| Width | 4 pt | 1–4 in half-point steps |
+| Shape | Bar | Or Pin, Serif, Wedge, Ghost, Comet, Glow, Hollow — [described here](/editor/caret#shapes) |
+
+**When you stop**
+
+| Setting | Default | |
+|---|---|---|
+| Tricks when idle | On | Left alone for a few seconds, the caret hops, bounces, flips, wiggles, stretches or leans — [described here](/editor/caret#tricks) |
+
+The caret uses the theme's caret colour, usually the accent. Reduce Motion in System Settings disables gliding and the tricks.
+
+## Modes
 
 | Setting | Default | |
 |---|---|---|
@@ -67,7 +96,7 @@ icon: "settings"
 | Show counter | On | The footer's word count, character count and reading time |
 | Counter shows | Everything | Or *Words*, *Characters*, or *Reading time* alone |
 
-**While typing**
+## Typing
 
 | Setting | Default |
 |---|---|
@@ -77,41 +106,31 @@ icon: "settings"
 | Correct spelling automatically | Off |
 | Inline predictions | Off |
 | Continue lists on Return | On |
-| Move finished tasks to the bottom after a moment | On |
+| Move finished tasks to the bottom | On |
 
-**Caret**
-
-| Setting | Default | |
-|---|---|---|
-| Smooth movement | On | |
-| Glide time | 270 ms | 40–500 ms |
-| Smooth while typing | On | Off: the caret glides for arrow keys and clicks but snaps as you type |
-| Blink | Soft | Or *Classic*, or *Never* |
-| Width | 4 pt | 1–4 in half-point steps |
-| Shape | Bar | Or Pin, Serif, Wedge, Ghost, Comet, Glow, Hollow — [described here](/editor/caret#shapes) |
-| Tricks when idle | On | Left alone for a few seconds, the caret hops, bounces, flips, wiggles, stretches or leans — [described here](/editor/caret#tricks) |
-
-The caret uses the theme's caret colour, usually the accent. Reduce Motion in System Settings disables gliding. (The caret had a pane of its own until September 6; it is part of Editor now.)
-
-## Themes
+## Theme
 
 | Setting | Default | |
 |---|---|---|
-| Appearance | Always the chosen theme | Or *Follow the system*, which reveals a *Light* and a *Dark* picker |
-| Light | Paper | Used when macOS is in light mode and the appearance follows the system |
-| Dark | Dusk | The same, for dark mode |
+| Appearance | Always the chosen theme | Or *Follow the system*, which reveals *In light mode* and *In dark mode* |
+| In light mode | Paper | Used when macOS is in light mode and the appearance follows the system |
+| In dark mode | Dusk | The same, for dark mode |
 
-Below that, the list of themes — *Built in* and *Mine* — with **+** to duplicate the selected theme into one you can edit, **−** to delete one of yours, and a ••• menu with *Import Theme…* and *Export "…"*. Selecting a theme of your own opens its editor beneath: name, dark appearance, glass material, tint, tint strength, paper grain, sidebar tint, and the nine colours. The [themes page](/appearance/themes) walks through it.
+Below that, the themes as tiles — *Built in* and *Mine* — each a small piece of its own page, the chosen one ringed in its accent. **Duplicate** copies the selected theme into one you can edit, **Delete** removes one of yours, and **Import…** and **Export…** move them as files. Beneath the tiles, the selected theme's makings: name, dark appearance, glass material, tint, tint strength, paper grain, sidebar tint, and the nine colours — for looking at on a built-in theme, for changing on one of yours. The [themes page](/appearance/themes) walks through it.
 
-**Behind the glass** — the switch at the top of the pane.
+## Behind the glass
 
 | Setting | Default | |
 |---|---|---|
-| Backdrop | Desktop | Or folds of colour inside the window: Aurora (the theme's colours), Dusk, Nebula, Ocean, Borealis, Ember, Sunset, Moss, Rose, Graphite, or one of your own — [described here](/appearance/backdrop) |
-| Colours | — | Three to five colour wells on a backdrop of your own; **+** copies the selected backdrop into one, **−** deletes it |
+| Backdrop | Desktop | Or folds of colour inside the window: Aurora (the theme's colours), Dusk, Nebula, Ocean, Borealis, Ember, Sunset, Moss, Rose, Graphite, or one of your own — [described here](/appearance/backdrop). Tiles, like the themes |
+| Colours | — | Three to five colour wells on a backdrop of your own; **Duplicate** copies the selected backdrop into one, **Delete** removes it |
 | Drift | On | The folds move, slowly. Off under Reduce Motion |
 | Frost | 30% | Pales and softens the colour — gently at first, all the way at 100% |
 | Paper grain | 8% | The grain over a backdrop; the theme's own grain applies over the desktop |
+
+## About
+
+The version you are running. In the direct version, *Check for new versions once a day* (on) and a *Check for Updates…* button; the App Store version says updates arrive through the App Store. Links to this manual, the changelog, the website and the source; the shortcut sheet; and **Restore defaults**, which puts every setting back to how it came — the theme and backdrop too — and which ⌘Z takes back.
 
 ## Not in Settings
 

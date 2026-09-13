@@ -147,6 +147,8 @@ struct CaretShapeSwatch: View {
 struct CaretShapePicker: View {
     @Binding var shape: CaretShape
     let color: Color
+    /// The ring round the chosen one; the theme's accent in Settings.
+    var accent: Color = .accentColor
 
     var body: some View {
         HStack(spacing: 6) {
@@ -162,9 +164,9 @@ struct CaretShapePicker: View {
                 .padding(.vertical, 5)
                 .frame(maxWidth: .infinity)
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(picked ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.04)))
+                    .fill(picked ? accent.opacity(0.14) : Color.primary.opacity(0.04)))
                 .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(picked ? Color.accentColor : Color.clear, lineWidth: 1.5))
+                    .stroke(picked ? accent : Color.clear, lineWidth: 1.5))
                 .contentShape(Rectangle())
                 .onTapGesture { shape = s }
                 .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)

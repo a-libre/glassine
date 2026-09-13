@@ -12,7 +12,7 @@ import SwiftUI
 /// sweeping, slowly moving — so the glass has something worth looking
 /// through wherever it is. A backdrop is a set of three to five colours: the
 /// built-in sets, or one of the user's own, made by duplicating a set and
-/// changing its colours in Settings → Themes → Behind the glass.
+/// changing its colours in Settings → Behind the glass.
 struct BackdropPreset: Codable, Identifiable, Hashable {
     var id: String
     var name: String
