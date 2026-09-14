@@ -3,6 +3,19 @@
     <channel>
         <title>Glassine</title>
         <item>
+            <title>0.2.11</title>
+            <pubDate>Sun, 13 Sep 2026 22:49:06 -0700</pubDate>
+            <link>https://glassine.ink</link>
+            <sparkle:version>20</sparkle:version>
+            <sparkle:shortVersionString>0.2.11</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>Glassine 0.2.11</h2>
+<p>What changed is in the <a href="https://docs.glassine.ink/about/changelog">changelog</a>.</p>
+]]></description>
+            <enclosure url="https://github.com/a-libre/glassine/releases/download/v0.2.11/Glassine-0.2.11.dmg" length="3932433" type="application/octet-stream" sparkle:edSignature="NQQxYtANXExgftQgTZ6ONlnMrWC31emeOItL33R8p2fW7uaT7gfi19HVzKvheOEpExqqGclfTpu1mLd9OI2TAQ=="/>
+        </item>
+        <item>
             <title>0.2.10</title>
             <pubDate>Sun, 13 Sep 2026 13:39:12 -0700</pubDate>
             <link>https://glassine.ink</link>
@@ -27,19 +40,6 @@
 <p>What changed is in the <a href="https://docs.glassine.ink/about/changelog">changelog</a>.</p>
 ]]></description>
             <enclosure url="https://github.com/a-libre/glassine/releases/download/v0.2.9/Glassine-0.2.9.dmg" length="3918713" type="application/octet-stream" sparkle:edSignature="hLvevRG1dbqtm1IXEACcGslSfsUXdn5yfa6ReDDROMH5sRvadEf6AxHS57nN+KNqGdtNMWhiyPM6WPCU0rqcBA=="/>
-        </item>
-        <item>
-            <title>0.2.8</title>
-            <pubDate>Thu, 10 Sep 2026 22:40:55 -0700</pubDate>
-            <link>https://glassine.ink</link>
-            <sparkle:version>16</sparkle:version>
-            <sparkle:shortVersionString>0.2.8</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>Glassine 0.2.8</h2>
-<p>What changed is in the <a href="https://docs.glassine.ink/about/changelog">changelog</a>.</p>
-]]></description>
-            <enclosure url="https://github.com/a-libre/glassine/releases/download/v0.2.8/Glassine-0.2.8.dmg" length="3499028" type="application/octet-stream" sparkle:edSignature="jh06q3qhLcyZpYpJ899lP0r7Xa5jjq5OC+olNEmch6zPOFjZ5+YjAn1hW8MPdkktZ7VekpGbvKyiUxABOLiFAg=="/>
         </item>
     </channel>
 </rss>
