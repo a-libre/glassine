@@ -10,10 +10,11 @@ T=/tmp/glassine-synctest
 rm -rf "$T"; mkdir -p "$T/A/Sub" "$T/B" "$T/R" "$T/C"
 json='{"libraryPath":"'"$T/C"'","sidebarVisible":false}'
 b64=$(printf '%s' "$json" | base64 | tr -d '\n')
-run() {  # run <lib> [busy]
-  local lib=$1; local busy=${2:-}
+run() {  # run <lib> [busy] [stale manifest]
+  local lib=$1; local busy=${2:-}; local stale=${3:-}
   local args=(-glassine.syncTest "$T/$lib" -glassine.syncFolder "$T/R" -glassine.launchSettings "$b64")
   [[ -n "$busy" ]] && args+=(-glassine.syncBusy "$busy")
+  [[ -n "$stale" ]] && args+=(-glassine.syncStale "$stale")
   open -n -W "$APP" --args "${args[@]}"
   echo "[$lib] $(grep '^outcome' "$T/R/log.txt" | tail -1)"
 }
@@ -49,6 +50,24 @@ run B; run A Four.md
 check "busy file deferred" '[[ "$(cat "$T/A/Four.md")" == three ]]'
 run A
 check "deferred file arrives once free" '[[ "$(cat "$T/A/Four.md")" == "four, edited on B" ]]'
+
+# A stale answer about the head — the branch as it stood before this Mac's
+# own push, the way a cache or a lagging replica tells it — is not believed
+# until it has come three rounds running, and never brings that push's
+# predecessor down over the work, nor makes a copy of it.
+cp "$T/R/head.json" "$T/R/stale.json"
+printf 'four, edited again on A\n' > "$T/A/Four.md"
+run A
+printf 'four, and once more\n' > "$T/A/Four.md"
+run A "" "$T/R/stale.json"; run A "" "$T/R/stale.json"
+check "stale head: nothing changes, no copy" '[[ "$(cat "$T/A/Four.md")" == "four, and once more" && ! -e "$T/A/Four (conflict).md" ]]'
+check "stale head: reported as such" '[[ "$(grep "^outcome" "$T/R/log.txt" | tail -1)" == *"error=none stale=true"* ]]'
+run A "" "$T/R/stale.json"
+check "stale head believed the third time" '[[ "$(grep "^outcome" "$T/R/log.txt" | tail -1)" == *"stale=false"* ]]'
+run A
+check "the next honest round pushes what was waiting" '[[ "$(grep "^outcome" "$T/R/log.txt" | tail -1)" == *"pushed=[\"Four (conflict).md\", \"Four.md\"]"*"error=none stale=false"* ]]'
+run B
+check "B has A's latest" '[[ "$(cat "$T/B/Four.md")" == "four, and once more" ]]'
 
 run A; run B
 check "quiet round" '[[ "$(grep "^outcome" "$T/R/log.txt" | tail -1)" == *"pulled=[] pushed=[] removedHere=[] removedThere=[] conflicts=[] deferred=[] error=none"* ]]'

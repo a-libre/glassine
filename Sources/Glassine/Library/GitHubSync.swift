@@ -89,6 +89,13 @@ final class GitHubAPI {
         c.timeoutIntervalForRequest = 30
         c.timeoutIntervalForResource = 120
         c.waitsForConnectivity = false
+        // Never from a cache. GitHub marks each answer good for a minute,
+        // and Foundation would keep to that: for a minute after a push, the
+        // branch would read as it stood before it, the round would take the
+        // version before its own for the other Mac's, and bring that down
+        // over what had been typed since — a copy a minute, as it turned out.
+        c.urlCache = nil
+        c.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         session = URLSession(configuration: c)
     }
 
@@ -104,6 +111,8 @@ final class GitHubAPI {
         guard let url = comps.url else { throw SyncError.other("A path GitHub can't take: \(path)") }
         var req = URLRequest(url: url)
         req.httpMethod = method
+        req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue(accept, forHTTPHeaderField: "Accept")
         req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
@@ -359,6 +368,10 @@ final class GitHubRemote: SyncRemote {
 /// without a network. Used by the headless test (`-glassine.syncTest`).
 final class FolderRemote: SyncRemote {
     let root: URL
+    /// A manifest to answer head() from instead of the real one: the branch
+    /// as it stood earlier, the way a cache or a lagging replica would tell
+    /// it. For the test (`-glassine.syncStale <manifest>`).
+    var staleManifest: URL?
     init(root: URL) { self.root = root }
 
     var name: String { root.lastPathComponent }
@@ -371,17 +384,19 @@ final class FolderRemote: SyncRemote {
         var files: [String: String]
     }
 
-    private func load() throws -> Manifest? {
-        guard FileManager.default.fileExists(atPath: manifest.path) else { return nil }
-        return try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: manifest))
+    private func load(_ url: URL? = nil) throws -> Manifest? {
+        let url = url ?? manifest
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
     }
 
     func head() async throws -> RemoteHead? {
-        guard let m = try load() else { return nil }
+        guard let m = try load(staleManifest) else { return nil }
         return RemoteHead(commit: m.commit, tree: m.tree)
     }
 
     func tree(_ sha: String) async throws -> [String: String] {
+        if let staleManifest, let m = try load(staleManifest), m.tree == sha { return m.files }
         guard let m = try load(), m.tree == sha else { throw SyncError.notFound("tree \(sha)") }
         return m.files
     }
@@ -462,6 +477,41 @@ struct SyncState: Codable {
     var head: String? = nil
     var tree: String? = nil
     var files: [String: String] = [:]
+    /// The heads this Mac has been through, oldest first — so an answer
+    /// naming one of them again is known for what it is.
+    var seenHeads: [String] = []
+    /// Rounds in a row the remote has answered with a head already passed.
+    var staleStrikes = 0
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        head = try c.decodeIfPresent(String.self, forKey: .head)
+        tree = try c.decodeIfPresent(String.self, forKey: .tree)
+        files = try c.decodeIfPresent([String: String].self, forKey: .files) ?? [:]
+        seenHeads = try c.decodeIfPresent([String].self, forKey: .seenHeads) ?? []
+        staleStrikes = try c.decodeIfPresent(Int.self, forKey: .staleStrikes) ?? 0
+    }
+
+    /// The head is one this Mac has handled, but not the latest — the
+    /// branch as it stood some rounds ago, from a cache or a lagging replica.
+    func isStale(_ head: RemoteHead) -> Bool {
+        guard let last = seenHeads.last, head.commit != last else { return false }
+        return seenHeads.contains(head.commit)
+    }
+
+    /// A head handled this round. One passed before — a branch put back to
+    /// it — cuts the list off there: what came after it is not history now.
+    mutating func remember(_ head: RemoteHead?) {
+        guard let h = head?.commit else { return }
+        if let i = seenHeads.firstIndex(of: h) {
+            seenHeads.removeSubrange((i + 1)...)
+        } else {
+            seenHeads.append(h)
+        }
+        if seenHeads.count > 32 { seenHeads.removeFirst(seenHeads.count - 32) }
+    }
 
     static func load(from url: URL) -> SyncState {
         guard let data = try? Data(contentsOf: url), let s = try? JSONDecoder().decode(SyncState.self, from: data) else { return SyncState() }
@@ -483,6 +533,8 @@ struct SyncOutcome {
     var removedThere: [String] = []
     var conflicts: [String] = []
     var deferred: [String] = []
+    /// The remote answered with a head already passed; nothing was done.
+    var stale = false
     /// Local changes left unpushed because the round failed.
     var pendingLocal = 0
     var error: SyncError? = nil
@@ -497,15 +549,16 @@ final class SyncRun {
     let remote: SyncRemote
     let root: URL
     let stateURL: URL
-    /// A path the editor is in the middle of — left alone this round.
-    let busy: String?
+    /// The path the editor is in the middle of, asked as the round goes —
+    /// left alone, so nothing lands under what is being typed.
+    let busy: () -> String?
     let host: String
     var log: ((String) -> Void)?
 
     private var state: SyncState
     private var hashCache: [String: (modified: Date, size: Int, sha: String)]
 
-    init(remote: SyncRemote, root: URL, stateURL: URL, busy: String?, host: String,
+    init(remote: SyncRemote, root: URL, stateURL: URL, busy: @escaping () -> String?, host: String,
          hashCache: [String: (modified: Date, size: Int, sha: String)] = [:]) {
         self.remote = remote
         self.root = root
@@ -609,6 +662,15 @@ final class SyncRun {
         hashCache.removeValue(forKey: rel)
     }
 
+    /// Whether a copy of `rel` — "Name (conflict…" beside it — holds these bytes.
+    private static func hasCopy(of rel: String, sha: String, among local: [String: LocalFile]) -> Bool {
+        let ns = rel as NSString
+        let dir = ns.deletingLastPathComponent
+        let stem = (ns.lastPathComponent as NSString).deletingPathExtension
+        let prefix = (dir.isEmpty ? "" : dir + "/") + stem + " (conflict"
+        return local.contains { $0.key.hasPrefix(prefix) && $0.value.sha == sha }
+    }
+
     /// "Name (conflict).md" beside `rel`, or "(conflict 2)" and so on.
     private func conflictPath(for rel: String) -> String {
         let url = root.appendingPathComponent(rel)
@@ -640,7 +702,25 @@ final class SyncRun {
             for attempt in 1...3 {
                 out = SyncOutcome()
                 let (local, skipped) = try snapshot()
+                let busyNow = busy()
                 let head = try await remote.head()
+                if let head, state.isStale(head) {
+                    // The branch as it stood before something this Mac has
+                    // already been through. Taken at its word only once it
+                    // has come three rounds running — a branch really put
+                    // back — never on the first: the version before this
+                    // Mac's own push must not come down over its work.
+                    state.staleStrikes += 1
+                    if state.staleStrikes < 3 {
+                        log?("stale head \(head.commit.prefix(7)); not this round")
+                        state.save(to: stateURL)
+                        out.stale = true
+                        return out
+                    }
+                    log?("head \(head.commit.prefix(7)) three rounds running; taking it")
+                }
+                state.staleStrikes = 0
+                state.remember(head)
                 let remoteFiles: [String: String]
                 if let head, head.commit == state.head, head.tree == state.tree {
                     remoteFiles = state.files
@@ -666,30 +746,32 @@ final class SyncRun {
                         if let L { next[p] = L } else { next.removeValue(forKey: p) }
                     } else if L == B {
                         // Untouched here since last time: take what the remote did.
-                        if p == busy { out.deferred.append(p); continue }
+                        if p == busyNow { out.deferred.append(p); continue }
                         if let R { pulls.append((p, R)) } else { removals.append(p) }
                     } else if R == B {
-                        // Untouched there: send what happened here.
-                        if let L, let file = local[p] {
+                        // Untouched there: send what happened here. The id
+                        // recorded is of the bytes sent, which a save landing
+                        // since the snapshot can have moved on from L.
+                        if let file = local[p] {
                             guard let data = try? Data(contentsOf: file.url) else { continue }
                             writes[p] = data
-                            pushSHAs[p] = L
+                            pushSHAs[p] = GitBlob.sha(of: data)
                         } else {
                             deletesThere.append(p)
                         }
                     } else {
                         // Changed on both sides.
-                        if p == busy { out.deferred.append(p); continue }
-                        if let L, let R, let file = local[p] {
+                        if p == busyNow { out.deferred.append(p); continue }
+                        if let R, let file = local[p] {
                             guard let data = try? Data(contentsOf: file.url) else { continue }
                             conflicts.append((p, R))
                             writes[p] = data
-                            pushSHAs[p] = L
-                        } else if let L, let file = local[p] {
+                            pushSHAs[p] = GitBlob.sha(of: data)
+                        } else if let file = local[p] {
                             // Removed there, edited here: what was written stays.
                             guard let data = try? Data(contentsOf: file.url) else { continue }
                             writes[p] = data
-                            pushSHAs[p] = L
+                            pushSHAs[p] = GitBlob.sha(of: data)
                         } else if let R {
                             // Removed here, edited there: the edit comes back.
                             pulls.append((p, R))
@@ -700,19 +782,26 @@ final class SyncRun {
                 // What came from the remote — and, for a conflict, the remote
                 // version beside the local one under a name of its own.
                 for (p, sha) in pulls {
+                    // The editor may have taken the file up since the round
+                    // began; asked again right before anything lands on it.
+                    if p == busy() { out.deferred.append(p); continue }
                     let data = try await remote.blob(sha)
+                    if p == busy() { out.deferred.append(p); continue }
                     try write(data, to: p)
                     next[p] = sha
                     out.pulled.append(p)
                 }
                 for (p, sha) in conflicts {
+                    next[p] = pushSHAs[p]
+                    out.conflicts.append(p)
+                    // A copy with these very bytes already beside the file is
+                    // copy enough.
+                    if SyncRun.hasCopy(of: p, sha: sha, among: local) { continue }
                     let data = try await remote.blob(sha)
                     let copy = conflictPath(for: p)
                     try write(data, to: copy)
                     writes[copy] = data
                     pushSHAs[copy] = GitBlob.sha(of: data)
-                    next[p] = pushSHAs[p]
-                    out.conflicts.append(p)
                 }
                 for p in removals {
                     try remove(p)
@@ -746,9 +835,10 @@ final class SyncRun {
                 // not marked as seen: the next round reads the tree again.
                 state.head = out.deferred.isEmpty ? newHead?.commit : nil
                 state.tree = out.deferred.isEmpty ? newHead?.tree : nil
+                state.remember(newHead)
                 state.files = next
                 state.save(to: stateURL)
-                log?("done: pulled \(out.pulled.count), pushed \(out.pushed.count), removed here \(out.removedHere.count), there \(out.removedThere.count), conflicts \(out.conflicts.count), deferred \(out.deferred.count)")
+                log?("done: pulled \(out.pulled.count), pushed \(out.pushed.count), removed here \(out.removedHere.count), there \(out.removedThere.count), conflicts \(out.conflicts.count), deferred \(out.deferred.count), head \(newHead?.commit.prefix(7) ?? "none")")
                 return out
             }
         } catch let e as SyncError {
@@ -978,7 +1068,12 @@ final class SyncEngine: ObservableObject {
         if running { runAgain = true; return }
         running = true
         if case .syncing = status {} else { status = .syncing }
-        let run = SyncRun(remote: remote, root: library.rootURL, stateURL: stateURL, busy: busyPath?(),
+        let busyPath = busyPath
+        let busy: () -> String? = {
+            if Thread.isMainThread { return busyPath?() }
+            return DispatchQueue.main.sync { busyPath?() }
+        }
+        let run = SyncRun(remote: remote, root: library.rootURL, stateURL: stateURL, busy: busy,
                           host: Host.current().localizedName ?? "a Mac", hashCache: hashCache)
         run.log = { line in ScreenshotMode.note("sync: " + line) }
         Task.detached(priority: .utility) { [weak self] in
@@ -998,6 +1093,9 @@ final class SyncEngine: ObservableObject {
             } else {
                 status = .failed(error.errorDescription ?? "Sync failed.")
             }
+        } else if out.stale {
+            // Not a round: the remote will be asked again in a moment.
+            status = .upToDate(lastSync ?? .distantPast)
         } else {
             pending = 0
             lastSync = Date()
@@ -1010,7 +1108,7 @@ final class SyncEngine: ObservableObject {
             }
         }
         if out.changedLibrary { libraryChanged?() }
-        if runAgain || !out.deferred.isEmpty {
+        if runAgain || !out.deferred.isEmpty || out.stale {
             runAgain = false
             soon.call { [weak self] in self?.sync() }
         }
@@ -1057,12 +1155,14 @@ final class SyncEngine: ObservableObject {
         let logURL = remoteURL.appendingPathComponent("log.txt")
         var lines: [String] = []
         let stateURL = remoteURL.appendingPathComponent("state-\(root.lastPathComponent).json")
-        let run = SyncRun(remote: FolderRemote(root: remoteURL), root: root, stateURL: stateURL,
-                          busy: defaults.string(forKey: "glassine.syncBusy"), host: "test")
+        let remote = FolderRemote(root: remoteURL)
+        if let stale = defaults.string(forKey: "glassine.syncStale") { remote.staleManifest = URL(fileURLWithPath: stale) }
+        let busy = defaults.string(forKey: "glassine.syncBusy")
+        let run = SyncRun(remote: remote, root: root, stateURL: stateURL, busy: { busy }, host: "test")
         run.log = { lines.append($0) }
         Task.detached {
             let out = await run.run()
-            lines.append("outcome: pulled=\(out.pulled) pushed=\(out.pushed) removedHere=\(out.removedHere) removedThere=\(out.removedThere) conflicts=\(out.conflicts) deferred=\(out.deferred) error=\(out.error?.errorDescription ?? "none")")
+            lines.append("outcome: pulled=\(out.pulled) pushed=\(out.pushed) removedHere=\(out.removedHere) removedThere=\(out.removedThere) conflicts=\(out.conflicts) deferred=\(out.deferred) error=\(out.error?.errorDescription ?? "none") stale=\(out.stale)")
             try? (lines.joined(separator: "\n") + "\n").data(using: .utf8)?.write(to: logURL)
             exit(out.error == nil ? 0 : 1)
         }

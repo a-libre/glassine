@@ -44,6 +44,10 @@ final class DocumentModel: ObservableObject, Identifiable {
     private var titleAtLoad: String
     private var lastFirstLine: String
 
+    /// The last texts saved from here, as blob ids. A version of ours
+    /// arriving from outside is an echo — a stale answer somewhere on the
+    /// way — not another Mac's work, and is not kept as one.
+    private var recentSaves: [String] = []
     private let saveDebouncer = Debouncer(delay: 0.5)
     private let renameDebouncer = Debouncer(delay: 4.0)
     private let statsDebouncer = Debouncer(delay: 0.25)
@@ -213,6 +217,7 @@ final class DocumentModel: ObservableObject, Identifiable {
                 } else {
                     self.savedGeneration = max(self.savedGeneration, generation)
                     self.lastSavedText = snapshot
+                    self.remember(saved: snapshot)
                     self.knownModificationDate = modDate
                     self.lastSavedAt = Date()
                     if target != self.url {
@@ -252,6 +257,7 @@ final class DocumentModel: ObservableObject, Identifiable {
             try FileCoordination.write(text, to: url)
             savedGeneration = generation
             lastSavedText = text
+            remember(saved: text)
             knownModificationDate = url.contentModificationDate
             lastSavedAt = Date()
             saveState = .clean
@@ -286,13 +292,25 @@ final class DocumentModel: ObservableObject, Identifiable {
         guard let onDisk = try? FileCoordination.read(url) else { return }
         knownModificationDate = mod
         if onDisk == lastSavedText || onDisk == text { return }   // our own write echoing back
+        let echo = recentSaves.contains(GitBlob.sha(of: Data(onDisk.utf8)))
 
         guard !isDirty else {
-            // Someone else wrote while we have unsaved edits. Ours win, theirs is kept beside it.
-            let copy = library.uniqueURL(in: url.deletingLastPathComponent(),
-                                         stem: title + " (conflict)", ext: url.pathExtension)
-            try? FileCoordination.write(onDisk, to: copy)
+            // Someone else wrote while we have unsaved edits. Ours win, theirs
+            // is kept beside it — unless theirs is an earlier text of ours.
+            if !echo {
+                let copy = library.uniqueURL(in: url.deletingLastPathComponent(),
+                                             stem: title + " (conflict)", ext: url.pathExtension)
+                try? FileCoordination.write(onDisk, to: copy)
+            }
             lastSavedText = onDisk
+            scheduleAutosave()
+            return
+        }
+        if echo {
+            // An earlier text of ours came back over the file. What is here
+            // is the newer; it goes back over that.
+            lastSavedText = onDisk
+            editGeneration += 1
             scheduleAutosave()
             return
         }
@@ -304,6 +322,13 @@ final class DocumentModel: ObservableObject, Identifiable {
         lastFirstLine = titleAtLoad
         recomputeStats()
         onReloaded?()
+    }
+
+    private func remember(saved text: String) {
+        let id = GitBlob.sha(of: Data(text.utf8))
+        recentSaves.removeAll { $0 == id }
+        recentSaves.append(id)
+        if recentSaves.count > 64 { recentSaves.removeFirst() }
     }
 
     // MARK: - Renaming
