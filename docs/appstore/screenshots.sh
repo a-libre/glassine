@@ -54,6 +54,13 @@ trap restore EXIT
 defaults export "$PREFS" "$BACKUP/prefs.plist" 2>/dev/null || true   # the window frame gets saved; put it back
 mkdir -p "$DOCS"
 cp -R "$LIB"/Essays "$LIB"/Notes "$LIB"/Ideas "$DOCS"/
+# A date token written as {{TOKEN}} or {{TOKEN-n}} is today, or n days ago.
+token() { date -v-"${1:-0}"d "+%B %e, %Y" | sed 's/  */ /g'; }
+find "$DOCS" -name '*.md' -print0 | while IFS= read -r -d '' f; do
+  grep -q '{{TOKEN' "$f" || continue
+  sed -i '' "s/{{TOKEN}}/$(token 0)/g" "$f"
+  for n in $(seq 1 30); do sed -i '' "s/{{TOKEN-$n}}/$(token "$n")/g" "$f"; done
+done
 # Daily notes are stored by how many days ago they are; give each its real date.
 mkdir -p "$DOCS/Daily"
 for f in "$LIB"/Daily/*.md; do

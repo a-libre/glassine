@@ -419,6 +419,11 @@ struct GlassineCommands: Commands {
             #if canImport(Sparkle)
             Button("Check for Updates…") { Updater.shared.check() }
             #endif
+            if Distribution.isDemo {
+                Divider()
+                Button("Reset Demo Library") { withWindow { state.resetDemoLibrary() } }
+                Button("Window at 1440 × 900") { withWindow { DemoLibrary.placeWindowForPictures() } }
+            }
             Divider()
             Button("Copy Debug Info") { state.copyDebugInfo() }
                 .keyboardShortcut("d", modifiers: [.command, .option, .shift])

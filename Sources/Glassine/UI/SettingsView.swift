@@ -1542,8 +1542,10 @@ struct AboutSection: View {
                 }
             }
             #else
-            SettingsPanel(theme: theme, title: "Updates") {
-                PanelNote(theme: theme, text: "This copy came from the App Store, so new versions arrive through the App Store.")
+            SettingsPanel(theme: theme, title: Distribution.isDemo ? "This copy" : "Updates") {
+                PanelNote(theme: theme, text: Distribution.isDemo
+                    ? "A demonstration copy, for pictures and recordings: the library is a set of sample pages in a folder of its own, and nothing else on the Mac is in view. Help → Reset Demo Library writes them fresh."
+                    : "This copy came from the App Store, so new versions arrive through the App Store.")
             }
             #endif
 

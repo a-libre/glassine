@@ -16,7 +16,7 @@ A rule, for the record:
 
 - The caret. Everyone mentions the caret.
 - ==Timelapse==, the corridor of days, before the sidebar and before the themes.
-- That `@today` becomes a date and stays plain text: @September 6, 2026.
+- That `@today` becomes a date and stays plain text: @{{TOKEN-1}}.
 - [ ] Ask ==Maya== whether the chips read as chips
 - [x] Ship the formatting bar
 

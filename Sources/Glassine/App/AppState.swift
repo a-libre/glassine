@@ -176,7 +176,14 @@ final class AppState: ObservableObject {
     }
 
     private func bootstrapLibrary() {
-        if library.isEmptyOnDisk {
+        if Distribution.isDemo, library.isEmptyOnDisk, DemoLibrary.seed(into: library.rootURL) {
+            // The demonstration copy opens on its showcase, arranged.
+            settings.data.expandedFolders = DemoLibrary.expanded
+            settings.data.starred = DemoLibrary.starred
+            settings.data.lastOpenedDocument = DemoLibrary.opened
+            settings.data.sidebarVisible = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { DemoLibrary.placeWindowForPictures() }
+        } else if library.isEmptyOnDisk {
             _ = try? library.createDocument(in: "", stem: "Welcome to Glassine", contents: WelcomeDocument.text)
         }
         // A listing is enough to open the last document and show the window; reading every
@@ -811,6 +818,22 @@ final class AppState: ObservableObject {
     }
 
     func resetLibraryToDefault() {
+        setLibrary(chosen: nil)
+    }
+
+    /// Help → Reset Demo Library: the showcase pages written fresh, dated
+    /// from today, and the first look again. What was there goes to the Trash.
+    func resetDemoLibrary() {
+        guard Distribution.isDemo else { return }
+        closeCurrentDocument()
+        let fm = FileManager.default
+        for name in (try? fm.contentsOfDirectory(atPath: library.rootURL.path)) ?? [] {
+            let item = library.rootURL.appendingPathComponent(name)
+            if (try? fm.trashItem(at: item, resultingItemURL: nil)) == nil { try? fm.removeItem(at: item) }
+        }
+        showingGallery = false
+        showingDaily = false
+        reviewMode = false
         setLibrary(chosen: nil)
     }
 

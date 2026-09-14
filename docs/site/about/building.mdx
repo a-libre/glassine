@@ -23,6 +23,7 @@ cd glassine
 | `./build.sh --install` | Build, copy to `/Applications` (asking a running copy to quit first), open |
 | `./build.sh --debug` | A faster, unoptimised compile while you are changing things |
 | `./build.sh --appstore` | The sandboxed App Store flavor, locally — without Sparkle, since the store is its updater |
+| `./build.sh --demo` | *Glassine Demo.app*, for pictures and recordings — [below](#a-demonstration-copy) |
 
 Edit anything under `Sources/Glassine/` and run `./build.sh --run`; incremental builds take a few seconds. Opening `Package.swift` in Xcode and pressing Run works for debugging, but the assembled app from `build.sh` is the one to use day to day — it has the icon and a stable identity for macOS permissions.
 
@@ -54,6 +55,12 @@ appstore.sh   Signed .pkg for the Mac App Store
 ## Two flavors
 
 `./build.sh --appstore` compiles with `APPSTORE` set, which turns on the App Sandbox, gives the app its own iCloud container instead of direct access to iCloud Drive, remembers chosen folders with security-scoped bookmarks, and leaves out the GitHub update check. `Support/Distribution.swift` is where the differences are decided at run time. [RELEASING.md](https://github.com/a-libre/glassine/blob/main/RELEASING.md) in the repository has the whole pipeline for both — certificates, notarization, the store package.
+
+## A demonstration copy
+
+`./build.sh --demo --install` makes and installs *Glassine Demo.app* beside Glassine: the same app compiled with `DEMO` set, under an identifier of its own (`com.alexlibre.glassine.demo`), so its settings, window, themes and library are its own and the real library is never in view. Its library is the showcase of the store pictures — `docs/appstore/library`, copied into the bundle — written into `~/Library/Application Support/Glassine Demo/Library` on the first launch with the daily notes dated from today, so the Timelapse and the gallery look lived-in on any day. It has no updater and is not registered as an editor of Markdown files, so Finder's Open With still lists Glassine once. The menu bar says Glassine; Finder and the Dock say Glassine Demo.
+
+Two items in its Help menu: **Reset Demo Library** writes the pages fresh (what was there goes to the Trash), and **Window at 1440 × 900** sets the window to the store's picture size, 2880 × 1800 pixels on a Retina display. Add pages to `docs/appstore/library` to have them in the demo: a daily note is `Daily/N.md` for N days ago with `{{DATE}}` for its title, and `{{TOKEN}}` or `{{TOKEN-3}}` anywhere is today, or three days ago, written as a date token.
 
 ## Debugging
 

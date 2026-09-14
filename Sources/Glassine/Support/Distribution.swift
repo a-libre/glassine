@@ -25,9 +25,18 @@ enum Distribution {
     static let isAppStore = false
     #endif
 
+    /// The demonstration copy (`build.sh --demo`): "Glassine Demo.app", an
+    /// identity of its own so its settings are its own, the showcase pages for
+    /// a library, no updater. For pictures and recordings — see DemoLibrary.
+    #if DEMO
+    static let isDemo = true
+    #else
+    static let isDemo = false
+    #endif
+
     /// For diagnostics and the About text.
     static var channel: String {
-        isAppStore ? "App Store" : (isSandboxed ? "Sandboxed" : "Direct")
+        isDemo ? "Demo" : isAppStore ? "App Store" : (isSandboxed ? "Sandboxed" : "Direct")
     }
 
     static var version: String {

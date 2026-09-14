@@ -9,6 +9,11 @@
 #                         Ad-hoc signed here, so no iCloud container — the library
 #                         goes to the sandbox's Documents folder or a folder you pick.
 #                         appstore.sh signs it for real.
+#   ./build.sh --demo     "Glassine Demo.app": the app under an identity of its own, so its
+#                         settings are its own, with the showcase pages of docs/appstore/library
+#                         for a library (in ~/Library/Application Support/Glassine Demo) and no
+#                         updater — for pictures and recordings that show nobody's real notes.
+#                         --install puts it in /Applications beside Glassine; both can run at once.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -23,8 +28,11 @@ for arg in "$@"; do
     --run) RUN=1 ;;
     --install) INSTALL=1; RUN=1 ;;
     --appstore) FLAVOR="appstore" ;;
+    --demo) FLAVOR="demo" ;;
   esac
 done
+BUNDLE_NAME="$APP_NAME"
+[[ "$FLAVOR" == "demo" ]] && BUNDLE_NAME="$APP_NAME Demo"
 
 if ! xcode-select -p >/dev/null 2>&1; then
   echo "Xcode (or its command line tools) is required. Install Xcode from the App Store, then run: sudo xcode-select -s /Applications/Xcode.app" >&2
@@ -38,6 +46,10 @@ if [[ "$FLAVOR" == "appstore" ]]; then
   SWIFT_ARGS+=(--scratch-path .build-appstore -Xswiftc -DAPPSTORE)
   ENTITLEMENTS="Resources/Glassine-Sandbox-Dev.entitlements"
   # Package.swift reads this and leaves Sparkle out: the store is the updater there.
+  export GLASSINE_APPSTORE=1
+elif [[ "$FLAVOR" == "demo" ]]; then
+  SWIFT_ARGS+=(--scratch-path .build-demo -Xswiftc -DDEMO)
+  # No updater in the demonstration copy either; Sparkle stays out the same way.
   export GLASSINE_APPSTORE=1
 else
   # The direct flavor carries Sparkle in Contents/Frameworks; the executable looks there.
@@ -67,7 +79,7 @@ if [[ ! -x "$BIN_DIR/$APP_NAME" ]]; then
   exit 1
 fi
 
-APP="build/$APP_NAME.app"
+APP="build/$BUNDLE_NAME.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
@@ -79,6 +91,18 @@ if [[ "$FLAVOR" == "appstore" ]]; then
   for key in SUFeedURL SUPublicEDKey SUEnableAutomaticChecks SUScheduledCheckInterval; do
     /usr/libexec/PlistBuddy -c "Delete :$key" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
   done
+elif [[ "$FLAVOR" == "demo" ]]; then
+  # Its own identifier, so its settings, window and themes are its own; "Glassine
+  # Demo" in Finder and the Dock, plain Glassine in the menu bar; no updater; and
+  # not an editor of anybody's files, so Finder's Open With lists Glassine once.
+  PLIST="$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.alexlibre.glassine.demo" "$PLIST"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $BUNDLE_NAME" "$PLIST"
+  for key in SUFeedURL SUPublicEDKey SUEnableAutomaticChecks SUScheduledCheckInterval CFBundleDocumentTypes UTImportedTypeDeclarations UTExportedTypeDeclarations; do
+    /usr/libexec/PlistBuddy -c "Delete :$key" "$PLIST" >/dev/null 2>&1 || true
+  done
+  mkdir -p "$APP/Contents/Resources/DemoLibrary"
+  cp -R docs/appstore/library/. "$APP/Contents/Resources/DemoLibrary/"
 else
   SPARKLE="$(find .build/artifacts -type d -name Sparkle.framework -path '*macos*' -print -quit 2>/dev/null || true)"
   if [[ ! -d "$SPARKLE" ]]; then
@@ -126,6 +150,8 @@ xattr -cr "$APP" 2>/dev/null || true
 if [[ -n "$ENTITLEMENTS" ]]; then
   codesign --force --deep --sign - --identifier com.alexlibre.glassine --entitlements "$ENTITLEMENTS" "$APP" 2>&1 | grep -v 'replacing existing signature' || true
   codesign -d --entitlements - "$APP" 2>/dev/null | grep -q 'app-sandbox' || { echo "Sandbox entitlements did not apply — see the codesign output above." >&2; exit 1; }
+elif [[ "$FLAVOR" == "demo" ]]; then
+  codesign --force --sign - --identifier com.alexlibre.glassine.demo "$APP" >/dev/null 2>&1
 else
   sign_sparkle -
   codesign --force --sign - --identifier com.alexlibre.glassine "$APP" >/dev/null 2>&1
@@ -134,12 +160,16 @@ echo "▸ Built $APP ($FLAVOR)"
 
 if [[ $INSTALL -eq 1 ]]; then
   # A running copy would keep executing the old code (and fight the copy); ask it to quit.
-  osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+  if [[ "$FLAVOR" == "demo" ]]; then
+    pkill -f "/$BUNDLE_NAME.app/Contents/MacOS/" 2>/dev/null || true
+  else
+    osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+  fi
   sleep 1
-  rm -rf "/Applications/$APP_NAME.app"
-  cp -R "$APP" "/Applications/$APP_NAME.app"
-  echo "▸ Installed /Applications/$APP_NAME.app"
-  APP="/Applications/$APP_NAME.app"
+  rm -rf "/Applications/$BUNDLE_NAME.app"
+  cp -R "$APP" "/Applications/$BUNDLE_NAME.app"
+  echo "▸ Installed /Applications/$BUNDLE_NAME.app"
+  APP="/Applications/$BUNDLE_NAME.app"
 fi
 
 if [[ $RUN -eq 1 ]]; then

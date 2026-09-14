@@ -98,6 +98,7 @@ final class LibraryStore: ObservableObject {
     /// own iCloud container (App Store), the Glassine folder in iCloud Drive
     /// (direct download), or a local Documents folder when iCloud is off.
     static func defaultRootURL() -> (URL, Bool) {
+        if Distribution.isDemo { return (DemoLibrary.rootURL, false) }
         if let container = Distribution.iCloudContainerDocuments() { return (container, true) }
         if let icloud = iCloudDriveURL {
             return (icloud.appendingPathComponent(appFolderName, isDirectory: true), true)
@@ -149,7 +150,7 @@ final class LibraryStore: ObservableObject {
         rootURL = url.standardizedFileURL
         isInICloud = inCloud
         root = LibraryFolder(id: "", name: rootURL.lastPathComponent, url: rootURL, folders: [], documents: [])
-        if self.chosen == nil, !Distribution.isSandboxed {
+        if self.chosen == nil, !Distribution.isSandboxed, !Distribution.isDemo {
             Legacy.migrateLibraryFolderIfNeeded(newRoot: rootURL)
         }
         ensureRootExists()

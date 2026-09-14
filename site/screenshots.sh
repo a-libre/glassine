@@ -35,8 +35,13 @@ for f in "$SRC"/Daily/*.md; do
   sed "s/{{DATE}}/$title/" "$f" > "$LIB/Daily/$title.md"
   touch -t "$(date -v-"${ago}"d "+%Y%m%d1400")" "$LIB/Daily/$title.md"
 done
-today=$(date "+%B %-d, %Y")
-sed -i '' "s/@September 6, 2026/@$today/" "$LIB/Notes/Field Notes.md"
+# A date token written as {{TOKEN}} or {{TOKEN-n}} is today, or n days ago.
+token() { date -v-"${1:-0}"d "+%B %e, %Y" | sed 's/  */ /g'; }
+find "$LIB" -name '*.md' -print0 | while IFS= read -r -d '' f; do
+  grep -q '{{TOKEN' "$f" || continue
+  sed -i '' "s/{{TOKEN}}/$(token 0)/g" "$f"
+  for n in $(seq 1 30); do sed -i '' "s/{{TOKEN-$n}}/$(token "$n")/g" "$f"; done
+done
 i=0
 for rel in "Ideas/Names for the Boat.md" "Notes/Reading List.md" "Ideas/Small Rituals.md" \
            "Ideas/A Letter to September.md" "Notes/Launch Checklist.md" "Notes/Field Notes.md" "Essays/On Writing Slowly.md"; do
