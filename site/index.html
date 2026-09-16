@@ -7,14 +7,14 @@
 <meta name="description" content="Glassine is a Markdown writing app for the Mac: a sheet of translucent glass, a caret that glides, plain files in iCloud Drive or a private GitHub repository, saved as you type. Free and open source, on the Mac App Store.">
 <meta name="theme-color" content="#1a1430">
 <meta name="color-scheme" content="dark">
-<link rel="icon" href="/favicon.png" type="image/png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.png?v=2d769650" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=bb11821b">
 <link rel="canonical" href="https://glassine.ink/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Glassine">
 <meta property="og:description" content="A quiet Markdown writing app for macOS. Glass, a caret that glides, and files that stay yours.">
 <meta property="og:url" content="https://glassine.ink/">
-<meta property="og:image" content="https://glassine.ink/editor.jpg">
+<meta property="og:image" content="https://glassine.ink/editor.jpg?v=944a1e29">
 <meta name="twitter:card" content="summary_large_image">
 <style>
   :root {
@@ -134,6 +134,22 @@
 
   .support p, .support-p { max-width: 640px; color: var(--muted); margin: 0; font-size: 16px; }
 
+  /* A picture, clicked, grows from its place into the middle of the window
+     over a blur of the page, and shrinks back to where it came from. */
+  .shot img, .card img { cursor: zoom-in; }
+  .lightbox { position: fixed; inset: 0; z-index: 50; }
+  .lightbox[hidden] { display: none; }
+  .lb-scrim { position: absolute; inset: 0; background: rgba(9, 7, 18, 0.74); backdrop-filter: blur(22px) saturate(1.1); -webkit-backdrop-filter: blur(22px) saturate(1.1); opacity: 0; transition: opacity .4s ease; }
+  .lightbox.open .lb-scrim { opacity: 1; }
+  .lb-img { position: absolute; top: 0; left: 0; display: block; border-radius: 14px; border: 1px solid rgba(223,229,244,0.14); box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.35); transform-origin: top left; will-change: transform; cursor: zoom-out; background: #1c1733; transition: transform .46s cubic-bezier(.2,.8,.2,1), opacity .25s ease; }
+  .lb-caption { position: absolute; left: 28px; right: 28px; bottom: 26px; text-align: center; font-size: 14px; color: var(--muted); opacity: 0; transition: opacity .3s ease .18s; }
+  .lb-caption b { color: var(--heading); font-weight: 600; }
+  .lb-caption kbd { display: inline-block; margin-left: 10px; padding: 0 6px; border-radius: 5px; font-size: 12px; font-family: inherit; background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--dim); }
+  .lightbox.open .lb-caption { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    .lb-scrim, .lb-img, .lb-caption { transition: none; }
+  }
+
   footer { margin-top: 84px; padding: 28px 0 44px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--dim); }
   footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; justify-content: space-between; }
   footer nav { gap: 20px; font-size: 13.5px; }
@@ -158,8 +174,8 @@
 
   <header>
     <a class="mark" href="/" aria-label="Glassine">
-      <img class="icon" src="/icon.png" alt="" width="30" height="30">
-      <img class="word" src="/wordmark.png" alt="glassine" height="15">
+      <img class="icon" src="/icon.png?v=0828cdf4" alt="" width="30" height="30">
+      <img class="word" src="/wordmark.png?v=dc9cb457" alt="glassine" height="15">
     </a>
     <nav>
       <a href="https://docs.glassine.ink">Manual</a>
@@ -181,7 +197,7 @@
   </div>
 
   <figure class="shot">
-    <img src="/editor.jpg" alt="An essay open on dark glass over the Aurora backdrop — folds of violet, teal and rose behind the page — with the library in a sidebar on the left" width="1440" height="900">
+    <img src="/editor.jpg?v=944a1e29" alt="An essay open on dark glass over the Aurora backdrop — folds of violet, teal and rose behind the page — with the library in a sidebar on the left" width="1440" height="900">
   </figure>
 
   <section>
@@ -189,23 +205,23 @@
     <p class="intro">Fewer features than most writing apps, and fewer interruptions. Everything it does is on one screen or one key away.</p>
     <div class="grid">
       <figure class="card">
-        <img src="/review.jpg" alt="Review in the Book style, dark: the essay set as a finished page, over the Graphite backdrop" width="720" height="450" loading="lazy">
+        <img src="/review.jpg?v=31947b58" alt="Review in the Book style, dark: the essay set as a finished page, over the Graphite backdrop" width="720" height="450" loading="lazy">
         <figcaption><b>Review.</b> <span class="kbd">⌘↩</span> renders the document as a finished page in one of six styles — this is Book, dark — then puts you back where you were.</figcaption>
       </figure>
       <figure class="card">
-        <img src="/library.jpg" alt="All Documents, the library as a wall of cards with live previews, over a warm backdrop" width="720" height="450" loading="lazy">
+        <img src="/library.jpg?v=f1d0987f" alt="All Documents, the library as a wall of cards with live previews, over a warm backdrop" width="720" height="450" loading="lazy">
         <figcaption><b>All Documents.</b> The library as a wall of cards with live previews; a click grows the card into the page.</figcaption>
       </figure>
       <figure class="card">
-        <img src="/daily.jpg" alt="Timelapse over the Moss backdrop: today's note in front, earlier days receding behind it" width="720" height="450" loading="lazy">
+        <img src="/daily.jpg?v=fc9d23b1" alt="Timelapse over the Moss backdrop: today's note in front, earlier days receding behind it" width="720" height="450" loading="lazy">
         <figcaption><b>Timelapse.</b> Today's note in front, earlier days receding behind it. Scroll to walk back.</figcaption>
       </figure>
       <figure class="card">
-        <img src="/caret.jpg" alt="Settings, the Caret section, with a caret gliding along a line of specimen text, the page showing through behind the card" width="720" height="450" loading="lazy">
+        <img src="/caret.jpg?v=30aef7aa" alt="Settings, the Caret section, with a caret gliding along a line of specimen text, the page showing through behind the card" width="720" height="450" loading="lazy">
         <figcaption><b>Settings that show you.</b> A card over the page, so every change is visible behind it. The Caret section keeps a caret gliding and blinking as it is set; Type shows a piece of page in the face you chose. A search box finds any setting by name; <span class="kbd">⌘Z</span> takes a change back.</figcaption>
       </figure>
       <figure class="card wide">
-        <img src="/backdrops.jpg" alt="Settings, Behind the glass: tiles of the backdrops with Aurora chosen, its folds of colour showing through the card" width="720" height="450" loading="lazy">
+        <img src="/backdrops.jpg?v=c2cb58bf" alt="Settings, Behind the glass: tiles of the backdrops with Aurora chosen, its folds of colour showing through the card" width="720" height="450" loading="lazy">
         <figcaption>
           <p><b>Behind the glass.</b> The window is a blur of whatever is behind it — with the right wallpaper, colour and light moving softly behind the page. Without one, a backdrop puts the colour inside the window: long, deep, slowly drifting folds of it, like silk lit from one side.</p>
           <p>Nine come built in — Aurora takes the theme's own colours; Dusk, Nebula, Ocean, Borealis, Ember, Sunset, Moss, Rose and Graphite each run through a palette of their own — and any can be duplicated and recoloured into one of yours. Drift and frost to taste, and a paper grain of its own.</p>
@@ -293,5 +309,100 @@ cd glassine
   </footer>
 
 </div>
+
+<div class="lightbox" id="lightbox" hidden aria-hidden="true">
+  <div class="lb-scrim"></div>
+  <img class="lb-img" alt="">
+  <div class="lb-caption"></div>
+</div>
+<script>
+(() => {
+  const lb = document.getElementById('lightbox');
+  const img = lb.querySelector('.lb-img');
+  const cap = lb.querySelector('.lb-caption');
+  const pics = Array.from(document.querySelectorAll('.shot img, .card img'));
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let at = -1, busy = false;
+
+  // Where the big picture sits: as large as the window allows, centred, with room for the caption.
+  const place = (w, h) => {
+    const vw = innerWidth, vh = innerHeight;
+    const maxW = Math.min(vw - 56, 1440), maxH = vh - 120;
+    const s = Math.min(maxW / w, maxH / h);
+    const W = Math.round(w * s), H = Math.round(h * s);
+    return { left: Math.round((vw - W) / 2), top: Math.round((vh - 40 - H) / 2), width: W, height: H };
+  };
+  const caption = (el) => {
+    const fig = el.closest('figure');
+    const b = fig && fig.querySelector('figcaption b');
+    return b ? b.textContent.replace(/\.$/, '') : (el.alt || '');
+  };
+  const from = (el, to) => {
+    const r = el.getBoundingClientRect();
+    return `translate(${r.left - to.left}px, ${r.top - to.top}px) scale(${r.width / to.width}, ${r.height / to.height})`;
+  };
+  const show = (i) => {
+    const el = pics[i];
+    at = i;
+    img.src = el.currentSrc || el.src; img.alt = el.alt;
+    cap.innerHTML = '';
+    const b = document.createElement('b'); b.textContent = caption(el); cap.appendChild(b);
+    if (pics.length > 1) { const k = document.createElement('kbd'); k.textContent = '← →'; cap.appendChild(k); }
+    const w = el.naturalWidth || 1440, h = el.naturalHeight || 900;
+    const to = place(w, h);
+    Object.assign(img.style, { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px' });
+    return { el, to };
+  };
+  const open = (i) => {
+    if (busy || !lb.hidden) return;
+    const { el, to } = show(i);
+    lb.hidden = false; lb.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    img.style.transition = 'none';
+    img.style.transform = still ? 'none' : from(el, to);
+    img.style.opacity = '1';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      img.style.transition = '';
+      lb.classList.add('open');
+      img.style.transform = 'none';
+    }));
+  };
+  const close = () => {
+    if (lb.hidden || busy) return;
+    busy = true;
+    const el = pics[at];
+    const to = { left: parseFloat(img.style.left), top: parseFloat(img.style.top), width: parseFloat(img.style.width), height: parseFloat(img.style.height) };
+    lb.classList.remove('open');
+    const done = () => {
+      lb.hidden = true; lb.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      img.style.transform = 'none'; img.removeAttribute('src');
+      busy = false;
+    };
+    if (still) { done(); return; }
+    const r = el.getBoundingClientRect();
+    const onScreen = r.bottom > 0 && r.top < innerHeight;
+    if (onScreen) { img.style.transform = from(el, to); } else { img.style.opacity = '0'; }
+    img.addEventListener('transitionend', done, { once: true });
+    setTimeout(done, 520);
+  };
+  const step = (d) => {
+    if (lb.hidden || busy || pics.length < 2) return;
+    const n = (at + d + pics.length) % pics.length;
+    img.style.transition = 'opacity .18s ease';
+    img.style.opacity = '0';
+    setTimeout(() => { show(n); img.style.opacity = '1'; setTimeout(() => { img.style.transition = ''; }, 200); }, 180);
+  };
+  pics.forEach((el, i) => el.addEventListener('click', (e) => { e.preventDefault(); open(i); }));
+  lb.addEventListener('click', close);
+  addEventListener('keydown', (e) => {
+    if (lb.hidden) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowRight') step(1);
+    else if (e.key === 'ArrowLeft') step(-1);
+  });
+  addEventListener('resize', () => { if (!lb.hidden && !busy) show(at); });
+})();
+</script>
 </body>
 </html>

@@ -48,6 +48,19 @@ items = "\n".join(f"      <li>{inline(l)}</li>" for l in lines)
 new = fill(page, "version", version)
 new = fill(new, "whats-new-head", inline(heading))
 new = fill(new, "whats-new", "\n" + items + "\n    ")
+
+# Every picture's address carries a mark of its bytes, so a retaken picture
+# under the same name reaches browsers that cached the old one for a day.
+import hashlib, os
+def mark(name):
+    path = os.path.join("site", name)
+    return hashlib.md5(open(path, "rb").read()).hexdigest()[:8] if os.path.exists(path) else None
+def stamp(m):
+    prefix, name = m.group(1), m.group(2)
+    v = mark(name)
+    return f'{prefix}/{name}?v={v}"' if v else m.group(0)
+new = re.sub(r'((?:src|href)="|content="https://glassine\.ink)/([a-z-]+\.(?:jpg|png))(?:\?v=[0-9a-f]+)?"', stamp, new)
+
 if mode == "--check":
     if new != page:
         print("* site/index.html is behind: run site/update.sh", file=sys.stderr)
