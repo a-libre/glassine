@@ -134,7 +134,11 @@ struct SettingsData: Codable, Equatable {
     /// What sits behind the glass: the desktop, or folds of colour inside
     /// the window (Backdrop.swift) — the id of a built-in set or one of the
     /// user's own — drifting unless told not to, frosted this much.
-    var backdrop: String = BackdropPreset.desktopID
+    /// Aurora from the first launch — the theme's own colours behind the
+    /// glass, so the first page looks as the pictures do whatever the
+    /// wallpaper; the desktop's blur is a tile away. Settings saved before
+    /// this default keep whatever they held.
+    var backdrop: String = BackdropPreset.auroraID
     var backdropDrift: Bool = true
     var backdropFrost: Double = 0.3
     /// The paper grain over a backdrop — its own, since the theme's is tuned
