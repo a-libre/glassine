@@ -2,8 +2,9 @@
 # The pictures on glassine.ink, in the README and in the manual, taken by the
 # direct build of itself against a temporary copy of the showcase library.
 #
-#   ./build.sh && site/screenshots.sh            # all eleven
+#   ./build.sh && site/screenshots.sh            # the five it takes itself
 #   ONLY=writing site/screenshots.sh              # one of them
+#   FORCE=1 site/screenshots.sh                   # the six by-hand ones too
 #
 # Each picture is one launch with everything on the command line — settings,
 # view, caret, a selection or a slash — and the full composite capture, backdrop
@@ -57,11 +58,18 @@ offset_of() {
     my $n = 0; for my $c (split //, substr($t, 0, $i)) { $n += ord($c) > 0xFFFF ? 2 : 1 } print $n' "$1" "$2"
 }
 
+# Six of the pictures are taken by hand in Glassine Demo — the App Store set,
+# with the backdrops chosen by eye — and brought in by site/from-store-shots.sh;
+# this script leaves those alone unless FORCE=1. The rest it takes itself,
+# each over a backdrop, never the flat sheet of colour of the check shots.
+HAND="editor review library daily caret backdrops"
+
 # shot <name> <settings json> [view: review|daily|-] [caret] [settle seconds] [extra args…]
 shot() {
   local name=$1 json=$2 view=${3:-} caret=${4:-} settle=${5:-3}
   shift 5 2>/dev/null || shift $#
   [[ -n "${ONLY:-}" && "$ONLY" != "$name" ]] && return 0
+  [[ " $HAND " == *" $name "* && -z "${FORCE:-}" ]] && { echo "- $name: by hand (FORCE=1 to retake)"; return 0; }
   local args=(-glassine.shoot "$name.png" -glassine.launchWindow "$WINDOW" -glassine.shootDelay "$settle" -glassine.shootCapture 1
               -glassine.launchSettings "$(printf '%s' "$json" | base64 | tr -d '\n')")
   [[ -n "$view" && "$view" != "-" ]] && args+=(-glassine.launchView "$view")
@@ -92,20 +100,20 @@ SEL=$(offset_of "$NOTES" "for the record")
 BLANK=$(( $(offset_of "$NOTES" "Next week") - 1 ))
 
 shot editor  '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 4
-shot focus   '{'"$base"',"typewriterMode":true,"focusMode":true,"focusDimming":0.35,"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$MID" 3
+shot focus   '{'"$base"',"typewriterMode":true,"focusMode":true,"focusDimming":0.35,"themeID":"dusk","backdrop":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$MID" 4
 shot review  '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' review "" 8
 shot library '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":null}' - "" 4
 shot daily   '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"moss","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily "" 5
-shot light   '{'"$base"','"$plain"',"themeID":"paper","lastOpenedDocument":"Notes/Launch Checklist.md"}' - "" 3
-shot writing '{'"$base"','"$plain"',"hideSyntax":true,"themeID":"dusk","lastOpenedDocument":"Notes/Field Notes.md"}' - "$SEL" 4 -glassine.shootSelect "$SEL,14"
-shot slash   '{'"$base"',"typewriterMode":true,"focusMode":false,"hideSyntax":true,"themeID":"dusk","lastOpenedDocument":"Notes/Field Notes.md"}' - "$BLANK" 4 -glassine.shootSlash 1
+shot light   '{'"$base"','"$plain"',"themeID":"paper","backdrop":"rose","lastOpenedDocument":"Notes/Launch Checklist.md"}' - "" 4
+shot writing '{'"$base"','"$plain"',"hideSyntax":true,"themeID":"dusk","backdrop":"nebula","lastOpenedDocument":"Notes/Field Notes.md"}' - "$SEL" 4 -glassine.shootSelect "$SEL,14"
+shot slash   '{'"$base"',"typewriterMode":true,"focusMode":false,"hideSyntax":true,"themeID":"dusk","backdrop":"ocean","lastOpenedDocument":"Notes/Field Notes.md"}' - "$BLANK" 4 -glassine.shootSlash 1
 # Settings over the page: the Caret section with its specimen, Behind the
 # glass with Aurora chosen, and Library with sync connected — to a folder
 # standing in for a repository (-glassine.syncDemo), so no token is needed.
 shot caret     '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 5 -glassine.launchView settings:caret
 shot backdrops '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 5 -glassine.launchView settings:backdrop
 rm -rf /tmp/glassine-syncdemo; mkdir -p /tmp/glassine-syncdemo
-shot sync      '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 7 -glassine.launchView settings:library -glassine.syncDemo /tmp/glassine-syncdemo
+shot sync      '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"borealis","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 7 -glassine.launchView settings:library -glassine.syncDemo /tmp/glassine-syncdemo
 rm -rf /tmp/glassine-syncdemo
 
 rm -rf "$(dirname "$LIB")"

@@ -132,7 +132,7 @@
   }
   .kbd { display: inline-block; padding: 0 6px; border-radius: 5px; font-size: 13px; font-family: inherit; background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--heading); }
 
-  .support p { max-width: 640px; color: var(--muted); margin: 0; }
+  .support p, .support-p { max-width: 640px; color: var(--muted); margin: 0; font-size: 16px; }
 
   footer { margin-top: 84px; padding: 28px 0 44px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--dim); }
   footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; justify-content: space-between; }
@@ -181,7 +181,7 @@
   </div>
 
   <figure class="shot">
-    <img src="/editor.jpg" alt="An essay open on a sheet of dark glass, with the library in a sidebar on the left" width="1440" height="900">
+    <img src="/editor.jpg" alt="An essay open on dark glass over the Aurora backdrop — folds of violet, teal and rose behind the page — with the library in a sidebar on the left" width="1440" height="900">
   </figure>
 
   <section>
@@ -189,58 +189,50 @@
     <p class="intro">Fewer features than most writing apps, and fewer interruptions. Everything it does is on one screen or one key away.</p>
     <div class="grid">
       <figure class="card">
-        <img src="/focus.jpg" alt="Focus mode with typewriter scrolling" width="720" height="450" loading="lazy">
-        <figcaption><b>Focus mode and typewriter scrolling.</b> The paragraph you are writing stays put and lit; the rest steps back, Markdown styling intact.</figcaption>
+        <img src="/review.jpg" alt="Review in the Book style, dark: the essay set as a finished page, over the Graphite backdrop" width="720" height="450" loading="lazy">
+        <figcaption><b>Review.</b> <span class="kbd">⌘↩</span> renders the document as a finished page in one of six styles — this is Book, dark — then puts you back where you were.</figcaption>
       </figure>
       <figure class="card">
-        <img src="/review.jpg" alt="Review mode in the Glass style" width="720" height="450" loading="lazy">
-        <figcaption><b>Review.</b> <span class="kbd">⌘↩</span> renders the document as a finished page in one of six styles, then puts you back where you were.</figcaption>
-      </figure>
-      <figure class="card">
-        <img src="/library.jpg" alt="All Documents, the mosaic view of the library" width="720" height="450" loading="lazy">
+        <img src="/library.jpg" alt="All Documents, the library as a wall of cards with live previews, over a warm backdrop" width="720" height="450" loading="lazy">
         <figcaption><b>All Documents.</b> The library as a wall of cards with live previews; a click grows the card into the page.</figcaption>
       </figure>
       <figure class="card">
-        <img src="/daily.jpg" alt="Timelapse, the corridor of daily notes" width="720" height="450" loading="lazy">
+        <img src="/daily.jpg" alt="Timelapse over the Moss backdrop: today's note in front, earlier days receding behind it" width="720" height="450" loading="lazy">
         <figcaption><b>Timelapse.</b> Today's note in front, earlier days receding behind it. Scroll to walk back.</figcaption>
       </figure>
       <figure class="card">
-        <img src="/writing.jpg" alt="The formatting bar over a selection, with chips and a horizontal rule, the Markdown syntax hidden" width="720" height="450" loading="lazy">
-        <figcaption><b>Formatting as you go.</b> Select words and a bar appears over them. Chips put a name in a capsule. Hide the syntax and the page reads clean; the sentence you are writing keeps its marks.</figcaption>
-      </figure>
-      <figure class="card">
-        <img src="/slash.jpg" alt="The slash menu open under the caret" width="720" height="450" loading="lazy">
-        <figcaption><b>Slash commands.</b> <span class="kbd">/</span> at the start of a line: headings, lists, tasks, a quote, a code block, a rule, a link, a chip, today's date. Keep typing to filter.</figcaption>
-      </figure>
-      <figure class="card">
-        <img src="/caret.jpg" alt="Settings, the Caret section, with a caret gliding along a line of specimen text" width="720" height="450" loading="lazy">
+        <img src="/caret.jpg" alt="Settings, the Caret section, with a caret gliding along a line of specimen text, the page showing through behind the card" width="720" height="450" loading="lazy">
         <figcaption><b>Settings that show you.</b> A card over the page, so every change is visible behind it. The Caret section keeps a caret gliding and blinking as it is set; Type shows a piece of page in the face you chose. A search box finds any setting by name; <span class="kbd">⌘Z</span> takes a change back.</figcaption>
       </figure>
-      <figure class="card">
-        <img src="/backdrops.jpg" alt="Settings, Behind the glass: tiles of backdrops, Aurora chosen, folds of colour showing through the card" width="720" height="450" loading="lazy">
-        <figcaption><b>Behind the glass.</b> No wallpaper worth looking through? Nine backdrops put deep, slowly moving folds of colour inside the window — or duplicate one and pick your own three to five colours. Drift and frost to taste.</figcaption>
-      </figure>
       <figure class="card wide">
-        <img src="/sync.jpg" alt="Settings, Library: Sync with GitHub connected to a private repository, up to date" width="720" height="450" loading="lazy">
+        <img src="/backdrops.jpg" alt="Settings, Behind the glass: tiles of the backdrops with Aurora chosen, its folds of colour showing through the card" width="720" height="450" loading="lazy">
         <figcaption>
-          <p><b>Sync with GitHub.</b> iCloud Drive is the simple way to have the same documents on every Mac. For a Mac you'd rather not sign into iCloud on — a work laptop, say — Glassine can keep the library in a private GitHub repository of yours instead: a token for that one repository, and nothing else about your accounts touches the machine.</p>
-          <p>Every round of changes is a commit, so the repository holds every version of every note. No git to install, no background process. <a href="https://docs.glassine.ink/library/sync">How it works.</a></p>
+          <p><b>Behind the glass.</b> The window is a blur of whatever is behind it — with the right wallpaper, colour and light moving softly behind the page. Without one, a backdrop puts the colour inside the window: long, deep, slowly drifting folds of it, like silk lit from one side.</p>
+          <p>Nine come built in — Aurora takes the theme's own colours; Dusk, Nebula, Ocean, Borealis, Ember, Sunset, Moss, Rose and Graphite each run through a palette of their own — and any can be duplicated and recoloured into one of yours. Drift and frost to taste, and a paper grain of its own.</p>
         </figcaption>
       </figure>
     </div>
   </section>
 
+  <section id="sync">
+    <h2>Two Macs, no iCloud required</h2>
+    <p class="intro">iCloud Drive is the simple way to have the same documents on every Mac. For a Mac you'd rather not sign into iCloud on — a work laptop, say — Glassine can keep the library in a private GitHub repository of yours instead.</p>
+    <p class="support-p">A token for that one repository, and nothing else about your accounts touches the machine. Every round of changes is a commit, so the repository holds every version of every note; no git to install, no background process. Settings → Library → Sync, and the <a href="https://docs.glassine.ink/library/sync">manual page</a> walks through it.</p>
+  </section>
+
   <section>
     <h2>And the rest</h2>
     <ul class="list">
-      <li><b>Glass.</b> The window is a blur of whatever is behind it, tinted by the theme. Nine built in, dark by default; make your own with live preview, and import or export them as files.</li>
+      <li><b>Focus mode and typewriter scrolling.</b> The paragraph you are writing stays put and lit; the rest steps back, Markdown styling intact.</li>
+      <li><b>Formatting as you go.</b> Select words and a bar appears over them — bold, italic, strike, code, chip, link, headings, lists, a task, a quote. <span class="kbd">/</span> at the start of a line opens a menu of the same; keep typing to filter.</li>
+      <li><b>Themes.</b> Nine built in, dark by default and a few light ones; make your own with live preview, and import or export them as files.</li>
       <li><b>A caret that glides.</b> Speed, blink, width and shape — eight of them — are yours to set. Left alone a few seconds it does a trick: a hop, a bounce, a flip. Off under Reduce Motion.</li>
       <li><b>A library, not a file picker.</b> Plain <code>.md</code> files and folders in iCloud Drive, or any folder you point it at, named from the first line as you write.</li>
       <li><b>Open With.</b> Finder can open <code>.md</code> and <code>.txt</code> files in Glassine; a file from outside the library is edited where it is and never copied in.</li>
       <li><b>Autosave that never asks.</b> Half a second after you stop typing, and every few seconds while you keep going.</li>
       <li><b>Tasks that behave.</b> Click a box; the strike sweeps across; a moment later the item settles below the unfinished ones.</li>
       <li><b>Dates as you type.</b> <code>@today</code> becomes the date, drawn as a capsule, kept as text.</li>
-      <li><b>Markdown, lightly styled — or hidden.</b> The marks step back, or leave the page altogether; the file is the same plain text either way.</li>
+      <li><b>Markdown, lightly styled — or hidden.</b> The marks step back, or leave the page altogether except in the sentence being written; the file is the same plain text either way.</li>
       <li><b>Chips.</b> <span class="kbd">⌘⇧H</span> puts a word in a capsule, like a date's. In the file it is <code>==this==</code>, which other editors read too.</li>
       <li><b>Float on top.</b> <span class="kbd">⌘.</span> keeps the window over everything else, Stage Manager included.</li>
       <li><b>One key away.</b> <span class="kbd">⌘K</span> is a command bar for everything; <span class="kbd">⌘1</span> <span class="kbd">⌘2</span> <span class="kbd">⌘3</span> are All Documents, Timelapse and a new page; <span class="kbd">⌘/</span> shows every shortcut on one sheet.</li>
