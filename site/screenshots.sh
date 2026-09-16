@@ -82,7 +82,10 @@ shot() {
   local status; status=$(cat "$T/$name.png.status")
   [[ "$status" == "ok" ]] || { echo "$name: $status" >&2; exit 1; }
   while pgrep -f "$BIN" >/dev/null; do sleep 0.25; done
-  for dir in site docs/screenshots docs/site/images; do
+  # The landing page shows only the by-hand set; the rest go to the README and the manual.
+  local dirs="docs/screenshots docs/site/images"
+  [[ " $HAND " == *" $name "* ]] && dirs="site $dirs"
+  for dir in $dirs; do
     [[ -f "$dir/$name.jpg" ]] && chmod u+w "$dir/$name.jpg"
     sips -z 900 1440 -s format jpeg "$T/$name.png" --out "$dir/$name.jpg" >/dev/null
   done
@@ -104,7 +107,9 @@ shot focus   '{'"$base"',"typewriterMode":true,"focusMode":true,"focusDimming":0
 shot review  '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' review "" 8
 shot library '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":null}' - "" 4
 shot daily   '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"moss","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily "" 5
-shot light   '{'"$base"','"$plain"',"themeID":"paper","backdrop":"rose","lastOpenedDocument":"Notes/Launch Checklist.md"}' - "" 4
+# Frosted well: over pale folds a light theme's quiet grey — the boxes, a
+# finished task — would otherwise fade out (Theme.overBackdrop is the fix to come).
+shot light   '{'"$base"','"$plain"',"themeID":"paper","backdrop":"rose","backdropFrost":0.85,"lastOpenedDocument":"Notes/Launch Checklist.md"}' - "" 4
 shot writing '{'"$base"','"$plain"',"hideSyntax":true,"themeID":"dusk","backdrop":"nebula","lastOpenedDocument":"Notes/Field Notes.md"}' - "$SEL" 4 -glassine.shootSelect "$SEL,14"
 shot slash   '{'"$base"',"typewriterMode":true,"focusMode":false,"hideSyntax":true,"themeID":"dusk","backdrop":"ocean","lastOpenedDocument":"Notes/Field Notes.md"}' - "$BLANK" 4 -glassine.shootSlash 1
 # Settings over the page: the Caret section with its specimen, Behind the
