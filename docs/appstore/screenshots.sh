@@ -82,13 +82,11 @@ mkdir -p "$OUT" "$SHOTS"
 # Where a phrase starts in a document, counted the way the editor counts
 # (UTF-16 units), for parking the caret. Pure Swift, so nothing to install.
 offset_of() {
-  swift - "$1" "$2" 2>/dev/null <<'SWIFT'
-import Foundation
-let text = (try? String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)) ?? ""
-if let r = text.range(of: CommandLine.arguments[2]) {
-    print(text.utf16.distance(from: text.utf16.startIndex, to: r.lowerBound.samePosition(in: text.utf16)!))
-} else { print(0) }
-SWIFT
+  # perl rather than swift: a shell script should not wait on Xcode's licence.
+  perl -CSDA -Mutf8 -e '
+    local $/; open my $f, "<:encoding(UTF-8)", $ARGV[0] or exit; my $t = <$f>;
+    my $i = index($t, $ARGV[1]); if ($i < 0) { print 0; exit }
+    my $n = 0; for my $c (split //, substr($t, 0, $i)) { $n += ord($c) > 0xFFFF ? 2 : 1 } print $n' "$1" "$2"
 }
 
 # --- One picture ----------------------------------------------------------------------------------

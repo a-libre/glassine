@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glassine — a quiet Markdown writing app for macOS</title>
-<meta name="description" content="Glassine is a Markdown writing app for the Mac: a sheet of translucent glass, a caret that glides, plain files in iCloud Drive, saved as you type. Free and open source.">
+<meta name="description" content="Glassine is a Markdown writing app for the Mac: a sheet of translucent glass, a caret that glides, plain files in iCloud Drive or a private GitHub repository, saved as you type. Free and open source, on the Mac App Store.">
 <meta name="theme-color" content="#1a1430">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="/favicon.png" type="image/png">
@@ -110,6 +110,10 @@
   .card img { display: block; width: 100%; height: auto; }
   .card figcaption { padding: 12px 16px 14px; font-size: 14px; color: var(--muted); }
   .card figcaption b { color: var(--heading); font-weight: 600; }
+  .card.wide { grid-column: 1 / -1; display: grid; grid-template-columns: 3fr 2fr; align-items: center; }
+  .card.wide figcaption { padding: 22px 28px; font-size: 15px; line-height: 1.5; }
+  .card.wide figcaption p { margin: 0 0 10px; }
+  .card.wide figcaption p:last-child { margin: 0; }
 
   .list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 40px; margin: 0; padding: 0; list-style: none; }
   .list li { padding-left: 18px; position: relative; color: var(--muted); font-size: 16px; }
@@ -136,7 +140,7 @@
   footer em { color: var(--dim); }
 
   @media (max-width: 720px) {
-    .grid, .list, .routes { grid-template-columns: 1fr; }
+    .grid, .list, .routes, .card.wide { grid-template-columns: 1fr; }
     header { height: 64px; }
     nav { gap: 18px; }
     .hero { padding-top: 40px; }
@@ -159,6 +163,7 @@
     </a>
     <nav>
       <a href="https://docs.glassine.ink">Manual</a>
+      <a href="#new">What's new</a>
       <a href="#get">Get it</a>
       <a href="https://github.com/a-libre/glassine">Source</a>
     </nav>
@@ -166,12 +171,13 @@
 
   <div class="hero">
     <h1>A quiet place to write.</h1>
-    <p class="lead">Glassine is a Markdown writing app for the Mac. A window of translucent glass, a caret that glides instead of jumps, and files that are plain text in iCloud Drive — saved as you type, yours to keep.</p>
+    <p class="lead">Glassine is a Markdown writing app for the Mac. A window of translucent glass, a caret that glides instead of jumps, and files that are plain text — in iCloud Drive, or a private GitHub repository — saved as you type, yours to keep.</p>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg">Download for Mac</a>
+      <a class="btn primary" href="https://apps.apple.com/us/app/glassine-writer/id6808032066?mt=12">Get it on the Mac App Store</a>
+      <a class="btn" href="https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg">Download the .dmg</a>
       <a class="btn" href="https://docs.glassine.ink">Read the manual</a>
     </div>
-    <div class="status"><span class="dot"></span><span>On the <a href="https://apps.apple.com/us/app/glassine-writer/id6808032066?mt=12">Mac App Store</a> as <b>Glassine Writer</b>, or version 0.2.11 as a notarized <code>.dmg</code> that updates itself. macOS 14 or later.</span></div>
+    <div class="status"><span class="dot"></span><span>Version <!-- version -->0.2.11<!-- /version --> — free, open source, macOS 14 or later. The store copy is called <b>Glassine Writer</b>; the <code>.dmg</code> updates itself.</span></div>
   </div>
 
   <figure class="shot">
@@ -206,24 +212,52 @@
         <img src="/slash.jpg" alt="The slash menu open under the caret" width="720" height="450" loading="lazy">
         <figcaption><b>Slash commands.</b> <span class="kbd">/</span> at the start of a line: headings, lists, tasks, a quote, a code block, a rule, a link, a chip, today's date. Keep typing to filter.</figcaption>
       </figure>
+      <figure class="card">
+        <img src="/caret.jpg" alt="Settings, the Caret section, with a caret gliding along a line of specimen text" width="720" height="450" loading="lazy">
+        <figcaption><b>Settings that show you.</b> A card over the page, so every change is visible behind it. The Caret section keeps a caret gliding and blinking as it is set; Type shows a piece of page in the face you chose. A search box finds any setting by name; <span class="kbd">⌘Z</span> takes a change back.</figcaption>
+      </figure>
+      <figure class="card">
+        <img src="/backdrops.jpg" alt="Settings, Behind the glass: tiles of backdrops, Aurora chosen, folds of colour showing through the card" width="720" height="450" loading="lazy">
+        <figcaption><b>Behind the glass.</b> No wallpaper worth looking through? Nine backdrops put deep, slowly moving folds of colour inside the window — or duplicate one and pick your own three to five colours. Drift and frost to taste.</figcaption>
+      </figure>
+      <figure class="card wide">
+        <img src="/sync.jpg" alt="Settings, Library: Sync with GitHub connected to a private repository, up to date" width="720" height="450" loading="lazy">
+        <figcaption>
+          <p><b>Sync with GitHub.</b> iCloud Drive is the simple way to have the same documents on every Mac. For a Mac you'd rather not sign into iCloud on — a work laptop, say — Glassine can keep the library in a private GitHub repository of yours instead: a token for that one repository, and nothing else about your accounts touches the machine.</p>
+          <p>Every round of changes is a commit, so the repository holds every version of every note. No git to install, no background process. <a href="https://docs.glassine.ink/library/sync">How it works.</a></p>
+        </figcaption>
+      </figure>
     </div>
   </section>
 
   <section>
     <h2>And the rest</h2>
     <ul class="list">
-      <li><b>Glass.</b> The window is a blur of whatever is behind it, tinted by the theme. Nine built in, dark by default; make your own with live preview.</li>
-      <li><b>Or your own sky.</b> No wallpaper worth looking through? A backdrop puts deep, slowly moving folds of colour inside the window — the theme's colours or one of six palettes, drifting, frosted to taste.</li>
-      <li><b>A caret that glides.</b> Speed, blink, width and shape — eight of them — are yours to set. Off under Reduce Motion.</li>
-      <li><b>A library, not a file picker.</b> Plain <code>.md</code> files and folders in iCloud Drive, named from the first line as you write.</li>
+      <li><b>Glass.</b> The window is a blur of whatever is behind it, tinted by the theme. Nine built in, dark by default; make your own with live preview, and import or export them as files.</li>
+      <li><b>A caret that glides.</b> Speed, blink, width and shape — eight of them — are yours to set. Left alone a few seconds it does a trick: a hop, a bounce, a flip. Off under Reduce Motion.</li>
+      <li><b>A library, not a file picker.</b> Plain <code>.md</code> files and folders in iCloud Drive, or any folder you point it at, named from the first line as you write.</li>
+      <li><b>Open With.</b> Finder can open <code>.md</code> and <code>.txt</code> files in Glassine; a file from outside the library is edited where it is and never copied in.</li>
       <li><b>Autosave that never asks.</b> Half a second after you stop typing, and every few seconds while you keep going.</li>
       <li><b>Tasks that behave.</b> Click a box; the strike sweeps across; a moment later the item settles below the unfinished ones.</li>
       <li><b>Dates as you type.</b> <code>@today</code> becomes the date, drawn as a capsule, kept as text.</li>
       <li><b>Markdown, lightly styled — or hidden.</b> The marks step back, or leave the page altogether; the file is the same plain text either way.</li>
       <li><b>Chips.</b> <span class="kbd">⌘⇧H</span> puts a word in a capsule, like a date's. In the file it is <code>==this==</code>, which other editors read too.</li>
       <li><b>Float on top.</b> <span class="kbd">⌘.</span> keeps the window over everything else, Stage Manager included.</li>
+      <li><b>One key away.</b> <span class="kbd">⌘K</span> is a command bar for everything; <span class="kbd">⌘1</span> <span class="kbd">⌘2</span> <span class="kbd">⌘3</span> are All Documents, Timelapse and a new page; <span class="kbd">⌘/</span> shows every shortcut on one sheet.</li>
       <li><b>Nothing sent anywhere.</b> No accounts, no analytics, no servers. The <a href="https://docs.glassine.ink/about/privacy">privacy page</a> is one paragraph.</li>
     </ul>
+  </section>
+
+  <section id="new">
+    <h2>What's new</h2>
+    <p class="intro">Version <!-- whats-new-head -->0.2.11 — September 13, 2026<!-- /whats-new-head -->. The <a href="https://docs.glassine.ink/about/changelog">changelog</a> has every line, by day.</p>
+    <ul class="list"><!-- whats-new -->
+      <li><b>Sync with GitHub.</b> The library kept in a private repository of yours, for a second Mac you'd rather not sign into iCloud on — and a history of every note, every version. No git, no daemon; connect with a token in Settings → Library. <a href="https://docs.glassine.ink/library/sync">How it works.</a></li>
+      <li><b>Settings, remade.</b> A rail of sections, a search box that finds any setting by name, <span class="kbd">⌘Z</span> to take a change back, and the Type and Caret sections showing what they do before you look behind the card.</li>
+      <li><b>Caret tricks.</b> Left alone for a few seconds, the caret hops, bounces, flips, wiggles, stretches or leans — every shape performs. Off in a switch, and under Reduce Motion.</li>
+      <li><b>Backdrops of your own.</b> Nine sets of colour behind the glass now, each running through more than one colour; duplicate any and make it yours, with a paper grain of its own.</li>
+      <li><b>On the Mac App Store</b>, as Glassine Writer. The direct download stays, and updates itself.</li>
+    <!-- /whats-new --></ul>
   </section>
 
   <section id="get">

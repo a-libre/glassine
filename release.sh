@@ -111,7 +111,11 @@ rm -f "$ZIP"
 echo "▸ $DMG is signed, notarized and stapled"
 
 # --- Commit, tag, publish -------------------------------------------------------------------
-git add "$PLIST"
+# The landing page's version and "What's new" come from Info.plist and
+# site/whats-new.md; a release whose lines are not written yet still goes out,
+# with a word about it, and the page catches up on the next run.
+site/update.sh || true
+git add "$PLIST" site/index.html
 git commit -q -m "Release $VERSION"
 git tag -a "v$VERSION" -m "Glassine $VERSION"
 

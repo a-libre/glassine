@@ -2,7 +2,7 @@
 # The pictures on glassine.ink, in the README and in the manual, taken by the
 # direct build of itself against a temporary copy of the showcase library.
 #
-#   ./build.sh && site/screenshots.sh            # all eight
+#   ./build.sh && site/screenshots.sh            # all eleven
 #   ONLY=writing site/screenshots.sh              # one of them
 #
 # Each picture is one launch with everything on the command line — settings,
@@ -50,13 +50,11 @@ done
 mkdir -p "$OUT" "$T"; : > "$T/log.txt"
 
 offset_of() {
-  swift - "$1" "$2" 2>/dev/null <<'SWIFT'
-import Foundation
-let text = (try? String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)) ?? ""
-if let r = text.range(of: CommandLine.arguments[2]) {
-    print(text.utf16.distance(from: text.utf16.startIndex, to: r.lowerBound.samePosition(in: text.utf16)!))
-} else { print(0) }
-SWIFT
+  # perl rather than swift: a shell script should not wait on Xcode's licence.
+  perl -CSDA -Mutf8 -e '
+    local $/; open my $f, "<:encoding(UTF-8)", $ARGV[0] or exit; my $t = <$f>;
+    my $i = index($t, $ARGV[1]); if ($i < 0) { print 0; exit }
+    my $n = 0; for my $c (split //, substr($t, 0, $i)) { $n += ord($c) > 0xFFFF ? 2 : 1 } print $n' "$1" "$2"
 }
 
 # shot <name> <settings json> [view: review|daily|-] [caret] [settle seconds] [extra args…]
@@ -93,14 +91,22 @@ MID=$(offset_of "$ESSAY" "A slow writer reads")
 SEL=$(offset_of "$NOTES" "for the record")
 BLANK=$(( $(offset_of "$NOTES" "Next week") - 1 ))
 
-shot editor  '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 3
+shot editor  '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 4
 shot focus   '{'"$base"',"typewriterMode":true,"focusMode":true,"focusDimming":0.35,"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$MID" 3
 shot review  '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' review "" 8
-shot library '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":null}' - "" 3
-shot daily   '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily "" 4
+shot library '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":null}' - "" 4
+shot daily   '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"moss","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily "" 5
 shot light   '{'"$base"','"$plain"',"themeID":"paper","lastOpenedDocument":"Notes/Launch Checklist.md"}' - "" 3
 shot writing '{'"$base"','"$plain"',"hideSyntax":true,"themeID":"dusk","lastOpenedDocument":"Notes/Field Notes.md"}' - "$SEL" 4 -glassine.shootSelect "$SEL,14"
 shot slash   '{'"$base"',"typewriterMode":true,"focusMode":false,"hideSyntax":true,"themeID":"dusk","lastOpenedDocument":"Notes/Field Notes.md"}' - "$BLANK" 4 -glassine.shootSlash 1
+# Settings over the page: the Caret section with its specimen, Behind the
+# glass with Aurora chosen, and Library with sync connected — to a folder
+# standing in for a repository (-glassine.syncDemo), so no token is needed.
+shot caret     '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 5 -glassine.launchView settings:caret
+shot backdrops '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 5 -glassine.launchView settings:backdrop
+rm -rf /tmp/glassine-syncdemo; mkdir -p /tmp/glassine-syncdemo
+shot sync      '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' - "$TOP" 7 -glassine.launchView settings:library -glassine.syncDemo /tmp/glassine-syncdemo
+rm -rf /tmp/glassine-syncdemo
 
 rm -rf "$(dirname "$LIB")"
 echo "* Done: pictures in site/, docs/screenshots/ and docs/site/images/"

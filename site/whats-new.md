@@ -1,0 +1,21 @@
+# What's new, for the landing page
+
+The top block below is what glassine.ink shows under "What's new" — `site/update.sh`
+puts it there (and the version from Info.plist), and `release.sh` runs that on
+every release. Newest version first. Three to five lines a version, each
+`- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
+`[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
+
+## 0.2.11 — September 13, 2026
+
+- **Sync with GitHub.** The library kept in a private repository of yours, for a second Mac you'd rather not sign into iCloud on — and a history of every note, every version. No git, no daemon; connect with a token in Settings → Library. [How it works.](https://docs.glassine.ink/library/sync)
+- **Settings, remade.** A rail of sections, a search box that finds any setting by name, [[⌘Z]] to take a change back, and the Type and Caret sections showing what they do before you look behind the card.
+- **Caret tricks.** Left alone for a few seconds, the caret hops, bounces, flips, wiggles, stretches or leans — every shape performs. Off in a switch, and under Reduce Motion.
+- **Backdrops of your own.** Nine sets of colour behind the glass now, each running through more than one colour; duplicate any and make it yours, with a paper grain of its own.
+- **On the Mac App Store**, as Glassine Writer. The direct download stays, and updates itself.
+
+## 0.2.8 — September 12, 2026
+
+- **Formatting as you go.** A bar over any selection; a slash menu at the start of a line; chips; hide the Markdown syntax except in the sentence being written.
+- **Open With.** Finder can open `.md` and `.txt` files in Glassine; a file from outside the library is edited where it is.
+- **Backdrops.** Folds of colour inside the window instead of the desktop, drifting, frosted to taste.

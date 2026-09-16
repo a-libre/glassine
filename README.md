@@ -25,9 +25,13 @@ Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift p
     <td><img src="docs/screenshots/writing.jpg" alt="The formatting bar over a selection, chips in capsules and a rule, with the Markdown syntax hidden"></td>
     <td><img src="docs/screenshots/slash.jpg" alt="The slash menu open under the caret"></td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/caret.jpg" alt="Settings, the Caret section, a caret gliding along a line of specimen text"></td>
+    <td><img src="docs/screenshots/sync.jpg" alt="Settings, Library: Sync with GitHub connected and up to date"></td>
+  </tr>
 </table>
 
-Focus mode and Review; All Documents and Timelapse; the formatting bar with the syntax hidden, and the slash menu.
+Focus mode and Review; All Documents and Timelapse; the formatting bar with the syntax hidden, and the slash menu; Settings, and sync with GitHub.
 
 There's a [45-second walkthrough](docs/demo.mp4) of the editor, Review mode and the All Documents mosaic as well, and the full manual is at [docs.glassine.ink](https://docs.glassine.ink).
 
