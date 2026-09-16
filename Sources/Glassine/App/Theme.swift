@@ -54,6 +54,18 @@ struct Theme: Codable, Identifiable, Hashable {
     var sidebarOpacity: Double = 0.3
 
     // Resolved colors
+    /// The theme as the page draws it over a backdrop. A light theme's quiet
+    /// grey — the syntax marks, a task's box, a finished task's text — is set
+    /// for the theme's own near-white page and fades out against pale folds
+    /// of colour; over a backdrop it leans toward the text colour instead.
+    /// Dark themes are set for dark grounds already and need nothing.
+    func overBackdrop() -> Theme {
+        guard !isDark else { return self }
+        var t = self
+        if let mixed = syntax.nsColor.blended(withFraction: 0.45, of: text.nsColor) { t.syntax = HexColor(mixed) }
+        return t
+    }
+
     var headingColor: NSColor { (heading ?? text).nsColor }
     var quoteColor: NSColor { quote?.nsColor ?? text.withAlpha(0.72) }
     var codeColor: NSColor { code?.nsColor ?? text.withAlpha(0.9) }

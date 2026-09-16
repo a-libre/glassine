@@ -24,7 +24,7 @@ struct ReviewView: View {
     @ObservedObject var document: DocumentModel
     let initialScrollFraction: Double
 
-    private var theme: Theme { state.theme }
+    private var theme: Theme { state.pageTheme }
     private var style: ReviewStyle { state.settings.data.reviewStyle }
 
     var body: some View {

@@ -107,9 +107,7 @@ shot focus   '{'"$base"',"typewriterMode":true,"focusMode":true,"focusDimming":0
 shot review  '{'"$base"','"$plain"',"themeID":"dusk","lastOpenedDocument":"Essays/On Writing Slowly.md"}' review "" 8
 shot library '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"aurora","lastOpenedDocument":null}' - "" 4
 shot daily   '{'"$base"','"$plain"',"themeID":"dusk","backdrop":"moss","lastOpenedDocument":"Essays/On Writing Slowly.md"}' daily "" 5
-# Frosted well: over pale folds a light theme's quiet grey — the boxes, a
-# finished task — would otherwise fade out (Theme.overBackdrop is the fix to come).
-shot light   '{'"$base"','"$plain"',"themeID":"paper","backdrop":"rose","backdropFrost":0.85,"lastOpenedDocument":"Notes/Launch Checklist.md"}' - "" 4
+shot light   '{'"$base"','"$plain"',"themeID":"paper","backdrop":"rose","lastOpenedDocument":"Notes/Launch Checklist.md"}' - "" 4
 shot writing '{'"$base"','"$plain"',"hideSyntax":true,"themeID":"dusk","backdrop":"nebula","lastOpenedDocument":"Notes/Field Notes.md"}' - "$SEL" 4 -glassine.shootSelect "$SEL,14"
 shot slash   '{'"$base"',"typewriterMode":true,"focusMode":false,"hideSyntax":true,"themeID":"dusk","backdrop":"ocean","lastOpenedDocument":"Notes/Field Notes.md"}' - "$BLANK" 4 -glassine.shootSlash 1
 # Settings over the page: the Caret section with its specimen, Behind the

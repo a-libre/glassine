@@ -6,6 +6,14 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.12 — September 16, 2026
+
+- **A light theme over a backdrop keeps its quiet grey.** Paper's marks, a task's box and a finished task's text lean toward the text colour over the folds, instead of fading into them.
+- **Sync with GitHub.** The library kept in a private repository of yours, for a second Mac you'd rather not sign into iCloud on — and a history of every note, every version. No git, no daemon; connect with a token in Settings → Library. [How it works.](https://docs.glassine.ink/library/sync)
+- **Settings, remade.** A rail of sections, a search box that finds any setting by name, [[⌘Z]] to take a change back, and the Type and Caret sections showing what they do before you look behind the card.
+- **Caret tricks.** Left alone for a few seconds, the caret hops, bounces, flips, wiggles, stretches or leans — every shape performs. Off in a switch, and under Reduce Motion.
+- **On the Mac App Store**, as Glassine Writer. The direct download stays, and updates itself.
+
 ## 0.2.11 — September 13, 2026
 
 - **Sync with GitHub.** The library kept in a private repository of yours, for a second Mac you'd rather not sign into iCloud on — and a history of every note, every version. No git, no daemon; connect with a token in Settings → Library. [How it works.](https://docs.glassine.ink/library/sync)

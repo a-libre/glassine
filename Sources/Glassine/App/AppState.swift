@@ -113,7 +113,12 @@ final class AppState: ObservableObject {
     @Published var settingsQuery = ""
     /// Bumped to put the keyboard in that field (⌘F while Settings is up).
     @Published var settingsSearchFocus = 0
-    var styleConfig: StyleConfig { StyleConfig(theme: theme, settings: settings.data) }
+    /// The theme as the page draws it: over a backdrop, a light theme's quiet
+    /// colours lean toward the text, so a task's box stays on the page.
+    var pageTheme: Theme {
+        settings.data.backdrop == BackdropPreset.desktopID ? theme : theme.overBackdrop()
+    }
+    var styleConfig: StyleConfig { StyleConfig(theme: pageTheme, settings: settings.data) }
 
     private var cancellables = Set<AnyCancellable>()
     private var pollTimer: Timer?
