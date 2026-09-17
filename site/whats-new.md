@@ -6,6 +6,15 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.14 — September 17, 2026
+
+- **A Welcome page for the app as it is.** The document a first launch opens now tours the backdrop behind the page, the bar over a selection and the slash menu, chips, hiding the syntax, Timelapse, the command bar, Review, Settings and sync — with every key checked. And it opens from its heading, not its end.
+- **Aurora from the first launch.** A new copy opens with folds of the theme's own colours behind the glass, the way the pictures look; the desktop's blur is a tile away.
+- **Sync with GitHub.** The library kept in a private repository of yours, for a second Mac you'd rather not sign into iCloud on — and a history of every note, every version. No git, no daemon; connect with a token in Settings → Library. [How it works.](https://docs.glassine.ink/library/sync)
+- **Settings, remade.** A rail of sections, a search box that finds any setting by name, [[⌘Z]] to take a change back, and the Type and Caret sections showing what they do before you look behind the card.
+- **Caret tricks.** Left alone for a few seconds, the caret hops, bounces, flips, wiggles, stretches or leans — every shape performs. Off in a switch, and under Reduce Motion.
+- **On the Mac App Store**, as Glassine Writer. The direct download stays, and updates itself.
+
 ## 0.2.13 — September 16, 2026
 
 - **Aurora from the first launch.** A new copy opens with folds of the theme's own colours behind the glass, the way the pictures look; the desktop's blur is a tile away.

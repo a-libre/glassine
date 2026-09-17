@@ -188,8 +188,11 @@ final class AppState: ObservableObject {
             settings.data.lastOpenedDocument = DemoLibrary.opened
             settings.data.sidebarVisible = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { DemoLibrary.placeWindowForPictures() }
-        } else if library.isEmptyOnDisk {
-            _ = try? library.createDocument(in: "", stem: "Welcome to Glassine", contents: WelcomeDocument.text)
+        } else if library.isEmptyOnDisk,
+                  let ref = try? library.createDocument(in: "", stem: "Welcome to Glassine", contents: WelcomeDocument.text) {
+            // The first page opens on its own, from its heading rather than its end.
+            settings.data.lastOpenedDocument = ref.id
+            openAtTop = ref.id
         }
         // A listing is enough to open the last document and show the window; reading every
         // file for previews, tags and search happens right after, off the main thread.
@@ -478,7 +481,13 @@ final class AppState: ObservableObject {
     func caretMoved(to position: Int) {
         guard let doc = document, !doc.isLoose else { return }
         settings.data.caretPositions[doc.relativePath] = position
+        openAtTop = nil
     }
+
+    /// The document that opens at its heading this once: the Welcome page a
+    /// first launch has just written, read from the top. Cleared as soon as
+    /// the caret has been placed, so it opens at the end like any other after.
+    private var openAtTop: String?
 
     /// Documents open with the caret at the end — where the writing continues.
     /// (Positions are still recorded, in case restoring them becomes an option.)
@@ -486,6 +495,7 @@ final class AppState: ObservableObject {
     ///   open Glassine.app --args -glassine.launchCaret 412
     func savedCaret(for relPath: String) -> Int? {
         if let s = UserDefaults.standard.string(forKey: "glassine.launchCaret"), let n = Int(s) { return n }
+        if openAtTop == relPath { return 0 }
         return nil
     }
 
@@ -1143,28 +1153,37 @@ enum WelcomeDocument {
     static let text = """
     # Welcome to Glassine
 
-    Glassine is a quiet place to write. Everything you type is saved as you go — into a plain Markdown file inside iCloud Drive, so it's already on your other devices.
+    Glassine is a quiet place to write. Everything you type is saved as you go, into a plain Markdown file any other app can read — in a Glassine folder in iCloud Drive, so it is already on your other Macs. **File → Reveal Library in Finder** shows where.
+
+    ## The window
+
+    The colour behind this page is a backdrop: Aurora, the theme's own colours, drifting slowly. Ten come built in, any of them can be copied and recoloured, and Desktop puts your wallpaper back — **Settings → Behind the glass**, or the Backdrop menu under View. Themes are under **View → Theme**; Dusk is the default, and Settings has an editor for making your own.
 
     ## A few things to try
 
-    - Watch the caret glide as you type. Tune it under **Glassine → Settings → Caret**.
-    - Press ⌘S to hide the sidebar. Press it again to bring it back. ⌘P shows every document at once; ⌘F searches everything you have written.
-    - Try ⌃⌘T for typewriter scrolling and ⌃⌘F for focus mode.
-    - Themes live under **View → Theme**. Duplicate one in Settings to make it yours.
+    - Watch the caret glide as you type. Leave it alone for a few seconds and it may do a trick. Both are tuned under **Settings → Caret**.
+    - ⌘S hides the sidebar; ⌘S brings it back. ⌘1 shows every document as a wall of cards, ⌘2 is Timelapse — today's note in front, earlier days receding behind it — and ⌘F searches everything you have written.
+    - ⌘K opens a command bar with whatever makes sense where you are. ⌘/ shows every shortcut on one card.
+    - ⌘↩ shows this page the way a reader will see it, in any of six styles. Esc comes back.
+    - Typewriter scrolling (⌃⌘T) and focus mode (⌃⌘F) are both on. Turn either off and see which you miss.
     - The file's name follows the first line of the document. Change this heading and watch the sidebar.
-    - Type @today, @yesterday or @tomorrow and a space. Handy for daily notes.
+    - ⌥⌘D opens today's note. Type @today, @yesterday or @tomorrow and a space anywhere.
 
     ## Markdown, lightly styled
 
-    Syntax stays visible but steps back: **bold**, *italic*, `inline code`, ~~struck~~, and [links](https://example.com).
+    Syntax stays visible but steps back: **bold**, *italic*, `inline code`, ~~struck~~, ==a chip==, and [links](https://glassine.ink). Select a few words and a bar appears over them; type / at the start of a line for a menu of headings, lists, tasks and dates. ⌃⌘M takes the marks off the page altogether, except in the sentence you are writing.
 
     > Quotes get a little room to breathe.
 
     1. Numbered lists continue when you press Return.
     2. So do bullets.
-    - [ ] Tasks too — ⌘⇧L toggles the checkbox.
+    - [ ] Tasks too — ⌘⇧L toggles the checkbox, and a finished task sinks to the bottom of its list.
 
     Tags like #ideas or #draft show up in the sidebar, so a note can live in more than one place.
+
+    ## Settings, and a second Mac
+
+    ⌘, opens Settings: a rail of sections, a search box that finds any setting by name, and ⌘Z to take a change back. Under Library, the whole library can also be kept in a private GitHub repository of yours — for a Mac you would rather not sign into iCloud on, and a history of every version of every note.
 
     ---
 
