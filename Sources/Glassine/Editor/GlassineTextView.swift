@@ -316,6 +316,15 @@ final class GlassineTextView: NSTextView {
     // MARK: - Layout: centered column + insets
 
     func updateInsets() {
+        // The view is exactly as wide as the clip view. Autoresizing only adds
+        // the clip's change in width to whatever width the view began with, so a
+        // scroll view that starts at zero size — as SwiftUI's hosting makes it —
+        // leaves the text view wider than the clip by that first width, and the
+        // column centred in a width nobody sees: to the right of the middle,
+        // and by a different amount once the sidebar has come or gone.
+        if let clip = superview as? NSClipView, clip.bounds.width > 0, frame.width != clip.bounds.width {
+            super.setFrameSize(NSSize(width: clip.bounds.width, height: frame.height))
+        }
         let width = bounds.width
         guard width > 0 else { return }
         let usable = max(0, width - 2 * GlassineTextView.minimumSideMargin)
