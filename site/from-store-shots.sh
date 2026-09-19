@@ -11,6 +11,7 @@ cd "$(dirname "$0")/.."
 SRC="${1:-dist/store-shots-v2/App Store 2880x1800}"
 [[ -d "$SRC" ]] || { echo "No such folder: $SRC" >&2; exit 1; }
 pairs=(
+  "00 Hero.png|hero"
   "01 Editor.png|editor"
   "02 All Documents.png|library"
   "06 Timelapse, Moss.png|daily"
