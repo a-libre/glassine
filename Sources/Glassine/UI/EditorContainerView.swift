@@ -180,7 +180,7 @@ struct FooterBar: View {
             Button("Copy as Rich Text   ⌥⌘C") { state.copyCurrentDocument(asMarkdown: false) }
             Divider()
             Button("Review   ⌘↩") { state.toggleReview() }
-            Button(state.settings.data.reviewBeside ? "Put Away the Page Beside   ⌥⌘↩" : "Review Beside the Editor   ⌥⌘↩") { state.toggleReviewBeside() }
+            Button(state.settings.data.reviewBeside ? "Put Away the Page Beside   ⌘⇧↩" : "Review Beside the Editor   ⌘⇧↩") { state.toggleReviewBeside() }
         } label: {
             Image(systemName: "doc.on.doc")
                 .font(.system(size: 11, weight: .medium))

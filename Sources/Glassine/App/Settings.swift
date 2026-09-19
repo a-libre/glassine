@@ -128,7 +128,7 @@ struct SettingsData: Codable, Equatable {
     // Layout
     var sidebarVisible: Bool = true
     var sidebarWidth: Double = 250
-    /// The page rendered live beside the editor, following the caret (⌥⌘↩),
+    /// The page rendered live beside the editor, following the caret (⌘⇧↩),
     /// and how much of the width it takes. Kept between launches like the sidebar.
     var reviewBeside: Bool = false
     var reviewBesideFraction: Double = 0.5

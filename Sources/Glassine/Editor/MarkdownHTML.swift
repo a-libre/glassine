@@ -8,7 +8,10 @@ import Foundation
 ///
 /// One deliberate departure from CommonMark, to match what the editor shows:
 /// every line break starts a new paragraph, and `---` is always a rule (never a
-/// setext heading). `===` under a line still makes a level-one heading.
+/// setext heading). `===` under a line still makes a level-one heading. For the
+/// same reason a quotation is only the lines that start with `>`, and a list
+/// item only its own line and what is indented under it: the line after one
+/// is a paragraph of its own, as the editor draws it, not a lazy continuation.
 enum MarkdownHTML {
 
     static func render(_ markdown: String) -> String {
@@ -203,23 +206,17 @@ enum MarkdownHTML {
                 continue
             }
 
-            // Blockquote
+            // Blockquote: the run of lines that start with `>`, and nothing after.
             if trimmed.hasPrefix(">") {
                 flushParagraph()
                 var inner: [String] = []
                 while i < lines.count {
                     let t = lines[i].trimmingCharacters(in: .whitespaces)
-                    if t.hasPrefix(">") {
-                        var stripped = String(t.dropFirst())
-                        if stripped.hasPrefix(" ") { stripped.removeFirst() }
-                        inner.append(stripped)
-                        i += 1
-                    } else if !t.isEmpty, let last = inner.last, !last.isEmpty, first(listRx, lines[i]) == nil, first(headingRx, t) == nil {
-                        inner.append(lines[i]) // lazy continuation
-                        i += 1
-                    } else {
-                        break
-                    }
+                    guard t.hasPrefix(">") else { break }
+                    var stripped = String(t.dropFirst())
+                    if stripped.hasPrefix(" ") { stripped.removeFirst() }
+                    inner.append(stripped)
+                    i += 1
                 }
                 html += "<blockquote\(at(start))>\n" + renderBlocks(inner) + "</blockquote>\n"
                 continue
@@ -353,13 +350,8 @@ enum MarkdownHTML {
                     i += 1
                     continue
                 }
-                if listMatch(l) == nil, let last = content.last, !last.isEmpty,
-                   first(headingRx, l.trimmingCharacters(in: .whitespaces)) == nil, first(hrRx, l) == nil,
-                   !l.trimmingCharacters(in: .whitespaces).hasPrefix(">"), first(fenceRx, l.trimmingCharacters(in: .whitespaces)) == nil {
-                    content.append(l.trimmingCharacters(in: .whitespaces)) // lazy continuation
-                    i += 1
-                    continue
-                }
+                // Anything else — an unindented line of prose after the item — ends
+                // the list: it is a paragraph of its own, as the editor draws it.
                 break
             }
             items.append((content, !sawBlank))

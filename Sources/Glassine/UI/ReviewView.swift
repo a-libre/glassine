@@ -20,7 +20,7 @@ enum ReviewStyle: String, Codable, CaseIterable, Identifiable {
 /// Review mode: the document rendered as real HTML in a web view, in one of a
 /// few typographic styles. Read-only; Esc or ⌘↩ goes back to the editor.
 ///
-/// `beside` is the same page to the right of the editor (⌥⌘↩): it is redrawn
+/// `beside` is the same page to the right of the editor (⌘⇧↩): it is redrawn
 /// in place as the text changes and scrolls to the block the caret is in,
 /// and Esc stays the editor's.
 struct ReviewView: View {
@@ -99,7 +99,7 @@ struct ReviewView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help(beside ? "Put the page away (⌥⌘↩)" : "Back to editing (Esc or ⌘↩)")
+            .help(beside ? "Put the page away (⌘⇧↩)" : "Back to editing (Esc or ⌘↩)")
         }
         .foregroundStyle(styleIsLight ? Color.black.opacity(0.75) : Color.white.opacity(0.85))
         .padding(.leading, 4)

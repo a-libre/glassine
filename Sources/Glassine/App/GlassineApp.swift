@@ -361,7 +361,7 @@ struct GlassineCommands: Commands {
                 get: { state.settings.data.reviewBeside },
                 set: { _ in state.toggleReviewBeside() }
             ))
-            .keyboardShortcut(.return, modifiers: [.command, .option])
+            .keyboardShortcut(.return, modifiers: [.command, .shift])
             .disabled(state.document == nil)
             Picker("Review Style", selection: Binding(
                 get: { state.settings.data.reviewStyle },
