@@ -24,6 +24,9 @@ final class AppState: ObservableObject {
     @Published var showingGallery: Bool = false
     /// Review mode: the current document rendered read-only in a chosen style.
     @Published var reviewMode: Bool = false
+    /// The line the caret is on, kept only while a page sits beside the editor,
+    /// for that page to follow.
+    @Published var caretLine: Int = 0
     /// Short confirmation shown in the footer ("Copied as Markdown").
     @Published var transientNotice: String?
     private var noticeWork: DispatchWorkItem?
@@ -929,6 +932,25 @@ final class AppState: ObservableObject {
     /// Review is what is on screen: not the mosaic or the Timelapse over it.
     var inReview: Bool { reviewMode && !galleryOnScreen && !showingDaily && document != nil }
 
+    /// ⌥⌘↩: the page beside the editor, rendered as you write and following
+    /// the caret — or put away. From Review it brings the editor back with
+    /// the page beside it; from the mosaic it opens the document.
+    func toggleReviewBeside() {
+        guard document != nil else { return }
+        let opening = !settings.data.reviewBeside
+        if opening, let textView = GlassineTextView.current {
+            caretLine = EditorView.lineIndex(at: textView.selectedRange().location, in: textView.string as NSString)
+        }
+        withAnimation(.easeOut(duration: 0.22)) {
+            settings.data.reviewBeside = opening
+            if opening {
+                reviewMode = false
+                showingGallery = false
+                showingDaily = false
+            }
+        }
+    }
+
     /// The next style along, or the one before: ⇥ and ⇧⇥ in Review.
     func cycleReviewStyle(by step: Int) {
         let all = ReviewStyle.allCases
@@ -1031,6 +1053,7 @@ final class AppState: ObservableObject {
                 add("style-\(s.rawValue)", "Review style: \(s.label)\(mark)") { [weak self] in self?.settings.data.reviewStyle = s }
             }
             add("leave-review", "Leave Review", keys: "⌘↩  ⌘⇧S") { [weak self] in self?.toggleReview() }
+            add("beside", "Review beside the editor", keys: "⌥⌘↩") { [weak self] in self?.toggleReviewBeside() }
             add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
             add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
             add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
@@ -1056,6 +1079,7 @@ final class AppState: ObservableObject {
         } else {
             add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.showGallery() }
             add("review", "Review", keys: "⌘↩  ⌘⇧S") { [weak self] in self?.toggleReview() }
+            add("beside", settings.data.reviewBeside ? "Put away the page beside the editor" : "Review beside the editor", keys: "⌥⌘↩") { [weak self] in self?.toggleReviewBeside() }
             add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
             add("daily", "Timelapse", keys: "⌘D") { [weak self] in self?.showDaily() }
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
@@ -1164,7 +1188,7 @@ enum WelcomeDocument {
     - Watch the caret glide as you type. Leave it alone for a few seconds and it may do a trick. Both are tuned under **Settings → Caret**.
     - ⌘S hides the sidebar; ⌘S brings it back. ⌘1 shows every document as a wall of cards, ⌘2 is Timelapse — today's note in front, earlier days receding behind it — and ⌘F searches everything you have written.
     - ⌘K opens a command bar with whatever makes sense where you are. ⌘/ shows every shortcut on one card.
-    - ⌘↩ shows this page the way a reader will see it, in any of six styles. Esc comes back.
+    - ⌘↩ shows this page the way a reader will see it, in any of six styles; Esc comes back. ⌥⌘↩ keeps that page beside the editor, following as you write.
     - Typewriter scrolling (⌃⌘T) and focus mode (⌃⌘F) are both on. Turn either off and see which you miss.
     - The file's name follows the first line of the document. Change this heading and watch the sidebar.
     - ⌥⌘D opens today's note. Type @today, @yesterday or @tomorrow and a space anywhere.

@@ -128,6 +128,10 @@ struct SettingsData: Codable, Equatable {
     // Layout
     var sidebarVisible: Bool = true
     var sidebarWidth: Double = 250
+    /// The page rendered live beside the editor, following the caret (⌥⌘↩),
+    /// and how much of the width it takes. Kept between launches like the sidebar.
+    var reviewBeside: Bool = false
+    var reviewBesideFraction: Double = 0.5
     /// The window floats over other apps' windows, and stays put when Stage
     /// Manager switches sets. ⌘. toggles it.
     var floatOnTop: Bool = false
@@ -186,6 +190,8 @@ struct SettingsData: Codable, Equatable {
         p.caretPositions = [:]
         p.sidebarVisible = true
         p.sidebarWidth = 0
+        p.reviewBeside = false
+        p.reviewBesideFraction = 0.5
         p.reviewStyle = .glass
         p.syncRepository = nil
         p.syncBranch = "main"
@@ -205,6 +211,8 @@ struct SettingsData: Codable, Equatable {
         p.caretPositions = other.caretPositions
         p.sidebarVisible = other.sidebarVisible
         p.sidebarWidth = other.sidebarWidth
+        p.reviewBeside = other.reviewBeside
+        p.reviewBesideFraction = other.reviewBesideFraction
         p.reviewStyle = other.reviewStyle
         p.syncRepository = other.syncRepository
         p.syncBranch = other.syncBranch
@@ -255,6 +263,8 @@ struct SettingsData: Codable, Equatable {
         moveCompletedTasks = try c.decodeIfPresent(Bool.self, forKey: .moveCompletedTasks) ?? d.moveCompletedTasks
         sidebarVisible = try c.decodeIfPresent(Bool.self, forKey: .sidebarVisible) ?? d.sidebarVisible
         sidebarWidth = try c.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? d.sidebarWidth
+        reviewBeside = try c.decodeIfPresent(Bool.self, forKey: .reviewBeside) ?? d.reviewBeside
+        reviewBesideFraction = try c.decodeIfPresent(Double.self, forKey: .reviewBesideFraction) ?? d.reviewBesideFraction
         floatOnTop = try c.decodeIfPresent(Bool.self, forKey: .floatOnTop) ?? d.floatOnTop
         backdrop = try c.decodeIfPresent(String.self, forKey: .backdrop) ?? d.backdrop
         backdropDrift = try c.decodeIfPresent(Bool.self, forKey: .backdropDrift) ?? d.backdropDrift

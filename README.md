@@ -63,7 +63,7 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
 - **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘S — and a Shelf at the bottom for what isn't current, out of the way without being archived.
 - **All Documents** (⌘P): a mosaic of every document with rendered previews, navigable with the arrow keys.
-- **Review** (⌘↩ or ⌘⇧S): the document rendered as HTML in one of six styles — Glass, GitHub, Book, Book Dark, Editorial, Mono.
+- **Review** (⌘↩ or ⌘⇧S): the document rendered as HTML in one of six styles — Glass, GitHub, Book, Book Dark, Editorial, Mono. Or beside the editor (⌥⌘↩), live, following the caret.
 - **Typewriter scrolling, focus mode, word count and reading time.**
 - **Markdown, lightly styled.** Syntax stays visible but steps back: headings, emphasis, code, quotes, lists, tasks, links, tags. Or hide it (⌃⌘M): the marks leave the page except in the sentence you're writing.
 - **Formatting as you go.** A bar over whatever you select; a menu under a `/` for headings, lists, tasks, quotes, code blocks, dividers and dates; chips (⌘⇧H) that put a word in a capsule like a date's.
@@ -105,6 +105,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘S (or ⌘\) | Show or hide the sidebar |
 | ⌘P | All Documents — the mosaic view of the whole library |
 | ⌘↩ or ⌘⇧S | Review — the document rendered read-only in a chosen style (Esc or the same key leaves) |
+| ⌥⌘↩ | The page beside the editor — Review to the right of the text, redrawn as you write and following the caret |
 | ⌘⇧C / ⌥⌘C | Copy the whole document as Markdown / as rich text |
 | Esc | Zoom out one level: Review → editor → wherever the document was opened from (All Documents, or Timelapse for a note opened from a day there), the page shrinking back into its card. Inside All Documents, Esc returns to the open document |
 | ↑↓←→ and ↩ | In All Documents: move between cards and open the selected one (⌘↩ opens it in Review) |

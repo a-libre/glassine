@@ -19,10 +19,15 @@ enum ReviewStyle: String, Codable, CaseIterable, Identifiable {
 
 /// Review mode: the document rendered as real HTML in a web view, in one of a
 /// few typographic styles. Read-only; Esc or ⌘↩ goes back to the editor.
+///
+/// `beside` is the same page to the right of the editor (⌥⌘↩): it is redrawn
+/// in place as the text changes and scrolls to the block the caret is in,
+/// and Esc stays the editor's.
 struct ReviewView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var document: DocumentModel
     let initialScrollFraction: Double
+    var beside: Bool = false
 
     private var theme: Theme { state.pageTheme }
     private var style: ReviewStyle { state.settings.data.reviewStyle }
@@ -36,7 +41,9 @@ struct ReviewView: View {
                 scale: state.settings.data.reviewFontScale,
                 initialScrollFraction: initialScrollFraction,
                 baseURL: document.url.deletingLastPathComponent(),
-                onToggleTask: { index, checked in state.toggleTask(ordinal: index, checked: checked) }
+                onToggleTask: { index, checked in state.toggleTask(ordinal: index, checked: checked) },
+                live: beside,
+                followLine: beside ? state.caretLine : nil
             )
             .ignoresSafeArea()
 
@@ -45,10 +52,14 @@ struct ReviewView: View {
                 .padding(.trailing, 14)
         }
         .background(
-            Button("") { state.reviewMode = false }
-                .keyboardShortcut(.cancelAction)
-                .frame(width: 0, height: 0)
-                .opacity(0)
+            Group {
+                if !beside {
+                    Button("") { state.reviewMode = false }
+                        .keyboardShortcut(.cancelAction)
+                        .frame(width: 0, height: 0)
+                        .opacity(0)
+                }
+            }
         )
     }
 
@@ -80,7 +91,7 @@ struct ReviewView: View {
             .fixedSize()
 
             Button {
-                state.reviewMode = false
+                if beside { state.toggleReviewBeside() } else { state.reviewMode = false }
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .bold))
@@ -88,7 +99,7 @@ struct ReviewView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("Back to editing (Esc or ⌘↩)")
+            .help(beside ? "Put the page away (⌥⌘↩)" : "Back to editing (Esc or ⌘↩)")
         }
         .foregroundStyle(styleIsLight ? Color.black.opacity(0.75) : Color.white.opacity(0.85))
         .padding(.leading, 4)
@@ -113,6 +124,11 @@ struct ReviewWebView: NSViewRepresentable {
     /// A checkbox was clicked: the n-th task in the document, and its new state.
     /// Returns false when the document could not follow, so the page is put back.
     var onToggleTask: (Int, Bool) -> Bool = { _, _ in false }
+    /// Beside the editor: a change to the text is put into the page in place, a
+    /// beat after typing pauses, instead of reloading it — no blink, the scroll
+    /// kept — and the page scrolls to keep the block on `followLine` in view.
+    var live: Bool = false
+    var followLine: Int? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -133,16 +149,40 @@ struct ReviewWebView: NSViewRepresentable {
         (function() {
           function boxes() { return document.querySelectorAll('li.task > input[type=checkbox]'); }
           function paint(box, on) { var li = box.closest('li'); if (li) li.classList.toggle('done', on); }
-          boxes().forEach(function(box, i) {
-            box.addEventListener('change', function() {
-              paint(box, box.checked);
-              window.webkit.messageHandlers.glassineTask.postMessage({ index: i, checked: box.checked });
+          function bind() {
+            boxes().forEach(function(box, i) {
+              box.addEventListener('change', function() {
+                paint(box, box.checked);
+                window.webkit.messageHandlers.glassineTask.postMessage({ index: i, checked: box.checked });
+              });
             });
-          });
+          }
+          bind();
           window.glassineSetTasks = function(states) {
             boxes().forEach(function(box, i) {
               if (i < states.length) { box.checked = states[i]; paint(box, states[i]); }
             });
+          };
+          // Beside the editor: the new body put in place of the old, the boxes rebound.
+          window.glassineSetBody = function(html) {
+            var a = document.querySelector('article');
+            if (!a) return;
+            a.innerHTML = html;
+            bind();
+          };
+          // The block that starts on or before a source line, brought a third of
+          // the way down the window — the caret's paragraph, as the editor moves.
+          window.glassineFollow = function(line, smooth) {
+            var blocks = document.querySelectorAll('article > [data-line]');
+            var target = null;
+            for (var i = 0; i < blocks.length; i++) {
+              var n = parseInt(blocks[i].getAttribute('data-line'), 10);
+              if (n <= line) target = blocks[i]; else break;
+            }
+            if (!target) return;
+            var top = target.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.3;
+            var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: Math.max(0, top), behavior: (smooth && !still) ? 'smooth' : 'auto' });
           };
         })();
         """
@@ -157,6 +197,7 @@ struct ReviewWebView: NSViewRepresentable {
         web.allowsBackForwardNavigationGestures = false
         web.allowsMagnification = true
         context.coordinator.pendingScrollFraction = initialScrollFraction
+        context.coordinator.followLine = followLine
         context.coordinator.load(html, into: web, baseURL: baseURL)
         return web
     }
@@ -165,6 +206,10 @@ struct ReviewWebView: NSViewRepresentable {
         let c = context.coordinator
         c.onToggleTask = onToggleTask
         c.web = web
+        if let line = followLine, line != c.followLine {
+            c.followLine = line
+            if c.loaded { c.follow(smooth: true) }
+        }
         guard c.lastHTML != html else { return }
         let bare = ReviewHTML.stripScale(html)
         if c.lastHTMLWithoutScale == bare {
@@ -177,6 +222,13 @@ struct ReviewWebView: NSViewRepresentable {
             web.evaluateJavaScript("document.documentElement.style.setProperty('--scale', '\(scale)')", completionHandler: nil)
             c.lastHTML = html
             c.lastHTMLWithoutScale = bare
+        } else if live, c.loaded, ReviewHTML.stripBody(c.lastHTMLWithoutScale) == ReviewHTML.stripBody(bare) {
+            // The text changed and nothing else: the new body goes into the page
+            // in place once typing pauses, and the page follows the caret.
+            c.lastHTML = html
+            c.lastHTMLWithoutScale = bare
+            c.pendingBody = ReviewHTML.body(of: html)
+            c.bodyDebouncer.call { [weak c] in c?.applyPendingBody() }
         } else {
             c.pendingScrollFraction = c.knownFraction
             c.load(html, into: web, baseURL: baseURL)
@@ -190,6 +242,27 @@ struct ReviewWebView: NSViewRepresentable {
         var knownFraction: Double = 0
         var onToggleTask: (Int, Bool) -> Bool = { _, _ in false }
         weak var web: WKWebView?
+        /// Beside the editor: the line to keep in view, the body waiting to go
+        /// in, and whether the page is there to take it.
+        var followLine: Int?
+        var pendingBody: String?
+        var loaded = false
+        let bodyDebouncer = Debouncer(delay: 0.12)
+
+        func applyPendingBody() {
+            guard let body = pendingBody, let web, loaded else { return }
+            pendingBody = nil
+            guard let data = try? JSONSerialization.data(withJSONObject: [body]),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            web.evaluateJavaScript("if (window.glassineSetBody) glassineSetBody(\(json)[0])") { [weak self] _, _ in
+                self?.follow(smooth: true)
+            }
+        }
+
+        func follow(smooth: Bool) {
+            guard let line = followLine, let web, loaded else { return }
+            web.evaluateJavaScript("if (window.glassineFollow) glassineFollow(\(line), \(smooth))", completionHandler: nil)
+        }
 
         func showTaskStates(_ states: [Bool]) {
             let list = states.map { $0 ? "true" : "false" }.joined(separator: ",")
@@ -199,6 +272,9 @@ struct ReviewWebView: NSViewRepresentable {
         func load(_ html: String, into web: WKWebView, baseURL: URL) {
             lastHTML = html
             lastHTMLWithoutScale = ReviewHTML.stripScale(html)
+            loaded = false
+            pendingBody = nil
+            bodyDebouncer.cancel()
             // Dip out before a reload and back in once it has rendered: a style switch
             // reads as a crossfade instead of a blink.
             NSAnimationContext.runAnimationGroup { ctx in
@@ -211,7 +287,11 @@ struct ReviewWebView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             ScreenshotMode.note("didFinish")
-            if let f = pendingScrollFraction, f > 0 {
+            loaded = true
+            if followLine != nil {
+                pendingScrollFraction = nil
+                follow(smooth: false)
+            } else if let f = pendingScrollFraction, f > 0 {
                 pendingScrollFraction = nil
                 let js = "window.scrollTo(0, \(f) * Math.max(0, document.documentElement.scrollHeight - window.innerHeight));"
                 webView.evaluateJavaScript(js, completionHandler: nil)
@@ -305,6 +385,26 @@ enum ReviewHTML {
     static func stripScale(_ html: String) -> String {
         guard let r = html.range(of: "--scale: "), let end = html[r.upperBound...].firstIndex(of: ";") else { return html }
         return html.replacingCharacters(in: r.lowerBound..<end, with: "--scale: X")
+    }
+
+    /// What is inside `<article>`: the rendered text, without the page around it.
+    static func body(of html: String) -> String {
+        guard let open = html.range(of: "<article>"), let close = html.range(of: "</article>", options: .backwards),
+              open.upperBound <= close.lowerBound else { return "" }
+        return String(html[open.upperBound..<close.lowerBound])
+    }
+
+    /// The page with its article emptied: equal for two renders that differ only
+    /// in the text, so a page beside the editor can take the new text in place.
+    static func stripBody(_ html: String) -> String {
+        guard let open = html.range(of: "<article>"), let close = html.range(of: "</article>", options: .backwards),
+              open.upperBound <= close.lowerBound else { return html }
+        var page = String(html[..<open.upperBound]) + String(html[close.lowerBound...])
+        // The title follows the first line as it is typed; it is not on the page.
+        if let t = page.range(of: "<title>"), let end = page.range(of: "</title>", range: t.upperBound..<page.endIndex) {
+            page.replaceSubrange(t.upperBound..<end.lowerBound, with: "")
+        }
+        return page
     }
 
     /// The same page with every task unchecked, to tell "a box was ticked" from a real edit.

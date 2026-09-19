@@ -357,6 +357,12 @@ struct GlassineCommands: Commands {
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(state.document == nil)
+            Toggle("Review Beside the Editor", isOn: Binding(
+                get: { state.settings.data.reviewBeside },
+                set: { _ in state.toggleReviewBeside() }
+            ))
+            .keyboardShortcut(.return, modifiers: [.command, .option])
+            .disabled(state.document == nil)
             Picker("Review Style", selection: Binding(
                 get: { state.settings.data.reviewStyle },
                 set: { state.settings.data.reviewStyle = $0 }

@@ -8,8 +8,18 @@ struct EditorView: NSViewRepresentable {
     let initialCaret: Int?
     let onCaretMoved: (Int) -> Void
     var onEscape: (() -> Void)? = nil
+    /// The line the caret is on, a beat after it moves — asked for only while
+    /// a page beside the editor is following it.
+    var onCaretLine: ((Int) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    /// The line a caret position is on: the count of line breaks before it,
+    /// which is the count the renderer marks its blocks with.
+    static func lineIndex(at location: Int, in text: NSString) -> Int {
+        let before = text.substring(to: max(0, min(location, text.length)))
+        return before.utf8.reduce(0) { $1 == 0x0A ? $0 + 1 : $0 }
+    }
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = GlassineTextView(config: config)
@@ -58,6 +68,7 @@ struct EditorView: NSViewRepresentable {
         private weak var document: DocumentModel?
         private var isLoading = false
         private var caretSaveDebouncer = Debouncer(delay: 0.8)
+        private var caretLineDebouncer = Debouncer(delay: 0.12)
 
         init(_ parent: EditorView) {
             self.parent = parent
@@ -91,6 +102,12 @@ struct EditorView: NSViewRepresentable {
             let loc = textView.selectedRange().location
             caretSaveDebouncer.call { [weak self] in
                 self?.parent.onCaretMoved(loc)
+            }
+            if parent.onCaretLine != nil {
+                caretLineDebouncer.call { [weak self] in
+                    guard let self, let follow = self.parent.onCaretLine, let textView = self.textView else { return }
+                    follow(EditorView.lineIndex(at: loc, in: textView.string as NSString))
+                }
             }
         }
 

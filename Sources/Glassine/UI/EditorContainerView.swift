@@ -3,8 +3,11 @@ import SwiftUI
 struct EditorContainerView: View {
     @EnvironmentObject var state: AppState
     @Namespace private var zoom
+    @State private var dividerStartFraction: Double?
+    @State private var dividerHovered = false
 
     private var theme: Theme { state.theme }
+    private var beside: Bool { state.settings.data.reviewBeside }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -17,30 +20,20 @@ struct EditorContainerView: View {
                     .id(doc.id)
                     .transition(.opacity.combined(with: .scale(scale: 0.992)))
             } else if let doc = state.document {
-                if let card = state.zoomingCard {
-                    // Picks up the card's frame and grows to fill the page, then fades.
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05))
-                        .matchedGeometryEffect(id: card, in: zoom)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
-                        .allowsHitTesting(false)
-                }
-                EditorView(
-                    document: doc,
-                    config: state.styleConfig,
-                    initialCaret: state.savedCaret(for: doc.relativePath),
-                    onCaretMoved: { state.caretMoved(to: $0) },
-                    onEscape: { state.escapeFromEditor() }
-                )
-                .id(doc.id)
-                .ignoresSafeArea()
-                .mask(edgeFade(bottom: state.settings.data.showCounter ? 34 : 16))
-                if state.settings.data.showCounter {
-                    FooterBar(document: doc)
-                        .opacity(state.isQuiet ? 0.1 : 1)
-                        .animation(.easeOut(duration: state.isQuiet ? 0.7 : 0.15), value: state.isQuiet)
+                GeometryReader { geo in
+                    HStack(spacing: 0) {
+                        editor(doc)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        if beside {
+                            // The page beside the editor: rendered as the text changes,
+                            // scrolled to the caret's block, sized by the divider.
+                            divider
+                            ReviewView(document: doc, initialScrollFraction: 0, beside: true)
+                                .id(doc.id)
+                                .frame(width: (geo.size.width * state.settings.data.reviewBesideFraction).rounded())
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                        }
+                    }
                 }
             }
         }
@@ -48,8 +41,72 @@ struct EditorContainerView: View {
         .animation(.easeOut(duration: 0.24), value: state.showingGallery)
         .animation(.easeOut(duration: 0.24), value: state.showingDaily)
         .animation(.easeOut(duration: 0.18), value: state.reviewMode)
+        .animation(.easeOut(duration: 0.22), value: beside)
         .animation(.easeOut(duration: 0.18), value: state.document?.relativePath)
         .animation(.easeOut(duration: 0.3), value: state.zoomingCard)
+    }
+
+    private func editor(_ doc: DocumentModel) -> some View {
+        ZStack(alignment: .bottom) {
+            if let card = state.zoomingCard {
+                // Picks up the card's frame and grows to fill the page, then fades.
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05))
+                    .matchedGeometryEffect(id: card, in: zoom)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
+            EditorView(
+                document: doc,
+                config: state.styleConfig,
+                initialCaret: state.savedCaret(for: doc.relativePath),
+                onCaretMoved: { state.caretMoved(to: $0) },
+                onEscape: { state.escapeFromEditor() },
+                onCaretLine: beside ? { state.caretLine = $0 } : nil
+            )
+            .id(doc.id)
+            .ignoresSafeArea()
+            .mask(edgeFade(bottom: state.settings.data.showCounter ? 34 : 16))
+            if state.settings.data.showCounter {
+                FooterBar(document: doc)
+                    .opacity(state.isQuiet ? 0.1 : 1)
+                    .animation(.easeOut(duration: state.isQuiet ? 0.7 : 0.15), value: state.isQuiet)
+            }
+        }
+    }
+
+    /// A hairline between the editor and the page, dragged to share the width;
+    /// the share is kept, like the sidebar's width.
+    private var divider: some View {
+        Rectangle()
+            .fill(theme.text.color.opacity(theme.isDark ? 0.10 : 0.12))
+            .frame(width: 1)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .ignoresSafeArea()
+            .onHover { inside in
+                dividerHovered = inside
+                guard dividerStartFraction == nil else { return }
+                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .named("glassineRoot"))
+                    .onChanged { value in
+                        guard let width = NSApp.keyWindow?.contentView?.bounds.width, width > 0 else { return }
+                        if dividerStartFraction == nil { dividerStartFraction = state.settings.data.reviewBesideFraction }
+                        // The page loses what the pointer moved to the right.
+                        let editorWidth = width - (state.settings.data.sidebarVisible ? CGFloat(state.settings.data.sidebarWidth) : 0)
+                        let f = (dividerStartFraction ?? 0.5) - Double(value.translation.width / max(1, editorWidth))
+                        let fraction = (min(0.7, max(0.3, f)) * 1000).rounded() / 1000
+                        if fraction != state.settings.data.reviewBesideFraction { state.settings.data.reviewBesideFraction = fraction }
+                    }
+                    .onEnded { _ in
+                        dividerStartFraction = nil
+                        if !dividerHovered { NSCursor.pop() }
+                    }
+            )
     }
 
     /// Text slips out under the top edge and the footer instead of being cut off.
@@ -123,6 +180,7 @@ struct FooterBar: View {
             Button("Copy as Rich Text   ⌥⌘C") { state.copyCurrentDocument(asMarkdown: false) }
             Divider()
             Button("Review   ⌘↩") { state.toggleReview() }
+            Button(state.settings.data.reviewBeside ? "Put Away the Page Beside   ⌥⌘↩" : "Review Beside the Editor   ⌥⌘↩") { state.toggleReviewBeside() }
         } label: {
             Image(systemName: "doc.on.doc")
                 .font(.system(size: 11, weight: .medium))

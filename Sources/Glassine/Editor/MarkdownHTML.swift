@@ -14,12 +14,14 @@ enum MarkdownHTML {
     static func render(_ markdown: String) -> String {
         var lines = markdown.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
         // Hide YAML front matter.
+        var firstLine = 0
         if lines.first?.trimmingCharacters(in: .whitespaces) == "---" {
             if let end = lines.dropFirst().prefix(60).firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "---" }) {
                 lines.removeSubrange(0...end)
+                firstLine = end + 1
             }
         }
-        return renderBlocks(lines)
+        return renderBlocks(lines, lineBase: firstLine)
     }
 
     // MARK: - Regexes
@@ -125,19 +127,30 @@ enum MarkdownHTML {
 
     // MARK: - Blocks
 
-    private static func renderBlocks(_ lines: [String]) -> String {
+    /// `lineBase` is the source line of `lines[0]` when these are the document's
+    /// own top-level lines: every block then carries `data-line`, the line it
+    /// starts on, so a page beside the editor can follow the caret. Nested
+    /// blocks — a quotation's insides — pass nil and carry nothing.
+    private static func renderBlocks(_ lines: [String], lineBase: Int? = nil) -> String {
         var html = ""
         var paragraph: [String] = []
+        var paragraphStart = 0
         var i = 0
+
+        func at(_ line: Int) -> String {
+            guard let base = lineBase else { return "" }
+            return " data-line=\"\(base + line)\""
+        }
 
         func flushParagraph() {
             guard !paragraph.isEmpty else { return }
-            html += "<p>" + inline(paragraph.joined(separator: "\n")) + "</p>\n"
+            html += "<p\(at(paragraphStart))>" + inline(paragraph.joined(separator: "\n")) + "</p>\n"
             paragraph = []
         }
 
         while i < lines.count {
             let line = lines[i]
+            let start = i
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             if trimmed.isEmpty {
@@ -159,7 +172,7 @@ enum MarkdownHTML {
                 }
                 i += 1
                 let cls = lang.isEmpty ? "" : " class=\"language-\(escapeAttr(lang))\""
-                html += "<pre><code\(cls)>" + escape(code.joined(separator: "\n")) + "\n</code></pre>\n"
+                html += "<pre\(at(start))><code\(cls)>" + escape(code.joined(separator: "\n")) + "\n</code></pre>\n"
                 continue
             }
 
@@ -167,7 +180,7 @@ enum MarkdownHTML {
             if !paragraph.isEmpty, trimmed.count >= 3, trimmed.allSatisfy({ $0 == "=" }) {
                 let text = paragraph.joined(separator: " ")
                 paragraph = []
-                html += "<h1 id=\"\(slug(text))\">" + inline(text) + "</h1>\n"
+                html += "<h1 id=\"\(slug(text))\"\(at(paragraphStart))>" + inline(text) + "</h1>\n"
                 i += 1
                 continue
             }
@@ -177,7 +190,7 @@ enum MarkdownHTML {
                 flushParagraph()
                 let level = m.group(1).count
                 let text = m.group(2)
-                html += "<h\(level) id=\"\(slug(text))\">" + inline(text) + "</h\(level)>\n"
+                html += "<h\(level) id=\"\(slug(text))\"\(at(start))>" + inline(text) + "</h\(level)>\n"
                 i += 1
                 continue
             }
@@ -185,7 +198,7 @@ enum MarkdownHTML {
             // Thematic break
             if first(hrRx, trimmed) != nil {
                 flushParagraph()
-                html += "<hr>\n"
+                html += "<hr\(at(start))>\n"
                 i += 1
                 continue
             }
@@ -208,7 +221,7 @@ enum MarkdownHTML {
                         break
                     }
                 }
-                html += "<blockquote>\n" + renderBlocks(inner) + "</blockquote>\n"
+                html += "<blockquote\(at(start))>\n" + renderBlocks(inner) + "</blockquote>\n"
                 continue
             }
 
@@ -236,7 +249,7 @@ enum MarkdownHTML {
                     }
                     return s + "</tr>\n"
                 }
-                html += "<table>\n<thead>\n" + cellHTML("th", header) + "</thead>\n<tbody>\n"
+                html += "<table\(at(start))>\n<thead>\n" + cellHTML("th", header) + "</thead>\n<tbody>\n"
                 for r in rows { html += cellHTML("td", r) }
                 html += "</tbody>\n</table>\n"
                 continue
@@ -246,7 +259,7 @@ enum MarkdownHTML {
             if first(listRx, line) != nil {
                 flushParagraph()
                 let (listHTML, next) = renderList(lines, from: i)
-                html += listHTML
+                html += withAttribute(at(start), listHTML)
                 i = next
                 continue
             }
@@ -259,7 +272,7 @@ enum MarkdownHTML {
                     i += 1
                 }
                 while let last = code.last, last.trimmingCharacters(in: .whitespaces).isEmpty { code.removeLast() }
-                html += "<pre><code>" + escape(code.joined(separator: "\n")) + "\n</code></pre>\n"
+                html += "<pre\(at(start))><code>" + escape(code.joined(separator: "\n")) + "\n</code></pre>\n"
                 continue
             }
 
@@ -267,10 +280,17 @@ enum MarkdownHTML {
             // held back one step so a following === can still turn it into a heading.
             flushParagraph()
             paragraph = [line]
+            paragraphStart = start
             i += 1
         }
         flushParagraph()
         return html
+    }
+
+    /// `attribute` put inside the first tag of `html` — a list's `<ul>` or `<ol start="3">`.
+    private static func withAttribute(_ attribute: String, _ html: String) -> String {
+        guard !attribute.isEmpty, let close = html.firstIndex(of: ">") else { return html }
+        return String(html[..<close]) + attribute + String(html[close...])
     }
 
     // MARK: - Lists
