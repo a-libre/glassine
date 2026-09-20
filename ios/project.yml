@@ -19,6 +19,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.alexlibre.glassine
+        # Alex's team, signing managed by Xcode: plug in an iPhone, pick it in the
+        # toolbar, press Run. (ios/build-sim.sh builds for the simulator unsigned.)
+        DEVELOPMENT_TEAM: UW77SGUZ43
+        CODE_SIGN_STYLE: Automatic
         PRODUCT_NAME: Glassine
         MARKETING_VERSION: "0.2.17"
         CURRENT_PROJECT_VERSION: "1"
