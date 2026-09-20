@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import Metal
 import QuartzCore
 import SwiftUI
@@ -34,8 +38,8 @@ struct BackdropPreset: Codable, Identifiable, Hashable {
     /// from the theme itself — its tint and its accent, and hues either side.
     func colors(for theme: Theme) -> [HexColor] {
         guard isAurora else { return colors }
-        let tint = theme.tint.nsColor.usingColorSpace(.deviceRGB) ?? .gray
-        let accent = theme.accent.nsColor.usingColorSpace(.deviceRGB) ?? .blue
+        let tint = theme.tint.platformColor.usingColorSpace(.deviceRGB) ?? .gray
+        let accent = theme.accent.platformColor.usingColorSpace(.deviceRGB) ?? .blue
         let t = tint.hueComponent * 360
         let a = accent.hueComponent * 360
         // Little saturation in the tint means a neutral theme: keep the
@@ -67,7 +71,7 @@ struct BackdropPreset: Codable, Identifiable, Hashable {
     /// theme will move anyway.
     static func hsb(_ hue: CGFloat, _ saturation: CGFloat, _ brightness: CGFloat = 0.55) -> HexColor {
         let h = ((hue.truncatingRemainder(dividingBy: 360)) + 360).truncatingRemainder(dividingBy: 360)
-        return HexColor(NSColor(hue: h / 360, saturation: saturation, brightness: brightness, alpha: 1))
+        return HexColor(PlatformColor(hue: h / 360, saturation: saturation, brightness: brightness, alpha: 1))
     }
     private func hsb(_ hue: CGFloat, _ saturation: CGFloat) -> HexColor { BackdropPreset.hsb(hue, saturation) }
 
@@ -187,7 +191,7 @@ struct BackdropConfig: Equatable {
     init(preset: BackdropPreset, theme: Theme, drifts: Bool, frost: Double) {
         colors = preset.colors(for: theme)
         isDark = theme.isDark
-        self.drifts = drifts && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        self.drifts = drifts && !Platform.reduceMotion
         self.frost = frost
     }
 }
@@ -204,7 +208,7 @@ struct BackdropConfig: Equatable {
 /// near black and the colour lives in the folds, deep rather than bright, so
 /// pale text stays readable over every part of it. The clock stops while the
 /// window is covered or hidden.
-final class BackdropView: NSView {
+final class BackdropView: PlatformView {
     var config: BackdropConfig {
         didSet {
             guard config != oldValue else { return }
@@ -214,7 +218,14 @@ final class BackdropView: NSView {
         }
     }
 
+    #if os(macOS)
     private let metalLayer = CAMetalLayer()
+    #else
+    // UIKit gives a view its layer; the view asks for a Metal one.
+    override class var layerClass: AnyClass { CAMetalLayer.self }
+    private lazy var metalLayer = layer as! CAMetalLayer
+    private var foregroundObservers: [NSObjectProtocol] = []
+    #endif
     private let gpu = BackdropView.sharedGPU
     /// Everything the shader is told, as set on the main thread.
     private var uniforms = BackdropUniforms()
@@ -239,8 +250,13 @@ final class BackdropView: NSView {
     init(config: BackdropConfig) {
         self.config = config
         super.init(frame: .zero)
+        #if os(macOS)
         layer = metalLayer
         wantsLayer = true
+        #else
+        isOpaque = true
+        isUserInteractionEnabled = false
+        #endif
         metalLayer.device = gpu?.device
         metalLayer.pixelFormat = .bgra8Unorm
         metalLayer.framebufferOnly = true
@@ -250,9 +266,10 @@ final class BackdropView: NSView {
         // waiting for; the next tick tries again.
         metalLayer.allowsNextDrawableTimeout = true
         applyConfig()
-        motionObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
-        ) { [weak self] _ in self?.updateClock() }
+        let motion = Platform.reduceMotionChanged
+        motionObserver = motion.center.addObserver(forName: motion.name, object: nil, queue: .main) { [weak self] _ in
+            self?.updateClock()
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -260,15 +277,30 @@ final class BackdropView: NSView {
     deinit {
         clock?.cancel()
         if let o = occlusionObserver { NotificationCenter.default.removeObserver(o) }
-        if let o = motionObserver { NSWorkspace.shared.notificationCenter.removeObserver(o) }
+        if let o = motionObserver { Platform.reduceMotionChanged.center.removeObserver(o) }
+        #if !os(macOS)
+        foregroundObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        #endif
     }
 
+    #if os(macOS)
     override var isOpaque: Bool { true }
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func hitTest(_ point: CGPoint) -> NSView? { nil }
 
     override func layout() {
         super.layout()
-        let scale = (window?.backingScaleFactor ?? 2) * BackdropView.renderScale
+        resizeDrawable(screenScale: window?.backingScaleFactor ?? 2)
+    }
+    #else
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        resizeDrawable(screenScale: window?.screen.scale ?? traitCollection.displayScale)
+    }
+    #endif
+
+    /// The drawable is a quarter of the view, in pixels; a change of size asks for a frame.
+    private func resizeDrawable(screenScale: CGFloat) {
+        let scale = screenScale * BackdropView.renderScale
         let size = CGSize(width: max(64, (bounds.width * scale).rounded()), height: max(64, (bounds.height * scale).rounded()))
         if metalLayer.drawableSize != size {
             metalLayer.drawableSize = size
@@ -277,6 +309,7 @@ final class BackdropView: NSView {
         }
     }
 
+    #if os(macOS)
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let o = occlusionObserver { NotificationCenter.default.removeObserver(o) }
@@ -289,6 +322,26 @@ final class BackdropView: NSView {
         needsLayout = true
         updateClock()
     }
+    #else
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        foregroundObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        foregroundObservers = []
+        guard let window else { clock?.cancel(); clock = nil; return }
+        metalLayer.contentsScale = window.screen.scale
+        // An iOS window is not covered the way a Mac's is; what stops the
+        // clock here is the app leaving the foreground.
+        for name in [UIApplication.didEnterBackgroundNotification, UIApplication.willEnterForegroundNotification,
+                     UIApplication.didBecomeActiveNotification] {
+            foregroundObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                self?.updateClock()
+                self?.requestFrame()
+            })
+        }
+        setNeedsLayout()
+        updateClock()
+    }
+    #endif
 
     // MARK: Metal
 
@@ -330,15 +383,15 @@ final class BackdropView: NSView {
         let colors = config.colors.isEmpty ? BackdropPreset.dusk.colors : config.colors
         let count = min(colors.count, BackdropPreset.maxColors)
         func hsb(_ i: Int) -> (h: CGFloat, s: CGFloat, b: CGFloat) {
-            let c = colors[i % colors.count].nsColor.usingColorSpace(.deviceRGB) ?? .gray
+            let c = colors[i % colors.count].platformColor.usingColorSpace(.deviceRGB) ?? .gray
             return (c.hueComponent, c.saturationComponent, c.brightnessComponent)
         }
-        func rgb(_ c: NSColor) -> SIMD4<Float> {
+        func rgb(_ c: PlatformColor) -> SIMD4<Float> {
             let s = c.usingColorSpace(.sRGB) ?? c
             return SIMD4(Float(s.redComponent), Float(s.greenComponent), Float(s.blueComponent), 1)
         }
         let ground = hsb(0)
-        uniforms.ground = rgb(NSColor(
+        uniforms.ground = rgb(PlatformColor(
             hue: ground.h, saturation: ground.s * (dark ? 0.7 : 0.2),
             brightness: dark ? 0.045 : 0.965, alpha: 1))
         uniforms.ground.w = Float(count)   // how many of the slots the ramp runs round
@@ -347,24 +400,28 @@ final class BackdropView: NSView {
             let c = hsb(i)
             let saturation = dark ? min(0.92, c.s) : min(0.7, c.s * 0.85)
             let brightness = dark ? min(max(c.b, 0.32), 0.62) : min(max(c.b, 0.78), 0.9)
-            slots.append(rgb(NSColor(hue: c.h, saturation: saturation, brightness: brightness, alpha: 1)))
+            slots.append(rgb(PlatformColor(hue: c.h, saturation: saturation, brightness: brightness, alpha: 1)))
         }
         // The edge: the same silk, catching the light.
         let edge = hsb(1)
-        slots.append(rgb(NSColor(hue: edge.h, saturation: dark ? 0.35 : 0.12,
+        slots.append(rgb(PlatformColor(hue: edge.h, saturation: dark ? 0.35 : 0.12,
                                  brightness: dark ? 0.85 : 1, alpha: 1)))
         uniforms.colors = (slots[0], slots[1], slots[2], slots[3], slots[4], slots[5])
         uniforms.dark = dark ? 1 : 0
         uniforms.frost = Float(config.frost)
-        metalLayer.backgroundColor = NSColor(red: CGFloat(uniforms.ground.x), green: CGFloat(uniforms.ground.y),
+        metalLayer.backgroundColor = PlatformColor(red: CGFloat(uniforms.ground.x), green: CGFloat(uniforms.ground.y),
                                              blue: CGFloat(uniforms.ground.z), alpha: 1).cgColor
     }
 
     /// Ticking while the window can be seen and the backdrop drifts; a
     /// still picture otherwise. The clock lives on the render queue.
     private func updateClock() {
+        #if os(macOS)
         let visible = window?.occlusionState.contains(.visible) ?? false
-        let running = visible && config.drifts && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        #else
+        let visible = window != nil && UIApplication.shared.applicationState != .background
+        #endif
+        let running = visible && config.drifts && !Platform.reduceMotion
         if running, clock == nil {
             let step = 1 / BackdropView.framesPerSecond
             let timer = DispatchSource.makeTimerSource(queue: renderQueue)
@@ -541,9 +598,14 @@ final class BackdropView: NSView {
     """
 }
 
-struct BackdropCanvas: NSViewRepresentable {
+struct BackdropCanvas: PlatformViewRepresentable {
     let config: BackdropConfig
 
+    #if os(macOS)
     func makeNSView(context: Context) -> BackdropView { BackdropView(config: config) }
     func updateNSView(_ v: BackdropView, context: Context) { v.config = config }
+    #else
+    func makeUIView(context: Context) -> BackdropView { BackdropView(config: config) }
+    func updateUIView(_ v: BackdropView, context: Context) { v.config = config }
+    #endif
 }

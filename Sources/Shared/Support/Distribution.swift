@@ -15,9 +15,30 @@ enum Distribution {
     /// True when the App Sandbox is on. A sandboxed process gets a home
     /// directory inside ~/Library/Containers, which is the cheapest reliable tell.
     static let isSandboxed: Bool = {
+        #if os(macOS)
         if ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil { return true }
         return NSHomeDirectory().contains("/Library/Containers/")
+        #else
+        return true   // there is no other kind of iOS app
+        #endif
     }()
+
+    /// Bookmarks that carry the sandbox's permission. iOS has no option to ask
+    /// for: a bookmark of a folder the user picked carries it by itself.
+    static var bookmarkCreation: URL.BookmarkCreationOptions {
+        #if os(macOS)
+        isSandboxed ? [.withSecurityScope] : []
+        #else
+        []
+        #endif
+    }
+    static var bookmarkResolution: URL.BookmarkResolutionOptions {
+        #if os(macOS)
+        isSandboxed ? [.withSecurityScope] : []
+        #else
+        []
+        #endif
+    }
 
     #if APPSTORE
     static let isAppStore = true
@@ -109,7 +130,7 @@ final class ChosenFolder {
     /// Makes a bookmark for a folder the user just chose in an open panel.
     init(pickedURL: URL) {
         url = pickedURL
-        bookmark = try? pickedURL.bookmarkData(options: Distribution.isSandboxed ? [.withSecurityScope] : [],
+        bookmark = try? pickedURL.bookmarkData(options: Distribution.bookmarkCreation,
                                                includingResourceValuesForKeys: nil, relativeTo: nil)
         accessing = Distribution.isSandboxed && pickedURL.startAccessingSecurityScopedResource()
     }
@@ -121,12 +142,12 @@ final class ChosenFolder {
         if let data {
             var stale = false
             if let resolved = try? URL(resolvingBookmarkData: data,
-                                       options: Distribution.isSandboxed ? [.withSecurityScope] : [],
+                                       options: Distribution.bookmarkResolution,
                                        relativeTo: nil, bookmarkDataIsStale: &stale) {
                 url = resolved
                 accessing = Distribution.isSandboxed && resolved.startAccessingSecurityScopedResource()
                 // A stale bookmark still works this once; refresh it for next time.
-                bookmark = stale ? (try? resolved.bookmarkData(options: Distribution.isSandboxed ? [.withSecurityScope] : [],
+                bookmark = stale ? (try? resolved.bookmarkData(options: Distribution.bookmarkCreation,
                                                                includingResourceValuesForKeys: nil, relativeTo: nil)) ?? data : data
                 return
             }

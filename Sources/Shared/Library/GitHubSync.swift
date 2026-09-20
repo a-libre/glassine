@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import CryptoKit
 import Foundation
 import Security
@@ -940,11 +944,11 @@ final class SyncEngine: ObservableObject {
         observers.append(nc.addObserver(forName: .glassineLibraryMutated, object: nil, queue: .main) { [weak self] _ in
             self?.syncSoon()
         })
-        observers.append(nc.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+        observers.append(nc.addObserver(forName: Platform.didBecomeActive, object: nil, queue: .main) { [weak self] _ in
             self?.sync()
         })
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard NSApp.isActive else { return }
+            guard Platform.isActive else { return }
             self?.sync()
         }
     }
@@ -1074,7 +1078,7 @@ final class SyncEngine: ObservableObject {
             return DispatchQueue.main.sync { busyPath?() }
         }
         let run = SyncRun(remote: remote, root: library.rootURL, stateURL: stateURL, busy: busy,
-                          host: Host.current().localizedName ?? "a Mac", hashCache: hashCache)
+                          host: Platform.deviceName, hashCache: hashCache)
         run.log = { line in ScreenshotMode.note("sync: " + line) }
         Task.detached(priority: .utility) { [weak self] in
             let outcome = await run.run()

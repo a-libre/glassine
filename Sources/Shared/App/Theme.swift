@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 enum GlassMaterial: String, Codable, CaseIterable, Identifiable {
@@ -17,7 +21,7 @@ enum GlassMaterial: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var nsMaterial: NSVisualEffectView.Material {
+    var effectMaterial: VisualEffectBackground.Material {
         switch self {
         case .underWindow: return .underWindowBackground
         case .hud: return .hudWindow
@@ -62,18 +66,18 @@ struct Theme: Codable, Identifiable, Hashable {
     func overBackdrop() -> Theme {
         guard !isDark else { return self }
         var t = self
-        if let mixed = syntax.nsColor.blended(withFraction: 0.45, of: text.nsColor) { t.syntax = HexColor(mixed) }
+        if let mixed = syntax.platformColor.blended(withFraction: 0.45, of: text.platformColor) { t.syntax = HexColor(mixed) }
         return t
     }
 
-    var headingColor: NSColor { (heading ?? text).nsColor }
-    var quoteColor: NSColor { quote?.nsColor ?? text.withAlpha(0.72) }
-    var codeColor: NSColor { code?.nsColor ?? text.withAlpha(0.9) }
-    var codeBackgroundColor: NSColor { codeBackground?.nsColor ?? text.withAlpha(isDark ? 0.08 : 0.06) }
-    var linkColor: NSColor { (link ?? accent).nsColor }
-    var caretColor: NSColor { (caret ?? accent).nsColor }
-    var selectionColor: NSColor { selection?.nsColor ?? accent.withAlpha(0.32) }
-    var sidebarTintColor: NSColor { (sidebarTint ?? tint).nsColor }
+    var headingColor: PlatformColor { (heading ?? text).platformColor }
+    var quoteColor: PlatformColor { quote?.platformColor ?? text.withAlpha(0.72) }
+    var codeColor: PlatformColor { code?.platformColor ?? text.withAlpha(0.9) }
+    var codeBackgroundColor: PlatformColor { codeBackground?.platformColor ?? text.withAlpha(isDark ? 0.08 : 0.06) }
+    var linkColor: PlatformColor { (link ?? accent).platformColor }
+    var caretColor: PlatformColor { (caret ?? accent).platformColor }
+    var selectionColor: PlatformColor { selection?.platformColor ?? accent.withAlpha(0.32) }
+    var sidebarTintColor: PlatformColor { (sidebarTint ?? tint).platformColor }
 
     var colorScheme: ColorScheme { isDark ? .dark : .light }
 

@@ -25,22 +25,26 @@ cd glassine
 | `./build.sh --appstore` | The sandboxed App Store flavor, locally — without Sparkle, since the store is its updater |
 | `./build.sh --demo` | *Glassine Demo.app*, for pictures and recordings — [below](#a-demonstration-copy) |
 
-Edit anything under `Sources/Glassine/` and run `./build.sh --run`; incremental builds take a few seconds. Opening `Package.swift` in Xcode and pressing Run works for debugging, but the assembled app from `build.sh` is the one to use day to day — it has the icon and a stable identity for macOS permissions.
+Edit anything under `Sources/` and run `./build.sh --run`; incremental builds take a few seconds. Opening `Package.swift` in Xcode and pressing Run works for debugging, but the assembled app from `build.sh` is the one to use day to day — it has the icon and a stable identity for macOS permissions.
 
 The minimum deployment target is macOS 14. It is developed on macOS 26 and 27 with Xcode 26.
 
 ## Layout
 
 ```
-Sources/Glassine/
-  App/        GlassineApp (scenes, menus, the key monitor), AppState, Settings, Theme
-  Library/    Library (folder scanning and file operations), Document (autosave, renaming)
-  Editor/     GlassineTextView (smooth caret, layout, typewriter, focus, motion),
-              MarkdownStyler, StyleConfig, DateToken (the layout manager), TaskReorder
-  UI/         ContentView, SidebarView, GalleryView, DailyTimelineView, ReviewView,
-              SettingsView, ShortcutSheet, Overlays, GlassBackground
-  Support/    Distribution (sandbox / App Store differences), DailyNotes, Shelf,
-              ScreenshotMode (the app photographs itself for the store), small extensions
+Sources/
+  Shared/     Everything both platforms compile — most of the app
+    App/        AppState, Settings, Theme
+    Library/    Library (folder scanning and file operations), Document (autosave, renaming), GitHubSync
+    Editor/     MarkdownStyler, StyleConfig, MarkdownHTML, DateToken, CaretShape, TaskReorder
+    UI/         ContentView, SidebarView, GalleryView, DailyTimelineView, ReviewView,
+                SettingsView, ShortcutSheet, Overlays, Backdrop (the Metal shader), GlassBackdrop
+    Support/    Platform (the seam between the shared code and each shell), Distribution
+                (sandbox / App Store differences), DailyNotes, Shelf, small extensions
+  Mac/        The AppKit shell: GlassineApp (scenes, menus, the key monitor), GlassineTextView
+              (smooth caret, layout, typewriter, focus, motion) and its layout manager,
+              the glass window, PDF export, ScreenshotMode, the updater
+  iOS/        The UIKit shell, under way; not built by Package.swift
 Resources/    Info.plist, the icon (make_icon.py draws it), entitlements per flavor, the wordmark
 docs/
   appstore/   The store listing, a showcase library, and the script that takes the screenshots

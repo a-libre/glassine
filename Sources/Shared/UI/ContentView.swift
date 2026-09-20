@@ -63,8 +63,7 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.14), value: state.showingSearch)
         .animation(.easeOut(duration: 0.16), value: state.showingCommandBar)
         .coordinateSpace(name: "glassineRoot")
-        .frame(minWidth: 620, minHeight: 400)
-        .background(WindowConfigurator(theme: theme, floats: state.settings.data.floatOnTop))
+        .windowChrome(theme: theme, floats: state.settings.data.floatOnTop)
         .preferredColorScheme(theme.colorScheme)
         .ignoresSafeArea()
         .sheet(item: $state.pendingPrompt) { prompt in
@@ -89,7 +88,7 @@ struct ContentView: View {
             .onHover { inside in
                 handleHovered = inside
                 guard dragStartWidth == nil else { return }   // mid-drag the pointer strays; keep the cursor
-                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+                if inside { Platform.pushResizeCursor() } else { Platform.popCursor() }
             }
             .gesture(
                 // Measured in window space: the handle itself moves with every
@@ -103,7 +102,7 @@ struct ContentView: View {
                     }
                     .onEnded { _ in
                         dragStartWidth = nil
-                        if !handleHovered { NSCursor.pop() }
+                        if !handleHovered { Platform.popCursor() }
                     }
             )
     }

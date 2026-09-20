@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 /// Craft-style mosaic of the whole library: one card per document with its
@@ -75,7 +79,16 @@ struct GalleryView: View {
             }
         }
         .foregroundStyle(theme.text.color)
+        #if os(macOS)
         .background(WindowTap { nav.window = $0 })
+        #else
+        // A keyboard attached to an iPhone or iPad walks the cards the same way.
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow, .return]) { press in
+            GalleryView.handle(press, nav: nav, state: state) ? .handled : .ignored
+        }
+        #endif
         .background(
             // Escape works from anywhere in the window, not just when something has focus.
             Button("") {
@@ -93,10 +106,14 @@ struct GalleryView: View {
             .opacity(0)
         )
         .onAppear {
+            #if os(macOS)
             nav.install { [weak state] event in
                 guard let state else { return false }
                 return GalleryView.handle(event, nav: nav, state: state)
             }
+            #else
+            nav.install()
+            #endif
             // Whatever text field had focus (the sidebar search, say) gives it up so the
             // arrow keys go to the cards straight away.
             DispatchQueue.main.async { nav.blurFieldEditor() }
@@ -112,6 +129,29 @@ struct GalleryView: View {
         DispatchQueue.main.async { searchFocused = true }
     }
 
+    #if !os(macOS)
+    /// Keyboard handling for the mosaic, from a hardware keyboard: the arrows
+    /// walk the cards, Return opens the one selected, ⌘Return opens it in Review.
+    private static func handle(_ press: KeyPress, nav: GalleryNavigator, state: AppState) -> Bool {
+        guard state.galleryOnScreen else { return false }
+        let modifiers = press.modifiers.subtracting([.numericPad])
+        switch press.key {
+        case .leftArrow, .rightArrow:
+            // With a query in the box, left/right move the caret through it.
+            guard modifiers.isEmpty, state.searchText.isEmpty else { return false }
+            nav.move(press.key == .leftArrow ? .left : .right)
+        case .upArrow, .downArrow:
+            guard modifiers.isEmpty else { return false }
+            nav.move(press.key == .upArrow ? .up : .down)
+        case .return:
+            guard modifiers.isEmpty || modifiers == .command, let doc = nav.selectedDocument else { return false }
+            if modifiers == .command { state.openInReview(doc) } else { state.open(doc, fromCard: true) }
+        default:
+            return false
+        }
+        return true
+    }
+    #else
     /// Keyboard handling for the mosaic. Returns true when the event was consumed.
     private static func handle(_ event: NSEvent, nav: GalleryNavigator, state: AppState) -> Bool {
         guard state.galleryOnScreen else { return false }
@@ -158,6 +198,7 @@ struct GalleryView: View {
         nav.note("\(key) mods=\(modifiers.rawValue) responder=\(responder) fieldEditor=\(fieldEditor != nil) \(before ?? "-") → \(nav.selectedID ?? "-") handled=\(handled) frames=\(nav.frames.count)")
         return handled
     }
+    #endif
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -292,7 +333,9 @@ final class GalleryNavigator: ObservableObject {
 
     @Published var selectedID: String?
     var plan: MasonryPlan?
+    #if os(macOS)
     weak var window: NSWindow?
+    #endif
     /// Where the cards that exist right now sit, in the scroll view's coordinates.
     /// Cards the lazy stacks have not built yet are absent.
     var frames: [String: CGRect] = [:]
@@ -365,11 +408,16 @@ final class GalleryNavigator: ObservableObject {
 
     /// Ends editing in whatever text field has focus (the search box).
     func blurFieldEditor() {
+        #if os(macOS)
         guard let window = window ?? NSApp.keyWindow,
               let editor = window.firstResponder as? NSTextView, editor.isFieldEditor else { return }
         window.makeFirstResponder(nil)
+        #else
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        #endif
     }
 
+    #if os(macOS)
     func install(_ handler: @escaping (NSEvent) -> Bool) {
         uninstall()
         GalleryNavigator.current = self
@@ -377,9 +425,18 @@ final class GalleryNavigator: ObservableObject {
             handler(event) ? nil : event
         }
     }
+    #else
+    /// On iOS the keys arrive through the view (`onKeyPress`); there is no monitor to set.
+    func install() {
+        uninstall()
+        GalleryNavigator.current = self
+    }
+    #endif
 
     func uninstall() {
+        #if os(macOS)
         if let monitor { NSEvent.removeMonitor(monitor) }
+        #endif
         monitor = nil
         if GalleryNavigator.current === self { GalleryNavigator.current = nil }
     }
@@ -393,13 +450,19 @@ final class GalleryNavigator: ObservableObject {
         let sel = selectedID ?? "-"
         let slot = selectedID.flatMap { plan?.slots[$0] }.map { "col \($0.column) row \($0.row)" } ?? "no slot"
         let cols = plan?.columns.map(\.count).map(String.init).joined(separator: "/") ?? "no plan"
-        return "gallery: selected=\(sel) (\(slot)) columns=\(cols) frames=\(frames.count) monitor=\(monitor != nil) window=\(window != nil)\n"
+        #if os(macOS)
+        let hasWindow = window != nil
+        #else
+        let hasWindow = true
+        #endif
+        return "gallery: selected=\(sel) (\(slot)) columns=\(cols) frames=\(frames.count) monitor=\(monitor != nil) window=\(hasWindow)\n"
             + log.joined(separator: "\n")
     }
 
     deinit { uninstall() }
 }
 
+#if os(macOS)
 /// Reports the NSWindow hosting a SwiftUI view.
 struct WindowTap: NSViewRepresentable {
     let onWindow: (NSWindow?) -> Void
@@ -410,9 +473,10 @@ struct WindowTap: NSViewRepresentable {
         var onWindow: ((NSWindow?) -> Void)?
         override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); report() }
         func report() { if let window { onWindow?(window) } }
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func hitTest(_ point: CGPoint) -> NSView? { nil }
     }
 }
+#endif
 
 /// Each built card reports its frame in the scroll view's coordinate space so the
 /// navigator knows whether the selection is on screen.
@@ -767,7 +831,7 @@ private struct CardEntrance: ViewModifier {
     @State private var shown = false
 
     private var immediate: Bool {
-        state.zoomingCard == id || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        state.zoomingCard == id || Platform.reduceMotion
     }
 
     func body(content: Content) -> some View {

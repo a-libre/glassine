@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 import WebKit
 
@@ -116,7 +120,7 @@ struct ReviewView: View {
 
 // MARK: - Web view
 
-struct ReviewWebView: NSViewRepresentable {
+struct ReviewWebView: PlatformViewRepresentable {
     let html: String
     let scale: Double
     let initialScrollFraction: Double
@@ -132,7 +136,15 @@ struct ReviewWebView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeNSView(context: Context) -> WKWebView {
+    #if os(macOS)
+    func makeNSView(context: Context) -> WKWebView { makeWeb(context: context) }
+    func updateNSView(_ web: WKWebView, context: Context) { updateWeb(web, context: context) }
+    #else
+    func makeUIView(context: Context) -> WKWebView { makeWeb(context: context) }
+    func updateUIView(_ web: WKWebView, context: Context) { updateWeb(web, context: context) }
+    #endif
+
+    private func makeWeb(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         // Report scroll position so style switches and re-renders keep the reader's place.
         let tracker = """
@@ -192,17 +204,25 @@ struct ReviewWebView: NSViewRepresentable {
         let web = WKWebView(frame: .zero, configuration: config)
         context.coordinator.web = web
         web.navigationDelegate = context.coordinator
+        #if os(macOS)
         web.setValue(false, forKey: "drawsBackground")
+        #else
+        web.isOpaque = false
+        web.backgroundColor = .clear
+        web.scrollView.backgroundColor = .clear
+        #endif
         web.underPageBackgroundColor = .clear
         web.allowsBackForwardNavigationGestures = false
+        #if os(macOS)
         web.allowsMagnification = true
+        #endif
         context.coordinator.pendingScrollFraction = initialScrollFraction
         context.coordinator.followLine = followLine
         context.coordinator.load(html, into: web, baseURL: baseURL)
         return web
     }
 
-    func updateNSView(_ web: WKWebView, context: Context) {
+    private func updateWeb(_ web: WKWebView, context: Context) {
         let c = context.coordinator
         c.onToggleTask = onToggleTask
         c.web = web
@@ -277,10 +297,7 @@ struct ReviewWebView: NSViewRepresentable {
             bodyDebouncer.cancel()
             // Dip out before a reload and back in once it has rendered: a style switch
             // reads as a crossfade instead of a blink.
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.1
-                web.animator().alphaValue = 0
-            }
+            Platform.fade(web, to: 0, duration: 0.1)
             web.loadHTMLString(html, baseURL: baseURL)
             ScreenshotMode.note("load: \(html.count) chars, base \(baseURL.path)")
         }
@@ -304,11 +321,7 @@ struct ReviewWebView: NSViewRepresentable {
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { ScreenshotMode.note("content process terminated") }
 
         private func reveal(_ webView: WKWebView) {
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.22
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                webView.animator().alphaValue = 1
-            }
+            Platform.fade(webView, to: 1, duration: 0.22, easeOut: true)
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -328,7 +341,7 @@ struct ReviewWebView: NSViewRepresentable {
             // Open external links in the browser instead of navigating the review pane away.
             if navigationAction.navigationType == .linkActivated, let url = navigationAction.request.url {
                 if url.scheme == "http" || url.scheme == "https" || url.scheme == "mailto" {
-                    NSWorkspace.shared.open(url)
+                    Platform.open(url)
                     decisionHandler(.cancel)
                     return
                 }

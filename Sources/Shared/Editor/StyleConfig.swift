@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 
 /// Everything the text view and styler need to render a document, derived
 /// from the current theme and settings. Value type so changes are easy to detect.
@@ -77,20 +81,21 @@ struct StyleConfig: Equatable {
 
     // MARK: - Fonts
 
-    static func baseFont(family: String, size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
+    static func baseFont(family: String, size: CGFloat, weight: PlatformFont.Weight = .regular) -> PlatformFont {
         switch family {
         case SystemFontChoice.sans:
             return .systemFont(ofSize: size, weight: weight)
         case SystemFontChoice.mono:
             return .monospacedSystemFont(ofSize: size, weight: weight)
         case SystemFontChoice.serif, SystemFontChoice.rounded:
-            let design: NSFontDescriptor.SystemDesign = family == SystemFontChoice.serif ? .serif : .rounded
-            let base = NSFont.systemFont(ofSize: size, weight: weight)
-            if let d = base.fontDescriptor.withDesign(design), let f = NSFont(descriptor: d, size: size) {
+            let design: PlatformFontDescriptor.SystemDesign = family == SystemFontChoice.serif ? .serif : .rounded
+            let base = PlatformFont.systemFont(ofSize: size, weight: weight)
+            if let d = base.fontDescriptor.withDesign(design), let f = PlatformFont.make(descriptor: d, size: size) {
                 return f
             }
             return base
         default:
+            #if os(macOS)
             let fm = NSFontManager.shared
             let w: Int
             switch weight {
@@ -100,18 +105,26 @@ struct StyleConfig: Equatable {
             default: w = 5
             }
             if let f = fm.font(withFamily: family, traits: [], weight: w, size: size) { return f }
-            if let f = NSFont(name: family, size: size) { return f }
+            #else
+            let asked = UIFontDescriptor(fontAttributes: [
+                .family: family,
+                .traits: [UIFontDescriptor.TraitKey.weight: weight],
+            ])
+            let match = UIFont(descriptor: asked, size: size)
+            if match.familyName == family { return match }
+            #endif
+            if let f = PlatformFont(name: family, size: size) { return f }
             return .systemFont(ofSize: size, weight: weight)
         }
     }
 
-    var bodyFont: NSFont { StyleConfig.baseFont(family: fontFamily, size: fontSize) }
-    var boldFont: NSFont { bodyFont.withTraits(.bold) }
-    var italicFont: NSFont { bodyFont.withTraits(.italic) }
-    var boldItalicFont: NSFont { bodyFont.withTraits([.bold, .italic]) }
-    var monoFont: NSFont { .monospacedSystemFont(ofSize: fontSize * 0.88, weight: .regular) }
+    var bodyFont: PlatformFont { StyleConfig.baseFont(family: fontFamily, size: fontSize) }
+    var boldFont: PlatformFont { bodyFont.withTraits(.bold) }
+    var italicFont: PlatformFont { bodyFont.withTraits(.italic) }
+    var boldItalicFont: PlatformFont { bodyFont.withTraits([.bold, .italic]) }
+    var monoFont: PlatformFont { .monospacedSystemFont(ofSize: fontSize * 0.88, weight: .regular) }
 
-    func headingFont(level: Int) -> NSFont {
+    func headingFont(level: Int) -> PlatformFont {
         let scale: CGFloat
         if scaledHeadings {
             switch level {
@@ -124,7 +137,7 @@ struct StyleConfig: Equatable {
             scale = 1.0
         }
         let size = (fontSize * scale).rounded()
-        let weight: NSFont.Weight = level <= 2 ? .bold : .semibold
+        let weight: PlatformFont.Weight = level <= 2 ? .bold : .semibold
         return StyleConfig.baseFont(family: fontFamily, size: size, weight: weight).withTraits(.bold)
     }
 
@@ -163,7 +176,7 @@ struct StyleConfig: Equatable {
     var baseAttributes: [NSAttributedString.Key: Any] {
         var a: [NSAttributedString.Key: Any] = [
             .font: bodyFont,
-            .foregroundColor: theme.text.nsColor,
+            .foregroundColor: theme.text.platformColor,
             .paragraphStyle: baseParagraphStyle(),
         ]
         if letterSpacing != 0 { a[.kern] = letterSpacing }

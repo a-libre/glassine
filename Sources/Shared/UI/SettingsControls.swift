@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import CoreText
 import SwiftUI
 
@@ -390,7 +394,7 @@ struct ThemeTile: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Aa")
                             .font(.system(size: 17, weight: .semibold, design: .serif))
-                            .foregroundStyle(Color(nsColor: theme.headingColor))
+                            .foregroundStyle(Color(platformColor: theme.headingColor))
                         Capsule().fill(theme.text.color.opacity(0.6)).frame(width: 40, height: 3)
                         Capsule().fill(theme.text.color.opacity(0.35)).frame(width: 26, height: 3)
                     }
@@ -432,10 +436,10 @@ extension BackdropPreset {
         let set = colors(for: theme)
         guard !set.isEmpty else { return [] }
         return set.map { hex in
-            let c = hex.nsColor.usingColorSpace(.deviceRGB) ?? .gray
+            let c = hex.platformColor.usingColorSpace(.deviceRGB) ?? .gray
             let s = dark ? min(0.92, c.saturationComponent) : min(0.7, c.saturationComponent * 0.85)
             let b = dark ? min(max(c.brightnessComponent, 0.32), 0.62) * 0.82 : min(max(c.brightnessComponent, 0.78), 0.9)
-            return Color(nsColor: NSColor(hue: c.hueComponent, saturation: s, brightness: b, alpha: 1))
+            return Color(platformColor: PlatformColor(hue: c.hueComponent, saturation: s, brightness: b, alpha: 1))
         }
     }
 }
@@ -457,7 +461,7 @@ struct BackdropSwatch: View {
                 )
         } else {
             let cs = preset.tileColors(for: theme)
-            if #available(macOS 15, *) {
+            if #available(macOS 15, iOS 18, *) {
                 MeshGradient(
                     width: 3, height: 3,
                     points: [
@@ -516,9 +520,27 @@ struct BackdropTile: View {
 /// A piece of page set the way the editor sets it — the same fonts, line
 /// height, spacing, indent and heading treatment — so the Type section shows
 /// its settings instead of describing them.
-struct TypeSpecimen: NSViewRepresentable {
+struct TypeSpecimen: PlatformViewRepresentable {
     let config: StyleConfig
 
+    #if !os(macOS)
+    func makeUIView(context: Context) -> UITextView {
+        let tv = UITextView(frame: .zero)
+        tv.isEditable = false
+        tv.isSelectable = false
+        tv.isScrollEnabled = false
+        tv.backgroundColor = .clear
+        tv.textContainerInset = .zero
+        tv.textContainer.lineFragmentPadding = 0
+        tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        tv.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return tv
+    }
+
+    func updateUIView(_ tv: UITextView, context: Context) {
+        tv.attributedText = TypeSpecimen.text(for: config)
+    }
+    #else
     func makeNSView(context: Context) -> NSTextView {
         let tv = NSTextView(frame: .zero)
         tv.isEditable = false
@@ -537,6 +559,7 @@ struct TypeSpecimen: NSViewRepresentable {
     func updateNSView(_ tv: NSTextView, context: Context) {
         tv.textStorage?.setAttributedString(TypeSpecimen.text(for: config))
     }
+    #endif
 
     static func text(for config: StyleConfig) -> NSAttributedString {
         let out = NSMutableAttributedString()
@@ -598,7 +621,7 @@ struct CaretSpecimen: View {
             let key = "\(font.fontName)/\(font.pointSize)/\(config.letterSpacing)/\(config.theme.text.hex)"
             guard key != lineKey else { return }
             lineKey = key
-            var attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: config.theme.text.nsColor]
+            var attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: config.theme.text.platformColor]
             if config.letterSpacing != 0 { attrs[.kern] = config.letterSpacing }
             let text = NSAttributedString(string: Motion.sample, attributes: attrs)
             let ct = CTLineCreateWithAttributedString(text)
@@ -711,7 +734,7 @@ struct CaretSpecimen: View {
                 let p = min(1, (t - hopAt) / 0.42)
                 hop = -7 * sin(CGFloat(p) * .pi)
             }
-            let colour = Color(nsColor: config.theme.caretColor)
+            let colour = Color(platformColor: config.theme.caretColor)
             // Steady while it performs, as in the editor.
             let alpha = hopAt != .infinity && t >= hopAt ? 1 : blink(at: t, config: config)
             let g = config.caretShape.geometry(barWidth: config.caretWidth, height: h, baseline: font.ascender, slot: slots[index])

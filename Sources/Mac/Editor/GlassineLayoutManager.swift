@@ -1,0 +1,196 @@
+import AppKit
+
+/// Draws softly rounded rectangles for inline code, capsules for dates and
+/// chips (on the text view's behalf, before the text system draws), the line of
+/// a horizontal rule, and the strikethrough of finished tasks as a gradient.
+/// Everything else is inherited.
+final class GlassineLayoutManager: NSLayoutManager {
+    /// Strikes still being drawn in, by the character index where the struck
+    /// text begins: how far across it the line has got, 0 to 1.
+    var strikeProgress: [Int: CGFloat] = [:]
+    /// Strikes fading with their line, by the same key: the alpha to draw at.
+    var strikeAlpha: [Int: CGFloat] = [:]
+
+    override func fillBackgroundRectArray(_ rectArray: UnsafePointer<NSRect>, count rectCount: Int,
+                                          forCharacterRange charRange: NSRange, color: NSColor) {
+        guard rectCount > 0 else { return }
+        // Copy these out before asking the layout manager anything else: the
+        // buffer they live in is shared, and the queries below write into it.
+        let rects = (0..<rectCount).map { rectArray[$0] }
+        // A date or a chip gets its capsule from drawCapsules(in:origin:), which
+        // the text view calls before the text system draws — nothing here.
+        let isCapsule = textStorage.map { charRange.location < $0.length
+            && $0.attribute(DateToken.attributeKey, at: charRange.location, effectiveRange: nil) != nil } ?? false
+        guard !isCapsule else { return }
+        color.setFill()
+        for rect in rects {
+            NSBezierPath(roundedRect: rect.insetBy(dx: -1, dy: 0), xRadius: 3.5, yRadius: 3.5).fill()
+        }
+    }
+
+    /// Capsules for dates and chips, drawn by the text view before the text
+    /// system draws anything, so nothing the text system clips to — the text
+    /// container's edges — can cut one off where it reaches into a margin.
+    /// Each token gets a capsule around its drawn glyphs, line by line: a
+    /// marker that is not drawn takes no room in it, a token that wraps gets
+    /// one per line, and each is as tall as its type — ascender to descender —
+    /// rather than the whole line, so a short word gets a pill and not an egg.
+    func drawCapsules(in rect: NSRect, origin: NSPoint) {
+        guard let storage = textStorage, storage.length > 0, let container = textContainers.first else { return }
+        let glyphs = glyphRange(forBoundingRect: rect.offsetBy(dx: -origin.x, dy: -origin.y), in: container)
+        guard glyphs.length > 0 else { return }
+        let chars = characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+        let full = NSRange(location: 0, length: storage.length)
+        var index = chars.location
+        while index < chars.upperBoundValue {
+            var tokenRange = NSRange(location: 0, length: 0)
+            let isToken = storage.attribute(DateToken.attributeKey, at: index, longestEffectiveRange: &tokenRange, in: full) != nil
+            guard tokenRange.length > 0 else { break }
+            if isToken, let color = storage.attribute(.backgroundColor, at: tokenRange.location, effectiveRange: nil) as? NSColor {
+                for piece in capsulePieces(for: tokenRange, in: container) {
+                    drawCapsule(piece.offsetBy(dx: origin.x, dy: origin.y), color: color)
+                }
+            }
+            index = tokenRange.upperBoundValue
+        }
+    }
+
+    /// The rectangles a token's capsule is made of, one per line it has drawn
+    /// glyphs on, in container coordinates. The glyph range can reach a glyph
+    /// past the token's characters (a kerned space before it, say), so each
+    /// glyph is checked against them.
+    private func capsulePieces(for tokenRange: NSRange, in container: NSTextContainer) -> [NSRect] {
+        let glyphs = glyphRange(forCharacterRange: tokenRange, actualCharacterRange: nil)
+        var pieces: [(line: CGFloat, rect: NSRect)] = []
+        for g in glyphs.location..<glyphs.upperBoundValue {
+            guard NSLocationInRange(characterIndexForGlyph(at: g), tokenRange) else { continue }
+            let property = propertyForGlyph(at: g)
+            guard property != .null, property != .controlCharacter else { continue }
+            let line = lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
+            let box = boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: container)
+            guard box.width > 0 else { continue }
+            let font = (textStorage?.attribute(.font, at: characterIndexForGlyph(at: g), effectiveRange: nil) as? NSFont)
+                ?? NSFont.systemFont(ofSize: 16)
+            let baseline = line.minY + location(forGlyphAt: g).y
+            let type = NSRect(x: box.minX, y: baseline - font.ascender, width: box.width, height: font.ascender - font.descender)
+            if let i = pieces.firstIndex(where: { $0.line == line.minY }) {
+                pieces[i].rect = pieces[i].rect.union(type)
+            } else {
+                pieces.append((line.minY, type))
+            }
+        }
+        return pieces.map { $0.rect }
+    }
+
+    /// A capsule lit from the top, with a hairline edge: enough to read as a chip.
+    private func drawCapsule(_ glyphRect: NSRect, color: NSColor) {
+        let rect = glyphRect.insetBy(dx: -DateToken.capsulePadding, dy: -2)
+        let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+        let alpha = color.alphaComponent
+        if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),
+                                     ending: color.withAlphaComponent(alpha * 0.8)) {
+            gradient.draw(in: path, angle: 90)
+        } else {
+            color.setFill()
+            path.fill()
+        }
+        color.withAlphaComponent(min(1, alpha * 1.1)).setStroke()
+        let edge = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: rect.height / 2, yRadius: rect.height / 2)
+        edge.lineWidth = 1
+        edge.stroke()
+    }
+
+    /// Where the Markdown shows as written: the sentence the caret is in.
+    private var revealRange: NSRange {
+        (firstTextView as? GlassineTextView)?.syntaxRevealRange ?? NSRange(location: NSNotFound, length: 0)
+    }
+
+    /// A horizontal rule's dashes are laid out like any text — so their line
+    /// is measured like any line — but not drawn, unless the caret is on
+    /// that line. The rule itself is drawn in drawBackground.
+    override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        guard let storage = textStorage else { super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin); return }
+        let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        var hasRule = false
+        storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, _, stop in
+            if value != nil { hasRule = true; stop.pointee = true }
+        }
+        guard hasRule else { super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin); return }
+        let reveal = revealRange
+        storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
+            if value != nil, !NSLocationInRange(range.location, reveal) { return }
+            let piece = NSIntersectionRange(self.glyphRange(forCharacterRange: range, actualCharacterRange: nil), glyphsToShow)
+            if piece.length > 0 { super.drawGlyphs(forGlyphRange: piece, at: origin) }
+        }
+    }
+
+    /// A horizontal rule: a line across the middle of the column, where the
+    /// dashes are — unless the caret is on that line, when the dashes show instead.
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+        guard let storage = textStorage else { return }
+        let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        let reveal = revealRange
+        storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
+            guard let color = value as? NSColor, !NSLocationInRange(range.location, reveal) else { return }
+            let glyphs = self.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0,
+                  let container = self.textContainer(forGlyphAt: glyphs.location, effectiveRange: nil) else { return }
+            let line = self.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 16)
+            let baseline = origin.y + line.minY + self.location(forGlyphAt: glyphs.location).y
+            let width = (container.size.width * 0.4).rounded()
+            let x = origin.x + line.minX + ((container.size.width - width) / 2).rounded()
+            let y = (baseline - font.xHeight * 0.55).rounded() - 0.5
+            color.setFill()
+            NSRect(x: x, y: y, width: width, height: 1).fill()
+        }
+    }
+
+    /// Finished tasks: one strike per line, fading from the accent to the muted text colour.
+    override func drawStrikethrough(forGlyphRange glyphRange: NSRange, strikethroughType: NSUnderlineStyle,
+                                    baselineOffset: CGFloat, lineFragmentRect lineRect: NSRect,
+                                    lineFragmentGlyphRange lineGlyphRange: NSRange, containerOrigin: NSPoint) {
+        let charIndex = characterIndexForGlyph(at: glyphRange.location)
+        var doneRange = NSRange(location: 0, length: 0)
+        guard let storage = textStorage, charIndex < storage.length,
+              let colors = storage.attribute(TaskBox.doneKey, at: charIndex, longestEffectiveRange: &doneRange,
+                                             in: NSRange(location: 0, length: storage.length)) as? [NSColor],
+              colors.count == 2,
+              let gradient = NSGradient(starting: colors[0], ending: colors[1]),
+              let container = textContainer(forGlyphAt: glyphRange.location, effectiveRange: nil) else {
+            super.drawStrikethrough(forGlyphRange: glyphRange, strikethroughType: strikethroughType,
+                                    baselineOffset: baselineOffset, lineFragmentRect: lineRect,
+                                    lineFragmentGlyphRange: lineGlyphRange, containerOrigin: containerOrigin)
+            return
+        }
+        // The gradient spans the whole struck text on this line, so a bold word or a
+        // link in the middle (separate runs) does not restart it.
+        let doneGlyphs = self.glyphRange(forCharacterRange: doneRange, actualCharacterRange: nil)
+        let lineDone = NSIntersectionRange(doneGlyphs, lineGlyphRange)
+        guard lineDone.length > 0 else { return }
+        let extent = boundingRect(forGlyphRange: lineDone, in: container).offsetBy(dx: containerOrigin.x, dy: containerOrigin.y)
+        let run = boundingRect(forGlyphRange: glyphRange, in: container).offsetBy(dx: containerOrigin.x, dy: containerOrigin.y)
+        let font = storage.attribute(.font, at: charIndex, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 16)
+        let thickness: CGFloat = font.pointSize >= 24 ? 1.5 : 1
+        // The glyph location's y is the baseline, measured from the top of the line fragment.
+        let baseline = lineRect.minY + containerOrigin.y + location(forGlyphAt: glyphRange.location).y
+        let y = (baseline - font.xHeight * 0.55).rounded() - thickness / 2
+        var band = NSRect(x: extent.minX, y: y, width: extent.width, height: thickness)
+        if let p = strikeProgress[doneRange.location] {
+            // The sweep runs over the whole struck text, glyph by glyph; this
+            // line draws its share of wherever the front has got to.
+            let front = CGFloat(doneGlyphs.location) + p * CGFloat(doneGlyphs.length)
+            let a = CGFloat(lineDone.location), b = CGFloat(lineDone.upperBoundValue)
+            let share = max(0, min(1, (front - a) / max(1, b - a)))
+            guard share > 0 else { return }
+            band.size.width = extent.width * share
+        }
+
+        NSGraphicsContext.saveGraphicsState()
+        if let alpha = strikeAlpha[doneRange.location] { NSGraphicsContext.current?.cgContext.setAlpha(alpha) }
+        NSBezierPath(rect: NSRect(x: run.minX, y: y - 1, width: run.width, height: thickness + 2)).addClip()
+        gradient.draw(in: band, angle: 0)
+        NSGraphicsContext.restoreGraphicsState()
+    }
+}

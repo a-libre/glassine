@@ -89,12 +89,12 @@ struct EditorContainerView: View {
             .onHover { inside in
                 dividerHovered = inside
                 guard dividerStartFraction == nil else { return }
-                if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+                if inside { Platform.pushResizeCursor() } else { Platform.popCursor() }
             }
             .gesture(
                 DragGesture(minimumDistance: 1, coordinateSpace: .named("glassineRoot"))
                     .onChanged { value in
-                        guard let width = NSApp.keyWindow?.contentView?.bounds.width, width > 0 else { return }
+                        guard let width = Platform.windowWidth, width > 0 else { return }
                         if dividerStartFraction == nil { dividerStartFraction = state.settings.data.reviewBesideFraction }
                         // The page loses what the pointer moved to the right.
                         let editorWidth = width - (state.settings.data.sidebarVisible ? CGFloat(state.settings.data.sidebarWidth) : 0)
@@ -104,7 +104,7 @@ struct EditorContainerView: View {
                     }
                     .onEnded { _ in
                         dividerStartFraction = nil
-                        if !dividerHovered { NSCursor.pop() }
+                        if !dividerHovered { Platform.popCursor() }
                     }
             )
     }

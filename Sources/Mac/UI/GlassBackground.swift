@@ -4,6 +4,9 @@ import SwiftUI
 
 /// Blurs whatever is behind the window (desktop, other windows) — the base of the glass look.
 struct VisualEffectBackground: NSViewRepresentable {
+    /// Shared code names materials through here; iOS has a list of its own
+    /// under the same names (Sources/iOS/UI/GlassBackground.swift).
+    typealias Material = NSVisualEffectView.Material
     var material: NSVisualEffectView.Material
     var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
     var isEmphasized: Bool = false
@@ -57,40 +60,6 @@ struct GrainOverlay: NSViewRepresentable {
         }
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    }
-}
-
-/// The full window background: the glass — a blur of what is behind the
-/// window, or a backdrop of the app's own — under the theme's tint and grain.
-struct GlassBackdrop: View {
-    let theme: Theme
-    var backdrop: BackdropPreset = .desktop
-    var drifts: Bool = true
-    var frost: Double = 0.3
-    /// The grain over a backdrop; the theme's own grain lies over the desktop's blur.
-    var grain: Double = 0.08
-
-    var body: some View {
-        ZStack {
-            if !backdrop.isDesktop {
-                BackdropCanvas(config: BackdropConfig(preset: backdrop, theme: theme, drifts: drifts, frost: frost))
-                // The backdrop brings the colour; the theme's tint only harmonises
-                // it, so it lies much lighter here than over the desktop's blur —
-                // a veil, not a wash, or every set would take the tint's hue.
-                theme.tint.color.opacity((theme.material == .opaque ? 0.6 : theme.tintOpacity) * 0.25)
-                // Frost: a veil of light over the colour, the way frosted glass
-                // pales what is behind it — squared, since a little haze goes a
-                // long way over a dark ground. The shader pales the folds too.
-                Color.white.opacity(frost * frost * (theme.isDark ? 0.10 : 0.4))
-            } else if theme.material == .opaque {
-                theme.tint.color
-            } else {
-                VisualEffectBackground(material: theme.material.nsMaterial)
-                theme.tint.color.opacity(theme.tintOpacity)
-            }
-            GrainOverlay(opacity: backdrop.isDesktop ? theme.grain : grain)
-        }
-        .ignoresSafeArea()
     }
 }
 
@@ -174,10 +143,19 @@ struct WindowConfigurator: NSViewRepresentable {
                     window.collectionBehavior.remove(.canJoinAllApplications)
                 }
             }
-            window.backgroundColor = theme.tint.nsColor
+            window.backgroundColor = theme.tint.platformColor
             let appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
             if window.appearance != appearance { window.appearance = appearance }
             window.invalidateShadow()
         }
+    }
+}
+
+extension View {
+    /// What the root view asks of its window: on the Mac, a floor under its
+    /// size and the transparent, title-less look.
+    func windowChrome(theme: Theme, floats: Bool) -> some View {
+        frame(minWidth: 620, minHeight: 400)
+            .background(WindowConfigurator(theme: theme, floats: floats))
     }
 }

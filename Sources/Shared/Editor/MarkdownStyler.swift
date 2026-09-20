@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 
 /// Applies lightweight, Paper-style Markdown styling: syntax stays visible but
 /// dimmed; headings, emphasis, code, quotes, lists and links are rendered inline.
@@ -26,12 +30,12 @@ final class MarkdownStyler {
         didSet { rebuildCaches() }
     }
 
-    private var bodyFont: NSFont!
-    private var boldFont: NSFont!
-    private var italicFont: NSFont!
-    private var boldItalicFont: NSFont!
-    private var monoFont: NSFont!
-    private var headingFonts: [NSFont] = []
+    private var bodyFont: PlatformFont!
+    private var boldFont: PlatformFont!
+    private var italicFont: PlatformFont!
+    private var boldItalicFont: PlatformFont!
+    private var monoFont: PlatformFont!
+    private var headingFonts: [PlatformFont] = []
     private var baseAttrs: [NSAttributedString.Key: Any] = [:]
     private var baseParagraph: NSParagraphStyle!
     private var quoteParagraph: NSParagraphStyle!
@@ -158,12 +162,12 @@ final class MarkdownStyler {
     private func applyCodeLine(_ storage: NSTextStorage, paraRange: NSRange, enclosing: NSRange, isFence: Bool) {
         storage.addAttribute(.paragraphStyle, value: codeParagraph!, range: enclosing)
         storage.addAttribute(.font, value: monoFont!, range: paraRange)
-        storage.addAttribute(.foregroundColor, value: isFence ? config.theme.syntax.nsColor : config.theme.codeColor, range: paraRange)
+        storage.addAttribute(.foregroundColor, value: isFence ? config.theme.syntax.platformColor : config.theme.codeColor, range: paraRange)
     }
 
     private func styleParagraph(_ storage: NSTextStorage, ns: NSString, text: String, paraRange: NSRange, enclosing: NSRange) {
         let theme = config.theme
-        let syntaxColor = theme.syntax.nsColor
+        let syntaxColor = theme.syntax.platformColor
         let textNS = text as NSString
         let full = NSRange(location: 0, length: textNS.length)
         func absRange(_ r: NSRange) -> NSRange { NSRange(location: paraRange.location + r.location, length: r.length) }
@@ -201,7 +205,7 @@ final class MarkdownStyler {
                 return s
             }()
             storage.addAttribute(.paragraphStyle, value: style, range: enclosing)
-            storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: absRange(m.range(at: 2)))
+            storage.addAttribute(.foregroundColor, value: theme.accent.platformColor, range: absRange(m.range(at: 2)))
             if m.range(at: 4).location != NSNotFound {
                 // A task's `- ` steps aside when the syntax is hidden; the box is the marker.
                 let dash = NSRange(location: m.range(at: 2).location, length: m.range(at: 2).length + m.range(at: 3).length)
@@ -217,7 +221,9 @@ final class MarkdownStyler {
                 // The brackets are a click target: pointing hand, and a toggle on mouse down.
                 let boxRange = NSRange(location: absRange(m.range(at: 4)).location, length: 3)
                 storage.addAttribute(TaskBox.attributeKey, value: checked, range: boxRange)
+                #if os(macOS)
                 storage.addAttribute(.cursor, value: NSCursor.pointingHand, range: boxRange)
+                #endif
                 if checked {
                     storage.addAttribute(.foregroundColor, value: theme.accent.withAlpha(0.85), range: boxRange)
                     let rest = NSRange(location: m.range.upperBoundValue, length: full.length - m.range.upperBoundValue)
@@ -253,7 +259,7 @@ final class MarkdownStyler {
             codeRanges.contains { NSIntersectionRange($0, r).length > 0 }
         }
 
-        func emphasize(_ regex: NSRegularExpression, trait: NSFontDescriptor.SymbolicTraits, strike: Bool = false) {
+        func emphasize(_ regex: NSRegularExpression, trait: FontTraits, strike: Bool = false) {
             for m in regex.matches(in: text, options: [], range: full) where !inCode(m.range) {
                 let inner = absRange(m.range(at: 2))
                 let markerLen = m.range(at: 1).length
@@ -264,7 +270,7 @@ final class MarkdownStyler {
                     storage.addAttribute(.strikethroughColor, value: syntaxColor, range: inner)
                 } else {
                     storage.enumerateAttribute(.font, in: inner, options: []) { value, r, _ in
-                        let f = (value as? NSFont) ?? bodyFont!
+                        let f = (value as? PlatformFont) ?? bodyFont!
                         storage.addAttribute(.font, value: f.withTraits(trait), range: r)
                     }
                 }
@@ -292,7 +298,7 @@ final class MarkdownStyler {
         for m in MarkdownStyler.chip.matches(in: text, options: [], range: full) where !inCode(m.range) {
             let r = absRange(m.range)
             capsules.append(r)
-            storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.accent.platformColor, range: r)
             storage.addAttribute(.backgroundColor, value: theme.accent.withAlpha(theme.isDark ? 0.18 : 0.14), range: r)
             storage.addAttribute(DateToken.attributeKey, value: true, range: r)
             let open = absRange(m.range(at: 1))
@@ -313,7 +319,7 @@ final class MarkdownStyler {
         for m in MarkdownStyler.dateToken.matches(in: text, options: [], range: full) where !inCode(m.range) {
             let r = absRange(m.range)
             capsules.append(r)
-            storage.addAttribute(.foregroundColor, value: theme.accent.nsColor, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.accent.platformColor, range: r)
             storage.addAttribute(.backgroundColor, value: theme.accent.withAlpha(theme.isDark ? 0.18 : 0.14), range: r)
             storage.addAttribute(DateToken.attributeKey, value: true, range: r)
             // The "@" stays in the file but steps back visually.

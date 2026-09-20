@@ -119,7 +119,7 @@ struct SidebarView: View {
         }
         .frame(maxHeight: .infinity)
         .foregroundStyle(theme.text.color)
-        .onExitCommand { searchFocused = false; state.searchText = "" }
+        .onEscapeKey { searchFocused = false; state.searchText = "" }
         .onAppear { takeSearchFocusIfAsked() }
         .onChange(of: state.searchFocusRequest) { _, _ in takeSearchFocusIfAsked() }
         .background(sidebarBackground)
@@ -164,8 +164,8 @@ struct SidebarView: View {
     /// grain lives in the image's alpha. Type stands in if the asset is missing.
     @ViewBuilder
     private var wordmark: some View {
-        if let image = Bundle.main.image(forResource: "wordmark") {
-            Image(nsImage: image)
+        if let image = Platform.bundledImage("wordmark") {
+            image
                 .renderingMode(.template)
                 .resizable()
                 .interpolation(.high)
@@ -626,8 +626,7 @@ struct DocumentRow: View {
             Divider()
             Button("Reveal in Finder") { state.library.revealInFinder(doc.id) }
             Button("Copy Path") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(doc.url.path, forType: .string)
+                Platform.copy(doc.url.path)
             }
             Divider()
             Button("Move to Trash", role: .destructive) { state.trash(doc.id) }
@@ -801,6 +800,6 @@ struct HoverRowStyle: ButtonStyle {
     }
 }
 
-extension NSColor {
-    var asColor: Color { Color(nsColor: self) }
+extension PlatformColor {
+    var asColor: Color { Color(platformColor: self) }
 }

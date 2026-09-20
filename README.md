@@ -204,12 +204,15 @@ The full manual — every feature, setting, key and small delight — is at **[d
 ## Project layout
 
 ```
-Sources/Glassine/
-  App/        GlassineApp (scenes, menus), AppState, Settings, Theme
-  Library/    Library (iCloud folder scanning + file operations), Document (autosave, renaming)
-  Editor/     GlassineTextView (smooth caret, layout, typewriter, focus), MarkdownStyler, StyleConfig, EditorView bridge
-  UI/         ContentView, SidebarView, EditorContainerView, SettingsView, GlassBackground
-  Support/    Distribution (sandbox / App Store differences), ScreenshotMode (the app photographs itself for the store), HexColor, small extensions
+Sources/
+  Shared/     everything both platforms compile — most of the app
+    App/        AppState, Settings, Theme
+    Library/    Library (iCloud folder scanning + file operations), Document (autosave, renaming), GitHubSync
+    Editor/     MarkdownStyler, StyleConfig, MarkdownHTML, DateToken, CaretShape, TaskReorder
+    UI/         ContentView, SidebarView, GalleryView, ReviewView, SettingsView, Backdrop (the Metal shader), GlassBackdrop
+    Support/    Platform (the seam: colour and font aliases, and the few things an app asks of its system), Distribution (sandbox / App Store differences), HexColor, small extensions
+  Mac/        the AppKit shell: GlassineApp (scenes, menus, the key monitor), GlassineTextView (smooth caret, layout, typewriter, focus) and its layout manager, EditorView bridge, the glass window, PDF export, ScreenshotMode (the app photographs itself for the store), the updater
+  iOS/        the UIKit shell, under way: the same names (GlassineTextView, EditorView, PDFExporter, the glass) answered by UIKit. Not built by Package.swift
 Resources/    Info.plist, icon (make_icon.py draws it), entitlements for each build flavor
 docs/appstore/  the store listing, a showcase library, and the script that takes the screenshots
 docs/site/    the documentation site (Mintlify): docs.json plus one .mdx per page
@@ -220,7 +223,7 @@ release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for 
 
 ## Rebuilding after you change something
 
-Edit anything under `Sources/Glassine/`, then `./build.sh --run`. Incremental builds take a few seconds. If a change misbehaves, Help → Copy Debug Info gives a snapshot of the editor's state that is easy to paste into a chat.
+Edit anything under `Sources/`, then `./build.sh --run`. Incremental builds take a few seconds. If a change misbehaves, Help → Copy Debug Info gives a snapshot of the editor's state that is easy to paste into a chat.
 
 ## Known limits (v1)
 

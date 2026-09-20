@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 
 /// The demonstration copy's library — `build.sh --demo` makes "Glassine
 /// Demo.app": the same app under a name of its own, so its settings are its
@@ -95,15 +99,17 @@ enum DemoLibrary {
 
     /// The App Store's picture size, in points: 2880 × 1800 pixels on a
     /// Retina display, one of the four sizes the store takes for a Mac.
-    static let pictureSize = NSSize(width: 1440, height: 900)
+    static let pictureSize = CGSize(width: 1440, height: 900)
 
     /// Puts the main window at the picture size, centred on its screen.
     static func placeWindowForPictures() {
+        #if os(macOS)
         guard let window = NSApp.windows.first(where: { AppDelegate.isMainWindow($0) && $0.isVisible })
                 ?? NSApp.windows.first(where: AppDelegate.isMainWindow) else { return }
-        let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
+        let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1920, height: 1080)
         let size = pictureSize
-        let origin = NSPoint(x: (screen.midX - size.width / 2).rounded(), y: (screen.midY - size.height / 2).rounded())
-        window.setFrame(NSRect(origin: origin, size: size), display: true, animate: true)
+        let origin = CGPoint(x: (screen.midX - size.width / 2).rounded(), y: (screen.midY - size.height / 2).rounded())
+        window.setFrame(CGRect(origin: origin, size: size), display: true, animate: true)
+        #endif
     }
 }

@@ -128,7 +128,7 @@ extension GlassineTextView {
         storage.replaceCharacters(in: sel, with: token + " ")
         didChangeText()
         setSelectedRange(NSRange(location: sel.location + token.nsLength + 1, length: 0))
-        pulse(charRange: NSRange(location: sel.location, length: token.nsLength), color: config.theme.accent.nsColor, scale: 1.25, duration: 0.4)
+        pulse(charRange: NSRange(location: sel.location, length: token.nsLength), color: config.theme.accent.platformColor, scale: 1.25, duration: 0.4)
     }
 }
 

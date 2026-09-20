@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 extension NSRange {
@@ -81,8 +85,20 @@ extension Date {
     }
 }
 
-extension NSFont {
-    func withTraits(_ traits: NSFontDescriptor.SymbolicTraits) -> NSFont {
+/// Bold and italic, under one name for both platforms (AppKit says `.bold`,
+/// UIKit `.traitBold`).
+struct FontTraits: OptionSet {
+    let rawValue: Int
+    static let bold = FontTraits(rawValue: 1 << 0)
+    static let italic = FontTraits(rawValue: 1 << 1)
+}
+
+extension PlatformFont {
+    func withTraits(_ wanted: FontTraits) -> PlatformFont {
+        #if os(macOS)
+        var traits: NSFontDescriptor.SymbolicTraits = []
+        if wanted.contains(.bold) { traits.insert(.bold) }
+        if wanted.contains(.italic) { traits.insert(.italic) }
         let desc = fontDescriptor.withSymbolicTraits(fontDescriptor.symbolicTraits.union(traits))
         if let f = NSFont(descriptor: desc, size: pointSize), f.fontDescriptor.symbolicTraits.contains(traits) {
             return f
@@ -92,6 +108,19 @@ extension NSFont {
         if traits.contains(.bold) { mask.insert(.boldFontMask) }
         if traits.contains(.italic) { mask.insert(.italicFontMask) }
         return NSFontManager.shared.convert(self, toHaveTrait: mask)
+        #else
+        var traits: UIFontDescriptor.SymbolicTraits = []
+        if wanted.contains(.bold) { traits.insert(.traitBold) }
+        if wanted.contains(.italic) { traits.insert(.traitItalic) }
+        guard let desc = fontDescriptor.withSymbolicTraits(fontDescriptor.symbolicTraits.union(traits)) else { return self }
+        return UIFont(descriptor: desc, size: pointSize)
+        #endif
+    }
+
+    /// A font from a descriptor, or nil where the system has none to give.
+    /// (AppKit's initializer can fail; UIKit's always answers.)
+    static func make(descriptor: PlatformFontDescriptor, size: CGFloat) -> PlatformFont? {
+        PlatformFont(descriptor: descriptor, size: size)
     }
 }
 

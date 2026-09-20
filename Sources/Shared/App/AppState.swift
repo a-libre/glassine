@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import Combine
 import SwiftUI
 import UniformTypeIdentifiers
@@ -78,8 +82,18 @@ final class AppState: ObservableObject {
     @Published private(set) var systemIsDark: Bool = AppState.readSystemIsDark()
 
     private static func readSystemIsDark() -> Bool {
+        #if os(macOS)
         UserDefaults.standard.string(forKey: "AppleInterfaceStyle")?.lowercased() == "dark"
+        #else
+        UITraitCollection.current.userInterfaceStyle == .dark
+        #endif
     }
+
+    #if !os(macOS)
+    /// iOS announces a change of appearance to the view tree, not to the
+    /// process; the root view passes it on here.
+    func systemAppearanceChanged(dark: Bool) { if systemIsDark != dark { systemIsDark = dark } }
+    #endif
 
     /// Pick a theme from the menu: in system mode it takes the slot it belongs to.
     func chooseTheme(_ id: String) {
@@ -161,20 +175,22 @@ final class AppState: ObservableObject {
         sync.start()
 
         let nc = NotificationCenter.default
+        #if os(macOS)
         DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("AppleInterfaceThemeChangedNotification"), object: nil, queue: .main
         ) { [weak self] _ in
             // The defaults key lags the notification by a moment.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { self?.systemIsDark = AppState.readSystemIsDark() }
         }
-        nc.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+        #endif
+        nc.addObserver(forName: Platform.didBecomeActive, object: nil, queue: .main) { [weak self] _ in
             self?.library.rescan()
             self?.document?.checkExternalChanges()
         }
-        nc.addObserver(forName: NSApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+        nc.addObserver(forName: Platform.willResignActive, object: nil, queue: .main) { [weak self] _ in
             self?.document?.save()
         }
-        nc.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+        nc.addObserver(forName: Platform.willTerminate, object: nil, queue: .main) { [weak self] _ in
             self?.saveEverythingNow()
         }
     }
@@ -226,7 +242,7 @@ final class AppState: ObservableObject {
 
     private func startPolling() {
         pollTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            guard let self, NSApp.isActive else { return }
+            guard let self, Platform.isActive else { return }
             self.library.rescan()
             self.document?.checkExternalChanges()
         }
@@ -379,7 +395,7 @@ final class AppState: ObservableObject {
         } else if galleryOnScreen || document?.relativePath != ref.id {
             cameFromDaily = false
         }
-        if fromCard, galleryOnScreen || showingDaily, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        if fromCard, galleryOnScreen || showingDaily, !Platform.reduceMotion {
             zoomingCard = ref.id
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
                 if self?.zoomingCard == ref.id { self?.zoomingCard = nil }
@@ -430,12 +446,14 @@ final class AppState: ObservableObject {
 
     /// File → Open…: any Markdown or text file, opened in place.
     func openFilePanel() {
+        #if os(macOS)
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.plainText, UTType("net.daringfireball.markdown")].compactMap { $0 }
         panel.message = "Open a Markdown or text file where it is. It is not copied into the library."
         if panel.runModal() == .OK, let url = panel.url { openFile(at: url) }
+        #endif
     }
 
     /// A copy of the file from elsewhere, at the top level of the library,
@@ -644,11 +662,17 @@ final class AppState: ObservableObject {
     /// File → Export as PDF…: the document in the current Review style, paginated.
     func exportPDF() {
         guard let doc = document else { return }
+        #if os(macOS)
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = doc.title.sanitizedFileStem + ".pdf"
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        #else
+        // No save panel on iOS: the PDF is made in the temporary folder and
+        // the shell offers it to the share sheet.
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(doc.title.sanitizedFileStem + ".pdf")
+        #endif
         let html = ReviewHTML.document(markdown: doc.text, title: doc.title, style: settings.data.reviewStyle,
                                        theme: theme, scale: 1.0, centerHeadings: settings.data.centerHeadings, forExport: true)
         PDFExporter.export(html: html, baseURL: doc.url.deletingLastPathComponent(), to: url) { [weak self] error in
@@ -805,14 +829,14 @@ final class AppState: ObservableObject {
     func revealCurrentDocument() {
         guard let doc = document else { return }
         if doc.isLoose {
-            NSWorkspace.shared.activateFileViewerSelecting([doc.url])
+            Platform.reveal([doc.url])
         } else {
             library.revealInFinder(doc.relativePath)
         }
     }
 
     func revealLibrary() {
-        NSWorkspace.shared.activateFileViewerSelecting([library.rootURL])
+        Platform.reveal([library.rootURL])
     }
 
     func toggleStar(_ rel: String) {
@@ -822,6 +846,7 @@ final class AppState: ObservableObject {
     // MARK: - Library location
 
     func chooseLibraryFolder() {
+        #if os(macOS)
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -833,6 +858,7 @@ final class AppState: ObservableObject {
         if panel.runModal() == .OK, let url = panel.url {
             setLibrary(chosen: ChosenFolder(pickedURL: url))
         }
+        #endif
     }
 
     func resetLibraryToDefault() {
@@ -907,7 +933,7 @@ final class AppState: ObservableObject {
             if daily { self.showDaily() } else { self.showingGallery = true }
         }
         guard let id = document?.relativePath, !reviewMode,
-              !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+              !Platform.reduceMotion else {
             show()
             return
         }
@@ -939,7 +965,7 @@ final class AppState: ObservableObject {
         guard document != nil else { return }
         let opening = !settings.data.reviewBeside
         if opening, let textView = GlassineTextView.current {
-            caretLine = EditorView.lineIndex(at: textView.selectedRange().location, in: textView.string as NSString)
+            caretLine = EditorView.lineIndex(at: textView.caretLocation, in: textView.plainText as NSString)
         }
         withAnimation(.easeOut(duration: 0.22)) {
             settings.data.reviewBeside = opening
@@ -984,14 +1010,15 @@ final class AppState: ObservableObject {
     }
 
     private func copy(text: String, title: String, asMarkdown: Bool) {
-        let pb = NSPasteboard.general
-        pb.clearContents()
         if asMarkdown {
-            pb.setString(text, forType: .string)
+            Platform.copy(text)
             showNotice("Copied as Markdown")
             return
         }
         let html = MarkdownHTML.neutralDocument(title: title, body: MarkdownHTML.render(text))
+        #if os(macOS)
+        let pb = NSPasteboard.general
+        pb.clearContents()
         guard let data = html.data(using: .utf8),
               let attributed = NSAttributedString(html: data, options: [
                   .documentType: NSAttributedString.DocumentType.html,
@@ -1008,6 +1035,23 @@ final class AppState: ObservableObject {
         }
         pb.setString(html, forType: .html)
         pb.setString(attributed.string, forType: .string)
+        #else
+        guard let data = html.data(using: .utf8),
+              let attributed = try? NSAttributedString(data: data, options: [
+                  .documentType: NSAttributedString.DocumentType.html,
+                  .characterEncoding: String.Encoding.utf8.rawValue,
+              ], documentAttributes: nil) else {
+            Platform.copy(text)
+            showNotice("Copied as Markdown (rich text failed)")
+            return
+        }
+        var item: [String: Any] = [UTType.html.identifier: html, UTType.utf8PlainText.identifier: attributed.string]
+        let range = NSRange(location: 0, length: attributed.length)
+        if let rtf = try? attributed.data(from: range, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) {
+            item[UTType.rtf.identifier] = rtf
+        }
+        UIPasteboard.general.items = [item]
+        #endif
         showNotice("Copied as Rich Text")
     }
 
@@ -1131,13 +1175,14 @@ final class AppState: ObservableObject {
     func copyDebugInfo() {
         var parts: [String] = ["Glassine \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") debug"]
         parts.append("view: \(galleryOnScreen ? "gallery" : (reviewMode ? "review" : "editor")) sidebar=\(settings.data.sidebarVisible) docs=\(library.allDocuments.count) query=\"\(searchText)\"")
+        #if os(macOS)
         if let key = NSApp.keyWindow {
             parts.append("keyWindow firstResponder: \(key.firstResponder.map { String(describing: type(of: $0)) } ?? "nil")")
         }
+        #endif
         if let nav = GalleryNavigator.current { parts.append(nav.debugDescription) }
         if let textView = GlassineTextView.current { parts.append(textView.debugDescription) }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(parts.joined(separator: "\n"), forType: .string)
+        Platform.copy(parts.joined(separator: "\n"))
         showNotice("Debug info copied")
     }
 

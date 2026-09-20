@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 /// A color stored as "#RRGGBB" or "#RRGGBBAA". Codable as a plain string so
@@ -10,7 +14,7 @@ struct HexColor: Codable, Hashable {
         self.hex = HexColor.normalize(hex)
     }
 
-    init(_ color: NSColor) {
+    init(_ color: PlatformColor) {
         let c = color.usingColorSpace(.sRGB) ?? color
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1
         c.getRed(&r, green: &g, blue: &b, alpha: &a)
@@ -24,7 +28,7 @@ struct HexColor: Codable, Hashable {
     }
 
     init(_ color: Color) {
-        self.init(NSColor(color))
+        self.init(PlatformColor(color))
     }
 
     init(from decoder: Decoder) throws {
@@ -55,14 +59,14 @@ struct HexColor: Codable, Hashable {
         return (CGFloat((v >> 24) & 0xFF) / 255, CGFloat((v >> 16) & 0xFF) / 255, CGFloat((v >> 8) & 0xFF) / 255, CGFloat(v & 0xFF) / 255)
     }
 
-    var nsColor: NSColor {
+    var platformColor: PlatformColor {
         let c = components
-        return NSColor(srgbRed: c.r, green: c.g, blue: c.b, alpha: c.a)
+        return PlatformColor(srgbRed: c.r, green: c.g, blue: c.b, alpha: c.a)
     }
 
-    var color: Color { Color(nsColor: nsColor) }
+    var color: Color { Color(platformColor: platformColor) }
 
-    func withAlpha(_ alpha: CGFloat) -> NSColor { nsColor.withAlphaComponent(alpha) }
+    func withAlpha(_ alpha: CGFloat) -> PlatformColor { platformColor.withAlphaComponent(alpha) }
 
     /// Perceived luminance 0...1 (sRGB, approximate).
     var luminance: CGFloat {

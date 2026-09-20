@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 /// The Daily section, drawn the way Vantage draws a day: today's note lies flat
@@ -260,6 +264,7 @@ final class TimelineWalker: ObservableObject {
 
     func install() {
         uninstall()
+        #if os(macOS)
         monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
             guard let self, let window = event.window, AppDelegate.isMainWindow(window) else { return event }
             let step = Double(event.scrollingDeltaY) / 140
@@ -277,12 +282,26 @@ final class TimelineWalker: ObservableObject {
             }
             return nil
         }
+        #endif
     }
 
     func uninstall() {
+        #if os(macOS)
         if let monitor { NSEvent.removeMonitor(monitor) }
+        #endif
         monitor = nil
     }
+
+    #if !os(macOS)
+    /// Touch walks the corridor with a drag: so many days per point moved,
+    /// settling on a day when the finger lifts.
+    func drag(by days: Double) { offset = min(maxDepth, max(0, offset + days)) }
+    func settle() {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            offset = min(maxDepth, max(0, offset.rounded()))
+        }
+    }
+    #endif
 
     deinit { uninstall() }
 }

@@ -58,7 +58,6 @@ final class GlassineTextView: NSTextView {
     private let dropBar = CALayer()
     // Checked-off tasks waiting to sink, by their line text
     private var pendingSinks: [String: DispatchWorkItem] = [:]
-    static let sinkDelay: TimeInterval = 1.6
 
     // Editing bookkeeping
     private var pendingEditRange: NSRange?
@@ -641,7 +640,7 @@ final class GlassineTextView: NSTextView {
         storage.replaceCharacters(in: range, with: token)
         didChangeText()
         setSelectedRange(NSRange(location: range.location + token.nsLength, length: 0))
-        pulse(charRange: NSRange(location: range.location, length: token.nsLength), color: config.theme.accent.nsColor, scale: 1.25, duration: 0.4)
+        pulse(charRange: NSRange(location: range.location, length: token.nsLength), color: config.theme.accent.platformColor, scale: 1.25, duration: 0.4)
         return true
     }
 
@@ -1364,7 +1363,7 @@ final class GlassineTextView: NSTextView {
             return
         }
         let floor = CGFloat(max(0, min(1, config.focusDimming)))
-        let body = config.theme.text.nsColor
+        let body = config.theme.text.platformColor
         storage.enumerateAttribute(.foregroundColor, in: range, options: []) { value, run, _ in
             let color = (value as? NSColor) ?? body
             lm.addTemporaryAttribute(.foregroundColor, value: Self.dimmed(color, amount: k, floor: floor), forCharacterRange: run)
@@ -1486,7 +1485,7 @@ final class GlassineTextView: NSTextView {
             let r = range.clamped(to: storage.length)
             guard r.length > 0 else { return }
             let alpha = from + (to - from) * p
-            let body = self.config.theme.text.nsColor
+            let body = self.config.theme.text.platformColor
             storage.enumerateAttribute(.foregroundColor, in: r, options: []) { value, run, _ in
                 let c = (value as? NSColor) ?? body
                 lm.addTemporaryAttribute(.foregroundColor, value: c.withAlphaComponent(c.alphaComponent * alpha), forCharacterRange: run)
@@ -1515,7 +1514,7 @@ final class GlassineTextView: NSTextView {
     /// words over half a second while they fade to the muted colour.
     private func animateCompletion(boxAt boxRange: NSRange) {
         guard let storage = textStorage else { return }
-        pulse(charRange: boxRange, color: config.theme.accent.nsColor, scale: 1.7, duration: 0.45)
+        pulse(charRange: boxRange, color: config.theme.accent.platformColor, scale: 1.7, duration: 0.45)
         // The struck text begins after the box and its space; the styler marks it.
         let paragraph = (storage.string as NSString).paragraphRange(for: boxRange)
         var probe = boxRange.upperBoundValue
@@ -1527,8 +1526,8 @@ final class GlassineTextView: NSTextView {
         }
         guard doneRange.location != NSNotFound, doneRange.length > 0 else { return }
         let start = doneRange.location
-        let from = config.theme.text.nsColor
-        let muted = config.theme.syntax.nsColor
+        let from = config.theme.text.platformColor
+        let muted = config.theme.syntax.platformColor
         run(.task, duration: 0.5, step: { [weak self] p in
             guard let self, let lm = self.layoutManager as? GlassineLayoutManager, let storage = self.textStorage else { return }
             let r = doneRange.clamped(to: storage.length)
@@ -1548,12 +1547,12 @@ final class GlassineTextView: NSTextView {
     /// A task reopened: a quieter pulse, and the words brighten back.
     private func animateReopen(boxAt boxRange: NSRange) {
         guard let storage = textStorage else { return }
-        pulse(charRange: boxRange, color: config.theme.syntax.nsColor, scale: 1.4, duration: 0.3)
+        pulse(charRange: boxRange, color: config.theme.syntax.platformColor, scale: 1.4, duration: 0.3)
         let paragraph = (storage.string as NSString).paragraphRange(for: boxRange)
         let rest = NSRange(location: boxRange.upperBoundValue, length: max(0, paragraph.upperBoundValue - boxRange.upperBoundValue))
         guard rest.length > 0 else { return }
-        let muted = config.theme.syntax.nsColor
-        let body = config.theme.text.nsColor
+        let muted = config.theme.syntax.platformColor
+        let body = config.theme.text.platformColor
         run(.task, duration: 0.3, step: { [weak self] p in
             guard let self, let lm = self.layoutManager, let storage = self.textStorage else { return }
             lm.addTemporaryAttribute(.foregroundColor, value: muted.blended(withFraction: p, of: body) ?? body, forCharacterRange: rest.clamped(to: storage.length))
@@ -2257,6 +2256,13 @@ final class GlassineTextView: NSTextView {
         didChangeText()
         return true
     }
+
+    // MARK: - What shared code asks of the text view
+
+    /// The same two names on the Mac and on iOS, where the text and the
+    /// selection are spelled differently by the system's own text views.
+    var caretLocation: Int { selectedRange().location }
+    var plainText: String { string }
 
     // MARK: - Diagnostics
 

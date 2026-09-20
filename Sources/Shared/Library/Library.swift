@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import Combine
 
 struct DocumentRef: Identifiable, Hashable {
@@ -88,10 +92,14 @@ final class LibraryStore: ObservableObject {
     /// The user's own iCloud Drive, which the direct build reads straight from
     /// disk. The sandboxed build cannot see it; that build owns a container instead.
     static var iCloudDriveURL: URL? {
+        #if os(macOS)
         guard !Distribution.isSandboxed else { return nil }
         let url = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs", isDirectory: true)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        #else
+        return nil   // every iOS app is sandboxed; its library is its own container
+        #endif
     }
 
     /// Where the library lives when the user has not chosen a folder: Glassine's
@@ -441,7 +449,7 @@ final class LibraryStore: ObservableObject {
     }
 
     func revealInFinder(_ rel: String) {
-        NSWorkspace.shared.activateFileViewerSelecting([url(forRelativePath: rel)])
+        Platform.reveal([url(forRelativePath: rel)])
     }
 
     /// Removes folders under `rel` (and `rel` itself) that hold nothing but

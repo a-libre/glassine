@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -632,7 +636,7 @@ struct SyncPanel: View {
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .opacity(0.85)
                     Button {
-                        if let repo = sync.repository, let url = URL(string: "https://github.com/\(repo)") { NSWorkspace.shared.open(url) }
+                        if let repo = sync.repository, let url = URL(string: "https://github.com/\(repo)") { Platform.open(url) }
                     } label: {
                         Image(systemName: "arrow.up.forward").font(.system(size: 9, weight: .semibold)).opacity(0.5)
                     }
@@ -749,7 +753,7 @@ struct SyncPanel: View {
                     .font(.system(size: 22, weight: .semibold, design: .monospaced))
                     .kerning(2)
                     .textSelection(.enabled)
-                Button("Open github.com") { if let url = code?.verificationURL { NSWorkspace.shared.open(url) } }
+                Button("Open github.com") { if let url = code?.verificationURL { Platform.open(url) } }
                     .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
                 Button("Copy Code") { copy(code?.userCode ?? "") }
                     .buttonStyle(GlassButtonStyle(theme: theme))
@@ -807,12 +811,11 @@ struct SyncPanel: View {
     // MARK: Doing
 
     private func open(_ url: String) {
-        if let u = URL(string: url) { NSWorkspace.shared.open(u) }
+        if let u = URL(string: url) { Platform.open(u) }
     }
 
     private func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        Platform.copy(text)
     }
 
     private func connectWithToken() {
@@ -840,7 +843,7 @@ struct SyncPanel: View {
                 let c = try await sync.beginSignIn()
                 code = c
                 copy(c.userCode)
-                NSWorkspace.shared.open(c.verificationURL)
+                Platform.open(c.verificationURL)
                 step = .code
                 _ = try await sync.finishSignIn(c)
                 repos = try await sync.repositories()
@@ -956,7 +959,7 @@ struct TypeSection: View {
             }
         }
         .onAppear {
-            families = NSFontManager.shared.availableFontFamilies
+            families = Platform.fontFamilies
                 .filter { !$0.hasPrefix(".") }
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         }
@@ -1030,7 +1033,7 @@ struct CaretSection: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
-                    CaretShapePicker(shape: form.binding(\.caretShape), color: Color(nsColor: theme.caretColor), accent: theme.accent.color)
+                    CaretShapePicker(shape: form.binding(\.caretShape), color: Color(platformColor: theme.caretColor), accent: theme.accent.color)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -1201,6 +1204,7 @@ struct ThemeSection: View {
     }
 
     private func importTheme() {
+        #if os(macOS)
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
@@ -1212,15 +1216,18 @@ struct ThemeSection: View {
                 state.errorMessage = "Couldn't import that theme: \(error.localizedDescription)"
             }
         }
+        #endif
     }
 
     private func exportTheme() {
+        #if os(macOS)
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = theme.name.sanitizedFileStem + ".glassinetheme.json"
         if panel.runModal() == .OK, let url = panel.url {
             try? state.themes.export(theme, to: url)
         }
+        #endif
     }
 }
 
@@ -1252,9 +1259,9 @@ struct ThemeEditor: View {
         )
     }
 
-    private func optionalColorBinding(_ keyPath: WritableKeyPath<Theme, HexColor?>, fallback: NSColor) -> Binding<Color> {
+    private func optionalColorBinding(_ keyPath: WritableKeyPath<Theme, HexColor?>, fallback: PlatformColor) -> Binding<Color> {
         Binding(
-            get: { (state.theme[keyPath: keyPath]?.nsColor ?? fallback).asColor },
+            get: { (state.theme[keyPath: keyPath]?.platformColor ?? fallback).asColor },
             set: { newValue in
                 var t = state.theme
                 t[keyPath: keyPath] = HexColor(newValue)
@@ -1511,7 +1518,7 @@ struct AboutSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 14) {
-                Image(nsImage: NSApp.applicationIconImage)
+                Platform.appIcon
                     .resizable()
                     .interpolation(.high)
                     .frame(width: 60, height: 60)
@@ -1577,7 +1584,7 @@ struct AboutSection: View {
     }
 
     private func open(_ url: String) {
-        if let u = URL(string: url) { NSWorkspace.shared.open(u) }
+        if let u = URL(string: url) { Platform.open(u) }
     }
 
     #if canImport(Sparkle)
