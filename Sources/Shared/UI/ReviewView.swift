@@ -297,7 +297,14 @@ struct ReviewWebView: PlatformViewRepresentable {
             bodyDebouncer.cancel()
             // Dip out before a reload and back in once it has rendered: a style switch
             // reads as a crossfade instead of a blink.
+            #if os(macOS)
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.1
+                web.animator().alphaValue = 0
+            }
+            #else
             Platform.fade(web, to: 0, duration: 0.1)
+            #endif
             web.loadHTMLString(html, baseURL: baseURL)
             ScreenshotMode.note("load: \(html.count) chars, base \(baseURL.path)")
         }
@@ -321,7 +328,15 @@ struct ReviewWebView: PlatformViewRepresentable {
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { ScreenshotMode.note("content process terminated") }
 
         private func reveal(_ webView: WKWebView) {
+            #if os(macOS)
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.22
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                webView.animator().alphaValue = 1
+            }
+            #else
             Platform.fade(webView, to: 1, duration: 0.22, easeOut: true)
+            #endif
         }
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
