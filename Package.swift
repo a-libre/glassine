@@ -20,7 +20,12 @@ let package = Package(
         .executableTarget(
             name: "Glassine",
             dependencies: appStore ? [] : [.product(name: "Sparkle", package: "Sparkle")],
-            path: "Sources/Glassine"
+            // One module, two folders: Shared is the code every platform compiles,
+            // Mac is the AppKit shell. Sources/iOS is the UIKit shell; it is built
+            // by the iOS project (ios/project.yml), never by this package.
+            path: "Sources",
+            exclude: ["iOS"],
+            sources: ["Shared", "Mac"]
         )
     ]
 )
