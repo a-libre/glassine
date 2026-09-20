@@ -117,6 +117,15 @@ enum Platform {
         #endif
     }
 
+    #if !os(macOS)
+    /// The height the status bar (or the island) takes from the top of the window.
+    static var topSafeInset: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first?.safeAreaInsets.top ?? 0
+    }
+    #endif
+
     /// How wide the app's window is showing, in points.
     static var windowWidth: CGFloat? {
         #if os(macOS)

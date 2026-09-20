@@ -112,6 +112,10 @@ struct EditorContainerView: View {
     /// Text slips out under the top edge and the footer instead of being cut off.
     private func edgeFade(bottom: CGFloat) -> some View {
         VStack(spacing: 0) {
+            #if !os(macOS)
+            // Under the status bar the page is not there at all; it fades in below it.
+            Color.clear.frame(height: Platform.topSafeInset)
+            #endif
             LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 26)
             Rectangle().fill(.black)
             LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: bottom)

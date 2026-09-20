@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 
 /// Draws softly rounded rectangles for inline code, capsules for dates and
 /// chips (on the text view's behalf, before the text system draws), the line of
@@ -11,8 +15,8 @@ final class GlassineLayoutManager: NSLayoutManager {
     /// Strikes fading with their line, by the same key: the alpha to draw at.
     var strikeAlpha: [Int: CGFloat] = [:]
 
-    override func fillBackgroundRectArray(_ rectArray: UnsafePointer<NSRect>, count rectCount: Int,
-                                          forCharacterRange charRange: NSRange, color: NSColor) {
+    override func fillBackgroundRectArray(_ rectArray: UnsafePointer<CGRect>, count rectCount: Int,
+                                          forCharacterRange charRange: NSRange, color: PlatformColor) {
         guard rectCount > 0 else { return }
         // Copy these out before asking the layout manager anything else: the
         // buffer they live in is shared, and the queries below write into it.
@@ -24,7 +28,11 @@ final class GlassineLayoutManager: NSLayoutManager {
         guard !isCapsule else { return }
         color.setFill()
         for rect in rects {
+            #if os(macOS)
             NSBezierPath(roundedRect: rect.insetBy(dx: -1, dy: 0), xRadius: 3.5, yRadius: 3.5).fill()
+            #else
+            UIBezierPath(roundedRect: rect.insetBy(dx: -1, dy: 0), cornerRadius: 3.5).fill()
+            #endif
         }
     }
 
@@ -35,7 +43,7 @@ final class GlassineLayoutManager: NSLayoutManager {
     /// marker that is not drawn takes no room in it, a token that wraps gets
     /// one per line, and each is as tall as its type — ascender to descender —
     /// rather than the whole line, so a short word gets a pill and not an egg.
-    func drawCapsules(in rect: NSRect, origin: NSPoint) {
+    func drawCapsules(in rect: CGRect, origin: CGPoint) {
         guard let storage = textStorage, storage.length > 0, let container = textContainers.first else { return }
         let glyphs = glyphRange(forBoundingRect: rect.offsetBy(dx: -origin.x, dy: -origin.y), in: container)
         guard glyphs.length > 0 else { return }
@@ -46,7 +54,7 @@ final class GlassineLayoutManager: NSLayoutManager {
             var tokenRange = NSRange(location: 0, length: 0)
             let isToken = storage.attribute(DateToken.attributeKey, at: index, longestEffectiveRange: &tokenRange, in: full) != nil
             guard tokenRange.length > 0 else { break }
-            if isToken, let color = storage.attribute(.backgroundColor, at: tokenRange.location, effectiveRange: nil) as? NSColor {
+            if isToken, let color = storage.attribute(.backgroundColor, at: tokenRange.location, effectiveRange: nil) as? PlatformColor {
                 for piece in capsulePieces(for: tokenRange, in: container) {
                     drawCapsule(piece.offsetBy(dx: origin.x, dy: origin.y), color: color)
                 }
@@ -59,9 +67,9 @@ final class GlassineLayoutManager: NSLayoutManager {
     /// glyphs on, in container coordinates. The glyph range can reach a glyph
     /// past the token's characters (a kerned space before it, say), so each
     /// glyph is checked against them.
-    private func capsulePieces(for tokenRange: NSRange, in container: NSTextContainer) -> [NSRect] {
+    private func capsulePieces(for tokenRange: NSRange, in container: NSTextContainer) -> [CGRect] {
         let glyphs = glyphRange(forCharacterRange: tokenRange, actualCharacterRange: nil)
-        var pieces: [(line: CGFloat, rect: NSRect)] = []
+        var pieces: [(line: CGFloat, rect: CGRect)] = []
         for g in glyphs.location..<glyphs.upperBoundValue {
             guard NSLocationInRange(characterIndexForGlyph(at: g), tokenRange) else { continue }
             let property = propertyForGlyph(at: g)
@@ -69,10 +77,10 @@ final class GlassineLayoutManager: NSLayoutManager {
             let line = lineFragmentRect(forGlyphAt: g, effectiveRange: nil)
             let box = boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: container)
             guard box.width > 0 else { continue }
-            let font = (textStorage?.attribute(.font, at: characterIndexForGlyph(at: g), effectiveRange: nil) as? NSFont)
-                ?? NSFont.systemFont(ofSize: 16)
+            let font = (textStorage?.attribute(.font, at: characterIndexForGlyph(at: g), effectiveRange: nil) as? PlatformFont)
+                ?? PlatformFont.systemFont(ofSize: 16)
             let baseline = line.minY + location(forGlyphAt: g).y
-            let type = NSRect(x: box.minX, y: baseline - font.ascender, width: box.width, height: font.ascender - font.descender)
+            let type = CGRect(x: box.minX, y: baseline - font.ascender, width: box.width, height: font.ascender - font.descender)
             if let i = pieces.firstIndex(where: { $0.line == line.minY }) {
                 pieces[i].rect = pieces[i].rect.union(type)
             } else {
@@ -83,8 +91,33 @@ final class GlassineLayoutManager: NSLayoutManager {
     }
 
     /// A capsule lit from the top, with a hairline edge: enough to read as a chip.
-    private func drawCapsule(_ glyphRect: NSRect, color: NSColor) {
+    private func drawCapsule(_ glyphRect: CGRect, color: PlatformColor) {
         let rect = glyphRect.insetBy(dx: -DateToken.capsulePadding, dy: -2)
+        #if !os(macOS)
+        // The same capsule by UIKit's means: the gradient runs down the page
+        // (lit from the top), clipped to the pill, under a hairline edge.
+        var white: CGFloat = 0, a: CGFloat = 1
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
+        if !color.getRed(&r, green: &g, blue: &b, alpha: &a) { color.getWhite(&white, alpha: &a) }
+        let pill = UIBezierPath(roundedRect: rect, cornerRadius: rect.height / 2)
+        if let context = UIGraphicsGetCurrentContext(),
+           let gradient = CGGradient(colorsSpace: nil, colors: [color.withAlphaComponent(min(1, a * 1.5)).cgColor,
+                                                                color.withAlphaComponent(a * 0.8).cgColor] as CFArray,
+                                     locations: [0, 1]) {
+            context.saveGState()
+            pill.addClip()
+            context.drawLinearGradient(gradient, start: CGPoint(x: rect.midX, y: rect.minY),
+                                       end: CGPoint(x: rect.midX, y: rect.maxY), options: [])
+            context.restoreGState()
+        } else {
+            color.setFill()
+            pill.fill()
+        }
+        color.withAlphaComponent(min(1, a * 1.1)).setStroke()
+        let rim = UIBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: rect.height / 2)
+        rim.lineWidth = 1
+        rim.stroke()
+        #else
         let path = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
         let alpha = color.alphaComponent
         if let gradient = NSGradient(starting: color.withAlphaComponent(min(1, alpha * 1.5)),
@@ -98,17 +131,27 @@ final class GlassineLayoutManager: NSLayoutManager {
         let edge = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: rect.height / 2, yRadius: rect.height / 2)
         edge.lineWidth = 1
         edge.stroke()
+        #endif
     }
 
     /// Where the Markdown shows as written: the sentence the caret is in.
     private var revealRange: NSRange {
+        #if os(macOS)
         (firstTextView as? GlassineTextView)?.syntaxRevealRange ?? NSRange(location: NSNotFound, length: 0)
+        #else
+        owner?.syntaxRevealRange ?? NSRange(location: NSNotFound, length: 0)
+        #endif
     }
+
+    #if !os(macOS)
+    /// UIKit's layout manager cannot name its text view; the text view introduces itself.
+    weak var owner: GlassineTextView?
+    #endif
 
     /// A horizontal rule's dashes are laid out like any text — so their line
     /// is measured like any line — but not drawn, unless the caret is on
     /// that line. The rule itself is drawn in drawBackground.
-    override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+    override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
         guard let storage = textStorage else { super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin); return }
         let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
         var hasRule = false
@@ -126,44 +169,64 @@ final class GlassineLayoutManager: NSLayoutManager {
 
     /// A horizontal rule: a line across the middle of the column, where the
     /// dashes are — unless the caret is on that line, when the dashes show instead.
-    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
+        #if !os(macOS)
+        // UIKit draws the text in a view of its own, so the text view has no
+        // draw(_:) to put the capsules down in first; they go down here, ahead
+        // of everything else the text system draws for these glyphs.
+        if glyphsToShow.length > 0, let container = textContainers.first {
+            let rect = boundingRect(forGlyphRange: glyphsToShow, in: container).offsetBy(dx: origin.x, dy: origin.y)
+            drawCapsules(in: rect, origin: origin)
+        }
+        #endif
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
         guard let storage = textStorage else { return }
         let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
         let reveal = revealRange
         storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
-            guard let color = value as? NSColor, !NSLocationInRange(range.location, reveal) else { return }
+            guard let color = value as? PlatformColor, !NSLocationInRange(range.location, reveal) else { return }
             let glyphs = self.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
             guard glyphs.length > 0,
                   let container = self.textContainer(forGlyphAt: glyphs.location, effectiveRange: nil) else { return }
             let line = self.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
-            let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 16)
+            let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? PlatformFont ?? PlatformFont.systemFont(ofSize: 16)
             let baseline = origin.y + line.minY + self.location(forGlyphAt: glyphs.location).y
             let width = (container.size.width * 0.4).rounded()
             let x = origin.x + line.minX + ((container.size.width - width) / 2).rounded()
             let y = (baseline - font.xHeight * 0.55).rounded() - 0.5
             color.setFill()
-            NSRect(x: x, y: y, width: width, height: 1).fill()
+            #if os(macOS)
+            CGRect(x: x, y: y, width: width, height: 1).fill()
+            #else
+            UIRectFill(CGRect(x: x, y: y, width: width, height: 1))
+            #endif
         }
     }
 
     /// Finished tasks: one strike per line, fading from the accent to the muted text colour.
     override func drawStrikethrough(forGlyphRange glyphRange: NSRange, strikethroughType: NSUnderlineStyle,
-                                    baselineOffset: CGFloat, lineFragmentRect lineRect: NSRect,
-                                    lineFragmentGlyphRange lineGlyphRange: NSRange, containerOrigin: NSPoint) {
+                                    baselineOffset: CGFloat, lineFragmentRect lineRect: CGRect,
+                                    lineFragmentGlyphRange lineGlyphRange: NSRange, containerOrigin: CGPoint) {
         let charIndex = characterIndexForGlyph(at: glyphRange.location)
         var doneRange = NSRange(location: 0, length: 0)
         guard let storage = textStorage, charIndex < storage.length,
               let colors = storage.attribute(TaskBox.doneKey, at: charIndex, longestEffectiveRange: &doneRange,
-                                             in: NSRange(location: 0, length: storage.length)) as? [NSColor],
+                                             in: NSRange(location: 0, length: storage.length)) as? [PlatformColor],
               colors.count == 2,
-              let gradient = NSGradient(starting: colors[0], ending: colors[1]),
               let container = textContainer(forGlyphAt: glyphRange.location, effectiveRange: nil) else {
             super.drawStrikethrough(forGlyphRange: glyphRange, strikethroughType: strikethroughType,
                                     baselineOffset: baselineOffset, lineFragmentRect: lineRect,
                                     lineFragmentGlyphRange: lineGlyphRange, containerOrigin: containerOrigin)
             return
         }
+        #if os(macOS)
+        guard let gradient = NSGradient(starting: colors[0], ending: colors[1]) else {
+            super.drawStrikethrough(forGlyphRange: glyphRange, strikethroughType: strikethroughType,
+                                    baselineOffset: baselineOffset, lineFragmentRect: lineRect,
+                                    lineFragmentGlyphRange: lineGlyphRange, containerOrigin: containerOrigin)
+            return
+        }
+        #endif
         // The gradient spans the whole struck text on this line, so a bold word or a
         // link in the middle (separate runs) does not restart it.
         let doneGlyphs = self.glyphRange(forCharacterRange: doneRange, actualCharacterRange: nil)
@@ -171,12 +234,12 @@ final class GlassineLayoutManager: NSLayoutManager {
         guard lineDone.length > 0 else { return }
         let extent = boundingRect(forGlyphRange: lineDone, in: container).offsetBy(dx: containerOrigin.x, dy: containerOrigin.y)
         let run = boundingRect(forGlyphRange: glyphRange, in: container).offsetBy(dx: containerOrigin.x, dy: containerOrigin.y)
-        let font = storage.attribute(.font, at: charIndex, effectiveRange: nil) as? NSFont ?? NSFont.systemFont(ofSize: 16)
+        let font = storage.attribute(.font, at: charIndex, effectiveRange: nil) as? PlatformFont ?? PlatformFont.systemFont(ofSize: 16)
         let thickness: CGFloat = font.pointSize >= 24 ? 1.5 : 1
         // The glyph location's y is the baseline, measured from the top of the line fragment.
         let baseline = lineRect.minY + containerOrigin.y + location(forGlyphAt: glyphRange.location).y
         let y = (baseline - font.xHeight * 0.55).rounded() - thickness / 2
-        var band = NSRect(x: extent.minX, y: y, width: extent.width, height: thickness)
+        var band = CGRect(x: extent.minX, y: y, width: extent.width, height: thickness)
         if let p = strikeProgress[doneRange.location] {
             // The sweep runs over the whole struck text, glyph by glyph; this
             // line draws its share of wherever the front has got to.
@@ -187,10 +250,23 @@ final class GlassineLayoutManager: NSLayoutManager {
             band.size.width = extent.width * share
         }
 
+        #if os(macOS)
         NSGraphicsContext.saveGraphicsState()
         if let alpha = strikeAlpha[doneRange.location] { NSGraphicsContext.current?.cgContext.setAlpha(alpha) }
-        NSBezierPath(rect: NSRect(x: run.minX, y: y - 1, width: run.width, height: thickness + 2)).addClip()
+        NSBezierPath(rect: CGRect(x: run.minX, y: y - 1, width: run.width, height: thickness + 2)).addClip()
         gradient.draw(in: band, angle: 0)
         NSGraphicsContext.restoreGraphicsState()
+        #else
+        guard let context = UIGraphicsGetCurrentContext(),
+              let gradient = CGGradient(colorsSpace: nil, colors: [colors[0].cgColor, colors[1].cgColor] as CFArray,
+                                        locations: [0, 1]) else { return }
+        context.saveGState()
+        if let alpha = strikeAlpha[doneRange.location] { context.setAlpha(alpha) }
+        context.clip(to: CGRect(x: run.minX, y: y - 1, width: run.width, height: thickness + 2))
+        context.clip(to: band)
+        context.drawLinearGradient(gradient, start: CGPoint(x: band.minX, y: band.midY),
+                                   end: CGPoint(x: band.maxX, y: band.midY), options: [])
+        context.restoreGState()
+        #endif
     }
 }

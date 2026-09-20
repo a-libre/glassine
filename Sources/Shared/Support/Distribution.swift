@@ -153,8 +153,15 @@ final class ChosenFolder {
             }
         }
         // No bookmark (a library chosen before bookmarks existed): the path alone
-        // is enough outside the sandbox, and nothing inside it.
-        guard let path, !path.isEmpty, !Distribution.isSandboxed else { return nil }
+        // is enough outside the sandbox, and nothing inside it. (A simulator's
+        // sandbox is in name only, which lets ios/build-sim.sh point the app at
+        // a test library on the Mac.)
+        #if targetEnvironment(simulator)
+        let pathIsEnough = true
+        #else
+        let pathIsEnough = !Distribution.isSandboxed
+        #endif
+        guard let path, !path.isEmpty, pathIsEnough else { return nil }
         url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true).standardizedFileURL
         bookmark = nil
         accessing = false

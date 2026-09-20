@@ -16,7 +16,11 @@ struct EditorView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> GlassineTextView {
         let textView = GlassineTextView(config: config)
-        textView.delegate = context.coordinator
+        // The text view hears its own edits (it is its own delegate); what the
+        // document and the app need to know comes out through these.
+        textView.onTextChanged = { [weak coordinator = context.coordinator] in coordinator?.textChanged() }
+        textView.onSelectionChanged = { [weak coordinator = context.coordinator] in coordinator?.selectionChanged() }
+        textView.onEscape = { [weak coordinator = context.coordinator] in coordinator?.parent.onEscape?() }
         context.coordinator.textView = textView
         context.coordinator.attach(document: document, caret: initialCaret)
         return textView
@@ -30,7 +34,7 @@ struct EditorView: UIViewRepresentable {
         if textView.config != config { textView.config = config }
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate {
+    final class Coordinator: NSObject {
         var parent: EditorView
         weak var textView: GlassineTextView?
         private(set) var documentID: UUID?
@@ -54,14 +58,19 @@ struct EditorView: UIViewRepresentable {
                 textView.replaceText(with: document.text)
                 self.isLoading = false
             }
+            // A blank page is for writing on: the keyboard comes up. A page with
+            // words on it is for reading until it is tapped.
+            if document.text.isEmpty {
+                DispatchQueue.main.async { [weak textView] in textView?.becomeFirstResponder() }
+            }
         }
 
-        func textViewDidChange(_ view: UITextView) {
+        func textChanged() {
             guard !isLoading, let textView, let document else { return }
             document.textDidChange(textView.plainText)
         }
 
-        func textViewDidChangeSelection(_ view: UITextView) {
+        func selectionChanged() {
             guard !isLoading, let textView else { return }
             let loc = textView.caretLocation
             caretSaveDebouncer.call { [weak self] in self?.parent.onCaretMoved(loc) }
