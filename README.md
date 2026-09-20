@@ -10,7 +10,10 @@ A quiet Markdown writing app for macOS. A translucent glass window, a caret that
 
 Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift package and a build script. MIT licensed.
 
-![Glassine: an essay open on a sheet of dark glass, the library in a sidebar on the left](docs/screenshots/editor.jpg)
+<p align="center">
+  <a href="https://glassine.ink/#film"><img src="docs/screenshots/film.jpg" alt="A still from the film: a new page in Glassine, the title On Writing Slowly and a first sentence on dark glass, the caret at the end of the line. A play button sits over it."></a><br>
+  <sub>One page, start to finish, in 46 seconds — <a href="https://glassine.ink/#film">the film plays at glassine.ink</a>, with sound if you ask for it.</sub>
+</p>
 
 <table>
   <tr>
