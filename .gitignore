@@ -26,3 +26,6 @@ DerivedData/
 # macOS
 .DS_Store
 .build-demo/
+
+# iOS build output (ios/build-sim.sh)
+.build-ios/
