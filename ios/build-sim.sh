@@ -14,7 +14,15 @@ NAME="${NAME:-sim}"
 LOG=build/ios-sim.log
 mkdir -p build; : > "$LOG"
 if [[ -z "${SKIP_BUILD:-}" ]]; then
-  (cd ios && xcodegen generate) >> "$LOG" 2>&1 || { echo "exit xcodegen" >> "$LOG"; exit 1; }
+  # The project is regenerated only when it could have changed — project.yml, or a
+  # Swift file added or removed — so an Xcode window open on it is not made to
+  # reload for nothing.
+  LIST="$(find Sources/Shared Sources/iOS -name '*.swift' | sort)"
+  if [[ ! -d ios/Glassine.xcodeproj || ios/project.yml -nt ios/Glassine.xcodeproj/project.pbxproj \
+        || "$LIST" != "$(cat .build-ios/sources.list 2>/dev/null)" ]]; then
+    (cd ios && xcodegen generate) >> "$LOG" 2>&1 || { echo "exit xcodegen" >> "$LOG"; exit 1; }
+    mkdir -p .build-ios; printf '%s' "$LIST" > .build-ios/sources.list
+  fi
   xcodebuild -project ios/Glassine.xcodeproj -scheme Glassine -configuration Debug \
     -destination "platform=iOS Simulator,name=$DEVICE" -derivedDataPath .build-ios \
     CODE_SIGNING_ALLOWED=NO build 2>&1 | grep -E 'error:|BUILD|\*\*' >> "$LOG"

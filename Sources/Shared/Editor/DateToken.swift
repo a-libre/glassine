@@ -27,7 +27,7 @@ enum DateToken {
     static func format(_ date: Date) -> String { formatter.string(from: date) }
 
     /// The date a shortcut word stands for.
-    static func date(for word: String) -> Date? {
+    static func date(for word: String, now: Date = Date()) -> Date? {
         let offset: Int
         switch word.lowercased() {
         case "today": offset = 0
@@ -35,6 +35,6 @@ enum DateToken {
         case "yesterday": offset = -1
         default: return nil
         }
-        return Calendar.current.date(byAdding: .day, value: offset, to: Date())
+        return Calendar.current.date(byAdding: .day, value: offset, to: now)
     }
 }

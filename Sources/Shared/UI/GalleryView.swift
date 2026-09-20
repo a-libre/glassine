@@ -11,6 +11,7 @@ struct GalleryView: View {
     @EnvironmentObject var state: AppState
     @StateObject private var nav = GalleryNavigator()
     @FocusState private var searchFocused: Bool
+    @Environment(\.windowMetrics) private var metrics
     /// Shared with the editor so an opened card can grow into the page.
     let zoom: Namespace.ID
 
@@ -54,8 +55,14 @@ struct GalleryView: View {
                             }
                         }
                     }
+                    #if os(macOS)
                     .padding(.horizontal, 28)
                     .padding(.top, 52)
+                    #else
+                    // A phone's margins; the header clears the status bar and the sidebar's button.
+                    .padding(.horizontal, metrics.width < 500 ? 16 : 28)
+                    .padding(.top, metrics.top + 36)
+                    #endif
                     .padding(.bottom, 48)
                 }
                 .coordinateSpace(name: GalleryNavigator.coordinateSpace)
@@ -216,6 +223,11 @@ struct GalleryView: View {
 
             Text(headerTitle)
                 .font(.system(size: 22, weight: .semibold, design: .rounded))
+                #if !os(macOS)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .layoutPriority(1)
+                #endif
             Text("\(documents.count)")
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .opacity(0.4)
@@ -259,7 +271,11 @@ struct GalleryView: View {
             }
         }
         .padding(.horizontal, 9)
+        #if os(macOS)
         .frame(width: 210, height: 28)
+        #else
+        .frame(minWidth: 90, maxWidth: 210, minHeight: 28, maxHeight: 28)
+        #endif
         .background(Capsule().fill(theme.text.color.opacity(theme.isDark ? 0.07 : 0.05)))
         .background(GeometryReader { g in
             Color.clear.preference(key: SearchFieldFrameKey.self, value: g.frame(in: .named("glassineRoot")))

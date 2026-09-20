@@ -8,7 +8,34 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+schemes:
+  Glassine:
+    build:
+      targets:
+        Glassine: all
+        GlassineUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [GlassineUITests]
 targets:
+  # Keys pressed and text typed the way a person's arrive — through UIKit's own
+  # input path, which the in-app script (SimulatorScript) goes around.
+  #   ios/test-sim.sh [TestClass/testName]
+  GlassineUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Glassine
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.alexlibre.glassine.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: UW77SGUZ43
+        SWIFT_VERSION: "5.0"
   Glassine:
     type: application
     platform: iOS
@@ -33,6 +60,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Glassine
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"

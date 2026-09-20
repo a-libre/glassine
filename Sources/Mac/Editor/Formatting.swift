@@ -1,13 +1,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - What a paragraph is
-
-/// The shapes a paragraph can take, as far as the formatting bar and the slash
-/// menu are concerned. Everything is still Markdown underneath.
-enum BlockKind: Equatable {
-    case paragraph, heading(Int), bullet, numbered, task, quote
-}
+// MARK: - What a paragraph is (BlockKind itself is in Shared/Editor/MarkdownEdits.swift)
 
 extension GlassineTextView {
     /// indent · heading hashes · quote mark · list marker · task state · content

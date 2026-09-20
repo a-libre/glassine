@@ -117,15 +117,6 @@ enum Platform {
         #endif
     }
 
-    #if !os(macOS)
-    /// The height the status bar (or the island) takes from the top of the window.
-    static var topSafeInset: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-            .first?.safeAreaInsets.top ?? 0
-    }
-    #endif
-
     /// How wide the app's window is showing, in points.
     static var windowWidth: CGFloat? {
         #if os(macOS)
@@ -171,6 +162,30 @@ enum Platform {
         #else
         Image(uiImage: UIImage(named: "AppIcon") ?? UIImage())
         #endif
+    }
+}
+
+/// What the window keeps clear at its edges (the status bar, the home
+/// indicator) and how wide it is, measured once at the root of the view tree
+/// and handed down. Asking UIKit for these from inside a view's body makes
+/// UIKit lay the window out in the middle of SwiftUI's own update, and SwiftUI
+/// drops the update: the root view stopped following the app's state. So
+/// views read them from the environment. Zero on the Mac, where the root
+/// view's chrome is the window's own.
+struct WindowMetrics: Equatable {
+    var top: CGFloat = 0
+    var bottom: CGFloat = 0
+    var width: CGFloat = 0
+}
+
+private struct WindowMetricsKey: EnvironmentKey {
+    static let defaultValue = WindowMetrics()
+}
+
+extension EnvironmentValues {
+    var windowMetrics: WindowMetrics {
+        get { self[WindowMetricsKey.self] }
+        set { self[WindowMetricsKey.self] = newValue }
     }
 }
 

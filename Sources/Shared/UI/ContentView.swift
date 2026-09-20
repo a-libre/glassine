@@ -9,6 +9,18 @@ struct ContentView: View {
     private var theme: Theme { state.theme }
     private var sidebarVisible: Bool { state.settings.data.sidebarVisible }
 
+    #if os(iOS)
+    // A phone — or a slim iPad window — has no width to give a sidebar: there
+    // it is a drawer that slides over the page, and puts itself away once it
+    // has been used.
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.windowMetrics) private var metrics
+    private var isCompact: Bool { sizeClass == .compact }
+    @State private var settledCompact = false
+    #else
+    private let isCompact = false
+    #endif
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             GlassBackdrop(theme: theme, backdrop: state.backdrops.preset(id: state.settings.data.backdrop),
@@ -16,7 +28,7 @@ struct ContentView: View {
                           grain: state.settings.data.backdropGrain)
 
             HStack(spacing: 0) {
-                if sidebarVisible {
+                if sidebarVisible, !isCompact {
                     SidebarView()
                         .frame(width: CGFloat(state.settings.data.sidebarWidth))
                         .overlay(alignment: .trailing) { resizeHandle }
@@ -26,10 +38,29 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
+            #if os(iOS)
+            if isCompact, sidebarVisible {
+                // The drawer, over a scrim that closes it.
+                Color.black.opacity(0.35)
+                    .contentShape(Rectangle())
+                    .onTapGesture { state.toggleSidebar() }
+                    .transition(.opacity)
+                    .zIndex(7)
+                SidebarView()
+                    .padding(.top, metrics.top)
+                    .padding(.bottom, metrics.bottom)
+                    .frame(width: min(300, max(240, metrics.width * 0.82)))
+                    .frame(maxHeight: .infinity)
+                    .background(theme.tint.color.opacity(0.92))
+                    .transition(.move(edge: .leading))
+                    .zIndex(8)
+            }
+            #endif
+
             if !sidebarVisible {
                 FloatingSidebarToggle()
-                    .padding(.leading, 78)
-                    .padding(.top, 9)
+                    .padding(.leading, togglePadding.leading)
+                    .padding(.top, togglePadding.top)
                     .transition(.opacity)
                     .opacity(state.isQuiet ? 0.08 : 1)
                     .animation(.easeOut(duration: state.isQuiet ? 0.7 : 0.15), value: state.isQuiet)
@@ -63,6 +94,15 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.14), value: state.showingSearch)
         .animation(.easeOut(duration: 0.16), value: state.showingCommandBar)
         .coordinateSpace(name: "glassineRoot")
+        #if os(iOS)
+        .animation(.easeOut(duration: 0.22), value: sidebarVisible)
+        .onAppear { settleCompact() }
+        .onChange(of: sizeClass) { _, _ in settleCompact() }
+        // The drawer has done its work once something was chosen from it.
+        .onChange(of: state.document?.id) { _, _ in closeDrawer() }
+        .onChange(of: state.showingGallery) { _, _ in closeDrawer() }
+        .onChange(of: state.showingDaily) { _, _ in closeDrawer() }
+        #endif
         .windowChrome(theme: theme, floats: state.settings.data.floatOnTop)
         .preferredColorScheme(theme.colorScheme)
         .ignoresSafeArea()
@@ -78,6 +118,28 @@ struct ContentView: View {
         } message: {
             Text(state.errorMessage ?? "")
         }
+    }
+
+    #if os(iOS)
+    /// A phone starts on the page, not on the drawer.
+    private func settleCompact() {
+        guard isCompact, !settledCompact else { return }
+        settledCompact = true
+        if state.settings.data.sidebarVisible { state.settings.data.sidebarVisible = false }
+    }
+
+    private func closeDrawer() {
+        if isCompact, state.settings.data.sidebarVisible { state.settings.data.sidebarVisible = false }
+    }
+    #endif
+
+    /// Beside the traffic lights on the Mac; under the status bar on iOS.
+    private var togglePadding: (leading: CGFloat, top: CGFloat) {
+        #if os(macOS)
+        (78, 9)
+        #else
+        (12, metrics.top + 2)
+        #endif
     }
 
     private var resizeHandle: some View {

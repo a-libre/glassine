@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EditorContainerView: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.windowMetrics) private var metrics
     @Namespace private var zoom
     @State private var dividerStartFraction: Double?
     @State private var dividerHovered = false
@@ -114,7 +115,7 @@ struct EditorContainerView: View {
         VStack(spacing: 0) {
             #if !os(macOS)
             // Under the status bar the page is not there at all; it fades in below it.
-            Color.clear.frame(height: Platform.topSafeInset)
+            Color.clear.frame(height: metrics.top)
             #endif
             LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 26)
             Rectangle().fill(.black)

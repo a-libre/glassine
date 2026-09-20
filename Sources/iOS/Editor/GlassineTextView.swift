@@ -36,6 +36,18 @@ final class GlassineTextView: UITextView {
     // Editing bookkeeping
     private var pendingEditRange: NSRange?
     private var lastEditAt: CFTimeInterval = 0
+    private(set) var foundNonContiguous = false
+    /// For the tests, to show what UIKit's default does: `-glassine.nonContiguousLayout`.
+    #if targetEnvironment(simulator)
+    private static let leaveNonContiguous = ProcessInfo.processInfo.arguments.contains("-glassine.nonContiguousLayout")
+    #else
+    private static let leaveNonContiguous = false
+    #endif
+    /// True while the typewriter is the one moving the page.
+    private var ownScroll = false
+    /// When the text or the selection last changed: the moments UIKit follows
+    /// with a scroll of its own.
+    private var lastCaretMoveAt: CFTimeInterval = 0
     private var suppressAnimationOnce = false
     private var isLoading = false
 
@@ -81,6 +93,13 @@ final class GlassineTextView: UITextView {
         layoutManager.addTextContainer(container)
 
         super.init(frame: .zero, textContainer: container)
+        // UITextView switches its layout manager to non-contiguous layout as it
+        // takes it on. Under that, heights above the caret are estimates that
+        // change as one types: the content's size flickers, UIKit "restores"
+        // the scroll position against ours, and the page jumps. The Mac lays
+        // the whole document out; so does this.
+        foundNonContiguous = layoutManager.allowsNonContiguousLayout
+        layoutManager.allowsNonContiguousLayout = Self.leaveNonContiguous
         layoutManager.owner = self
         layoutManager.delegate = self
         delegate = self
@@ -100,6 +119,7 @@ final class GlassineTextView: UITextView {
         contentInsetAdjustmentBehavior = .never
         dataDetectorTypes = []
         allowsEditingTextAttributes = false
+        isFindInteractionEnabled = true
         showsHorizontalScrollIndicator = false
 
         caret.install(in: layer)
@@ -239,8 +259,13 @@ final class GlassineTextView: UITextView {
 
     // MARK: - Layout: centered column + insets
 
-    /// The height of the view the keyboard leaves showing.
-    private var viewportHeight: CGFloat { max(0, bounds.height - keyboardOverlap) }
+    /// The height of the view the keyboard leaves showing — a real keyboard,
+    /// that is. With a hardware keyboard attached an iPad keeps a strip along
+    /// the bottom that comes and goes with its suggestions; centring the line
+    /// on what *that* leaves showing moved the whole page a line's height up
+    /// and down as one typed. The strip still keeps text from hiding under it
+    /// (contentInset), but the page is centred as if it were not there.
+    private var viewportHeight: CGFloat { max(0, bounds.height - (keyboardOverlap > 120 ? keyboardOverlap : 0)) }
 
     func updateInsets() {
         let width = bounds.width
@@ -257,7 +282,9 @@ final class GlassineTextView: UITextView {
         if config.typewriter, viewportHeight > 0 {
             // Room above the first line and below the last for either to sit at the middle.
             top = max(top, (viewportHeight / 2 - config.bodyLineHeight / 2).rounded())
-            bottom = max(bottom, (viewportHeight / 2).rounded())
+            // Two lines to spare below the middle: the last line is always free to
+            // be centred, even in the moment before the content's height catches up.
+            bottom = max(bottom, (viewportHeight / 2 + 2 * config.bodyLineHeight).rounded())
         }
         let newInset = UIEdgeInsets(top: top, left: side, bottom: bottom, right: side)
         let oldInset = textContainerInset
@@ -266,6 +293,7 @@ final class GlassineTextView: UITextView {
             verticalScrollIndicatorInsets.bottom = keyboardOverlap
         }
         guard newInset != oldInset else { return }
+        trace("insets", "\(oldInset) → \(newInset) viewport=\(viewportHeight) bounds=\(bounds.size)")
         let oldOffset = contentOffset
         textContainerInset = newInset
         if newInset.top != oldInset.top, oldInset != .zero {
@@ -275,7 +303,9 @@ final class GlassineTextView: UITextView {
             layoutIfNeeded()
             let delta = newInset.top - oldInset.top
             let maxY = max(0, contentSize.height + contentInset.bottom - bounds.height)
+            ownScroll = true
             setContentOffset(CGPoint(x: oldOffset.x, y: max(0, min(oldOffset.y + delta, maxY))), animated: false)
+            ownScroll = false
         }
         updatePlaceholder()
         updateFocus(animated: false)
@@ -301,6 +331,8 @@ final class GlassineTextView: UITextView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        hideSystemCaret()
+        if window != nil { layoutManager.allowsNonContiguousLayout = Self.leaveNonContiguous }
         caret.setScale(window?.screen.scale ?? traitCollection.displayScale)
         updateCaret(animated: false)
     }
@@ -311,6 +343,7 @@ final class GlassineTextView: UITextView {
         let inView = convert(window.convert(end, from: nil), from: nil)
         let visible = CGRect(origin: contentOffset, size: bounds.size)
         let overlap = hidden ? 0 : max(0, visible.maxY - inView.minY)
+        trace("keyboard", "\(note.name.rawValue.replacingOccurrences(of: "UIKeyboard", with: "")) end=\(end) overlap \(keyboardOverlap) → \(overlap)")
         guard abs(overlap - keyboardOverlap) > 0.5 else { return }
         keyboardOverlap = overlap
         updateInsets()
@@ -324,17 +357,44 @@ final class GlassineTextView: UITextView {
         let font = config.bodyFont
         placeholderLabel.frame.origin = CGPoint(
             x: textContainerInset.left + config.paragraphIndent + 1,
-            y: textContainerInset.top + (config.bodyLineHeight - font.ascender + font.descender) / 2)
+            y: textContainerInset.top + glyphTop(inEmptyLineOfHeight: config.bodyLineHeight, font: font))
+    }
+
+    /// A note in the simulator's flight recorder (SimulatorScript); nothing on a device.
+    private func trace(_ what: String, _ detail: @autoclosure () -> String) {
+        #if targetEnvironment(simulator)
+        SimulatorScript.note(what, from: self, detail())
+        #endif
     }
 
     // MARK: - The system's caret
 
-    /// The system caret keeps its place — scrolling to it and the keyboard's
-    /// own bookkeeping depend on that — but has no width to be seen by.
-    override func caretRect(for position: UITextPosition) -> CGRect {
-        var rect = super.caretRect(for: position)
-        rect.size.width = 0
-        return rect
+    /// UIKit draws its caret with a view of its own, handed to the selection
+    /// display interaction; a caret rectangle with no width does not stop it
+    /// (it has a least width), and the two carets showed side by side — one
+    /// that jumps, one that glides. So the interaction is given a cursor view
+    /// that never shows. Where the caret *is* stays UIKit's to say, since
+    /// scrolling to it, the loupe and the selection handles all ask.
+    private func hideSystemCaret() {
+        for case let selection as UITextSelectionDisplayInteraction in interactions
+        where !(selection.cursorView is UnseenCursorView) {
+            selection.cursorView = UnseenCursorView()
+        }
+    }
+
+    private final class UnseenCursorView: UIView, UITextCursorView {
+        var isBlinking = false
+        func resetBlinkAnimation() { }
+        override var isHidden: Bool { get { true } set { super.isHidden = true } }
+        override var alpha: CGFloat { get { 0 } set { super.alpha = 0 } }
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            super.isHidden = true
+            super.alpha = 0
+            isUserInteractionEnabled = false
+        }
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError() }
     }
 
     // MARK: - Smooth caret
@@ -352,6 +412,15 @@ final class GlassineTextView: UITextView {
         return (storage.attribute(.font, at: probe, effectiveRange: nil) as? UIFont) ?? config.bodyFont
     }
 
+    /// How far below the top of an empty line its glyphs will start once there
+    /// are any: TextKit puts a line's spare height above the glyphs, and the
+    /// delegate at the foot of this file moves them half of it back down.
+    private func glyphTop(inEmptyLineOfHeight height: CGFloat, font: UIFont) -> CGFloat {
+        let multiple = config.lineHeightMultiple
+        let lift = multiple > 1 ? ((height - height / multiple) / 2).rounded() : 0
+        return max(0, height - font.lineHeight) - lift
+    }
+
     /// Insertion point rectangle in the view's (content) coordinates — the
     /// Mac's arithmetic, on the same layout manager.
     func insertionRect() -> CGRect? {
@@ -367,7 +436,10 @@ final class GlassineTextView: UITextView {
             if length == 0 || (extra != .zero && lm.numberOfGlyphs > 0 && (storage.string as NSString).hasSuffix("\n")) {
                 // Empty document, or caret on the empty line after a trailing newline.
                 let line = extra != .zero ? extra : CGRect(x: 0, y: 0, width: 1, height: config.bodyLineHeight)
-                let y = line.minY + ((line.height - glyphHeight) / 2).rounded()
+                // Where the first character typed here will put its glyph — the
+                // line's spare height above it, less the half the delegate below
+                // moves down — so the caret does not hop as that character lands.
+                let y = line.minY + glyphTop(inEmptyLineOfHeight: line.height, font: font)
                 rect = CGRect(x: line.minX + tc.lineFragmentPadding + (length == 0 ? config.paragraphIndent : 0), y: y, width: 1, height: glyphHeight)
             } else {
                 // After the last glyph.
@@ -435,6 +507,7 @@ final class GlassineTextView: UITextView {
     @discardableResult
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
+        hideSystemCaret()   // the interaction may only exist once editing begins
         updateCaret(animated: false)
         return ok
     }
@@ -448,12 +521,31 @@ final class GlassineTextView: UITextView {
 
     // MARK: - Typewriter scrolling
 
+    /// UITextView keeps the caret in view by itself after every edit and every
+    /// move of the selection — and on the last line it brings the bottom of the
+    /// page into view, which with half a screen of room below the text is a long
+    /// way. In typewriter mode where the page sits is settled here, so for a
+    /// moment after a keystroke UIKit's own idea of it is turned down: otherwise
+    /// the two take turns, and the page jumps down and back with every key.
+    override func setContentOffset(_ contentOffset: CGPoint, animated: Bool) {
+        if config.typewriter, !ownScroll, CACurrentMediaTime() - lastCaretMoveAt < 0.3 {
+            trace("refused", "UIKit asked for \(contentOffset.y) animated=\(animated)")
+            return
+        }
+        super.setContentOffset(contentOffset, animated: animated)
+    }
+
     func typewriterScroll(animated: Bool) {
         guard let rect = insertionRect(), viewportHeight > 0 else { return }
+        ownScroll = true
+        defer { ownScroll = false }
         var target = rect.midY - viewportHeight / 2
         let maxY = max(0, contentSize.height + contentInset.bottom - bounds.height)
         target = max(0, min(target, maxY))
-        if abs(target - contentOffset.y) < 0.5 { return }
+        // Less than a point is rounding — the caret's rectangle on an empty line
+        // and on the same line with a letter in it — not a move worth making.
+        if abs(target - contentOffset.y) < 1 { return }
+        trace("typewriter", "caret.midY=\(rect.midY) viewport=\(viewportHeight) maxY=\(maxY) target=\(target) animated=\(animated)")
         let offset = CGPoint(x: contentOffset.x, y: target)
         if animated && !Platform.reduceMotion {
             UIView.animate(withDuration: 0.16, delay: 0, options: [.curveEaseOut, .allowUserInteraction, .beginFromCurrentState]) {
@@ -630,6 +722,7 @@ final class GlassineTextView: UITextView {
         updatePlaceholder()
         updateSyntaxReveal()
         lastEditAt = CACurrentMediaTime()
+        lastCaretMoveAt = lastEditAt
         onTextChanged?()
         focusLifted = false
         updateFocus(animated: true)
@@ -637,57 +730,73 @@ final class GlassineTextView: UITextView {
         if config.typewriter { typewriterScroll(animated: true) }
     }
 
+    /// An edit worked out by MarkdownEdits, made the undoable way.
+    private func apply(_ e: TextEdit) {
+        if e.replacement.isEmpty, e.range.length == 0 { selectedRange = e.selection; return }
+        edit(e.range, with: e.replacement)
+        selectedRange = e.selection.clamped(to: textStorage.length)
+    }
+
+    private func apply(_ outcome: EditOutcome) {
+        switch outcome {
+        case .edit(let e): apply(e)
+        case .select(let range): selectedRange = range.clamped(to: textStorage.length)
+        case .none: break
+        }
+    }
+
+    private var text16: NSString { textStorage.string as NSString }
+
     /// Replaces a shortcut word right before the caret with the actual date.
     @discardableResult
     private func expandDateShortcutIfNeeded() -> Bool {
-        let sel = selectedRange
-        guard sel.length == 0, sel.location > 0 else { return false }
-        let ns = textStorage.string as NSString
-        let paragraphStart = ns.paragraphRange(for: sel).location
-        let start = max(paragraphStart, sel.location - 12)
-        let lookback = NSRange(location: start, length: sel.location - start)
-        let tail = ns.substring(with: lookback)
-        let tailNS = tail as NSString
-        guard let m = DateToken.shortcutRegex.firstMatch(in: tail, options: [], range: NSRange(location: 0, length: tailNS.length)),
-              let date = DateToken.date(for: tailNS.substring(with: m.range(at: 1))) else { return false }
-        let token = "@" + DateToken.format(date)
-        let range = NSRange(location: lookback.location + m.range.location, length: m.range.length)
-        edit(range, with: token, caretAt: range.location + token.nsLength)
+        guard let e = MarkdownEdits.expandDateShortcut(in: text16, selection: selectedRange) else { return false }
+        apply(e)
         return true
     }
 
-    private static let listLineRx = try! NSRegularExpression(pattern: "^([ \\t]*)([-*+]|(\\d{1,3})[.)])([ \\t]+)(\\[[ xX]\\][ \\t]+)?(.*)$")
-
     /// Markdown list continuation: Return on "- item" starts "- ", Return on an
-    /// empty "- " removes the marker.
+    /// empty "- " removes the marker (a nested one steps out a level first).
     private func continueListIfNeeded() -> Bool {
-        let ns = textStorage.string as NSString
-        let sel = selectedRange
-        guard sel.length == 0 else { return false }
-        var lineRange = ns.paragraphRange(for: sel)
-        if lineRange.length > 0 && ns.character(at: lineRange.upperBoundValue - 1) == 10 { lineRange.length -= 1 }
-        // Only act when the caret is at the end of the line.
-        guard sel.location == lineRange.upperBoundValue else { return false }
-        let line = ns.substring(with: lineRange)
-        let lineNS = line as NSString
-        guard let m = Self.listLineRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: lineNS.length)) else { return false }
-        let indent = lineNS.substring(with: m.range(at: 1))
-        let marker = lineNS.substring(with: m.range(at: 2))
-        let gap = lineNS.substring(with: m.range(at: 4))
-        let hasTask = m.range(at: 5).location != NSNotFound
-        let content = lineNS.substring(with: m.range(at: 6))
-        if content.trimmingCharacters(in: .whitespaces).isEmpty {
-            // An empty item ends the list by clearing the marker.
-            edit(lineRange, with: "", caretAt: lineRange.location)
-            return true
-        }
-        var nextMarker = marker
-        if m.range(at: 3).location != NSNotFound, let n = Int(lineNS.substring(with: m.range(at: 3))) {
-            nextMarker = "\(n + 1)" + marker.suffix(1)
-        }
-        let insertion = "\n" + indent + nextMarker + gap + (hasTask ? "[ ] " : "")
-        edit(sel, with: insertion, caretAt: sel.location + insertion.nsLength)
+        guard let e = MarkdownEdits.continueList(in: text16, selection: selectedRange) else { return false }
+        apply(e)
         return true
+    }
+
+    // MARK: - Formatting commands (the Format menu's keys)
+
+    @objc func markdownBold(_ sender: Any?) { apply(MarkdownEdits.toggleMark("**", placeholder: "bold", in: text16, selection: selectedRange)) }
+    @objc func markdownItalic(_ sender: Any?) { apply(MarkdownEdits.toggleMark("*", placeholder: "italic", in: text16, selection: selectedRange)) }
+    @objc func markdownCode(_ sender: Any?) { apply(MarkdownEdits.toggleMark("`", placeholder: "code", in: text16, selection: selectedRange)) }
+    @objc func markdownStrike(_ sender: Any?) { apply(MarkdownEdits.toggleMark("~~", placeholder: "text", in: text16, selection: selectedRange)) }
+    /// `==word==`: a capsule around a word, the way a date gets one.
+    @objc func markdownChip(_ sender: Any?) { apply(MarkdownEdits.toggleMark("==", placeholder: "chip", in: text16, selection: selectedRange)) }
+    @objc func markdownLink(_ sender: Any?) {
+        apply(MarkdownEdits.link(in: text16, selection: selectedRange, clipboard: UIPasteboard.general.hasURLs || UIPasteboard.general.hasStrings ? UIPasteboard.general.string : nil))
+    }
+    @objc func markdownHeading1(_ sender: Any?) { setBlock(.heading(1)) }
+    @objc func markdownHeading2(_ sender: Any?) { setBlock(.heading(2)) }
+    @objc func markdownHeading3(_ sender: Any?) { setBlock(.heading(3)) }
+    @objc func markdownClearHeading(_ sender: Any?) { setBlock(.paragraph) }
+    @objc func markdownToggleTask(_ sender: Any?) { apply(MarkdownEdits.toggleTask(in: text16, selection: selectedRange)) }
+
+    func setBlock(_ kind: BlockKind) {
+        if let e = MarkdownEdits.setBlock(kind, in: text16, selection: selectedRange) { apply(e) }
+    }
+
+    /// ⌘⇧F: the system's find bar over this document.
+    @objc func findInDocument(_ sender: Any?) {
+        findInteraction?.presentFindNavigator(showingReplace: false)
+    }
+
+    /// Text arrives plain — the page has one look, its own — and an address
+    /// pasted over selected words links them.
+    override func paste(_ sender: Any?) {
+        let clipboard = UIPasteboard.general.string
+        if let e = MarkdownEdits.linkByPasting(clipboard, in: text16, selection: selectedRange) { apply(e); return }
+        guard let clipboard, !clipboard.isEmpty else { super.paste(sender); return }
+        let sel = selectedRange
+        edit(sel, with: clipboard, caretAt: sel.location + clipboard.nsLength)
     }
 
     // MARK: - Task boxes
@@ -728,11 +837,25 @@ final class GlassineTextView: UITextView {
 
     override var keyCommands: [UIKeyCommand]? {
         let escape = UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(escapePressed))
-        escape.wantsPriorityOverSystemBehavior = true
-        return (super.keyCommands ?? []) + [escape]
+        let tab = UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(tabPressed))
+        let backtab = UIKeyCommand(input: "\t", modifierFlags: .shift, action: #selector(backtabPressed))
+        for command in [escape, tab, backtab] { command.wantsPriorityOverSystemBehavior = true }
+        return (super.keyCommands ?? []) + [escape, tab, backtab]
     }
 
     @objc private func escapePressed() { onEscape?() }
+
+    /// Tab on a list item nests it one level deeper; Shift-Tab brings it back
+    /// out. Anywhere else Tab is a tab.
+    @objc private func tabPressed() {
+        if config.continueLists, let e = MarkdownEdits.shiftListItems(deeper: true, in: text16, selection: selectedRange) { apply(e); return }
+        let sel = selectedRange
+        edit(sel, with: "\t", caretAt: sel.location + 1)
+    }
+
+    @objc private func backtabPressed() {
+        if config.continueLists, let e = MarkdownEdits.shiftListItems(deeper: false, in: text16, selection: selectedRange) { apply(e) }
+    }
 }
 
 // MARK: - Hearing edits
@@ -752,16 +875,24 @@ extension GlassineTextView: UITextViewDelegate {
         if text == "\n", range.length == 0, config.continueLists, continueListIfNeeded() { return false }
         pendingEditRange = NSRange(location: range.location, length: text.nsLength)
         lastEditAt = CACurrentMediaTime()
+        lastCaretMoveAt = lastEditAt
         return true
     }
 
     func textViewDidChange(_ textView: UITextView) {
         guard !isLoading else { return }
+        // Three hyphens are a rule, not an em dash and a hyphen.
+        if smartDashesType != .no, let e = MarkdownEdits.straightenDashLine(in: text16, selection: selectedRange) {
+            isLoading = true; apply(e); isLoading = false
+        }
+        trace("didChange", "pending=\(String(describing: pendingEditRange)) sel=\(selectedRange)")
         textDidChange()
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
         guard !isLoading else { return }
+        trace("selection", "pending=\(String(describing: pendingEditRange)) sel=\(selectedRange)")
+        lastCaretMoveAt = CACurrentMediaTime()
         let justEdited = pendingEditRange != nil || CACurrentMediaTime() - lastEditAt < 0.05
         updateCaret(animated: config.smoothWhileTyping || !justEdited)
         onSelectionChanged?()
