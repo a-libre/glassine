@@ -51,6 +51,8 @@ docs/
   screenshots/ The pictures the README uses
   site/       This site
 site/         glassine.ink, the one-page front door (static HTML on Vercel; vercel.json holds the redirects)
+ios/          The iOS app, under way: project.yml (xcodegen makes the Xcode project) and build-sim.sh
+tests/        synctest.sh, compare-shots.sh, ioscheck.sh
 build.sh      Assembles and signs Glassine.app (--appstore for the sandboxed flavor)
 release.sh    Notarized .dmg for direct download
 appstore.sh   Signed .pkg for the Mac App Store
