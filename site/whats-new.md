@@ -6,6 +6,14 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.18 — September 21, 2026
+
+- **⌘→ stops at the end of the line.** With the syntax hidden, a line followed by a task, a heading or a quotation sent the caret to the start of that next line, and [[⌘⇧→]] selected into it. Both now stop where the line ends.
+- **A quotation ends where its `>` lines end, and a list where its items end.** In Review the paragraph after a quote, or after a task, no longer sits inside it; the page draws what the editor draws.
+- **The page beside the editor.** [[⌘⇧↩]] keeps Review to the right of the text: the same page, in the same style, redrawn in place as you write and scrolling to the paragraph you are in. Drag the hairline to share the width.
+- **Sync with GitHub.** The library kept in a private repository of yours, for a second Mac you'd rather not sign into iCloud on — and a history of every note, every version. No git, no daemon; connect with a token in Settings → Library. [How it works.](https://docs.glassine.ink/library/sync)
+- **On the Mac App Store**, as Glassine Writer. The direct download stays, and updates itself.
+
 ## 0.2.17 — September 19, 2026
 
 - **A quotation ends where its `>` lines end, and a list where its items end.** In Review the paragraph after a quote, or after a task, no longer sits inside it; the page draws what the editor draws.
