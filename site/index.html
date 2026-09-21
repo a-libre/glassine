@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glassine — a quiet Markdown writing app for macOS</title>
 <meta name="description" content="Glassine is a Markdown writing app for the Mac: a sheet of translucent glass, a caret that glides, plain files in iCloud Drive or a private GitHub repository, saved as you type. Free and open source, on the Mac App Store.">
-<meta name="theme-color" content="#1a1430">
+<meta name="theme-color" content="#120e1d">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="/favicon.png?v=2d769650" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=bb11821b">
@@ -17,285 +17,351 @@
 <meta property="og:image" content="https://glassine.ink/hero.jpg?v=1bb5096a">
 <meta name="twitter:card" content="summary_large_image">
 <style>
+  /* Two faces, both already on every Mac: the editor's Helvetica Neue for the
+     words about the app, and the Book page's Iowan Old Style for the headings. */
   :root {
-    --bg: #14101f;
-    --tint: #42316a;
+    --bg: #120e1d;
     --text: #dfe5f4;
-    --heading: #f0f4ff;
-    --muted: #a7b3cf;
-    --dim: #7d88a6;
+    --heading: #f3f5ff;
+    --muted: #b3bdd6;
+    --dim: #8590ad;
     --accent: #01b6e9;
-    --link: #8dbbff;
-    --line: rgba(223, 229, 244, 0.10);
-    --glass: rgba(255, 255, 255, 0.045);
-    --max: 1040px;
+    --line: rgba(223, 229, 244, 0.12);
+    --sans: "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, ui-serif, "New York", Georgia, serif;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --content: min(100vw - 56px, 1400px);
+    --ease: cubic-bezier(.2, .7, .2, 1);
   }
   * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body {
-    margin: 0;
-    color: var(--text);
-    font-family: "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 17px;
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
+  /* What shows until the light behind the page is drawn, and where it cannot be. (On the root, so the
+     canvas — which sits behind everything — is not painted over by it.) */
+  html {
+    -webkit-text-size-adjust: 100%; scroll-padding-top: 72px;
     background:
       radial-gradient(1100px 700px at 18% -10%, rgba(120, 88, 190, 0.42), transparent 60%),
-      radial-gradient(900px 600px at 92% 12%, rgba(1, 182, 233, 0.16), transparent 55%),
-      radial-gradient(1200px 900px at 50% 110%, rgba(66, 49, 106, 0.55), transparent 60%),
+      radial-gradient(900px 600px at 92% 12%, rgba(1, 182, 233, 0.14), transparent 55%),
+      radial-gradient(1200px 900px at 50% 110%, rgba(66, 49, 106, 0.5), transparent 60%),
       var(--bg);
-    min-height: 100vh;
+    background-attachment: fixed;
   }
-  /* A little paper grain, the way the app's themes carry one. */
-  body::before {
-    content: "";
-    position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    opacity: 0.045;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='1'/></svg>");
-    mix-blend-mode: overlay;
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+  body {
+    margin: 0; min-height: 100vh;
+    color: var(--text); font: 17px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   }
-  a { color: var(--link); text-decoration: none; }
-  a:hover { text-decoration: underline; text-underline-offset: 3px; }
-  .wrap { position: relative; z-index: 1; max-width: var(--max); margin: 0 auto; padding: 0 28px; }
-
-  header { display: flex; align-items: center; justify-content: space-between; height: 76px; }
-  header .mark { display: flex; align-items: center; gap: 12px; }
-  header .mark img.icon { width: 30px; height: 30px; border-radius: 7px; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
-  header .mark img.word { height: 15px; opacity: 0.72; }
-  nav { display: flex; gap: 26px; font-size: 14px; }
-  nav a { color: var(--muted); }
-  nav a:hover { color: var(--heading); text-decoration: none; }
-
-  .hero { padding: 64px 0 40px; text-align: center; }
-  .hero h1 {
-    margin: 0 auto 18px; max-width: 760px;
-    font-size: clamp(38px, 6vw, 62px); line-height: 1.04; letter-spacing: -0.02em;
-    font-weight: 600; color: var(--heading);
+  a { color: inherit; text-decoration: none; }
+  p a, li a, .fine a { color: var(--heading); text-decoration: underline; text-decoration-color: rgba(223,229,244,0.32); text-underline-offset: 3px; transition: text-decoration-color .2s; }
+  p a:hover, li a:hover, .fine a:hover { text-decoration-color: currentColor; }
+  code, pre { font-family: var(--mono); font-size: 0.88em; }
+  kbd, .kbd {
+    display: inline-block; min-width: 1.5em; padding: 0 0.4em; margin: 0 0.06em; text-align: center;
+    font: 500 0.8em/1.55 var(--sans); color: var(--heading);
+    border-radius: 5px; background: rgba(255,255,255,0.09); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.11), 0 1px 0 rgba(0,0,0,0.3);
   }
-  .hero p.lead {
-    margin: 0 auto 30px; max-width: 640px;
-    font-size: clamp(17px, 2.2vw, 20px); color: var(--muted);
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+  /* The light behind the page: the app's own backdrop, drawn by the same shader. */
+  #backdrop { position: fixed; inset: 0; width: 100vw; height: 100lvh; z-index: -2; display: block; opacity: 0; transition: opacity 1.4s ease; }
+  #backdrop.on { opacity: 1; }
+  .veil {
+    position: fixed; inset: 0; height: 100lvh; z-index: -1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(14, 10, 24, 0.30), rgba(14, 10, 24, 0.52));
   }
-  .cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 11px 20px; border-radius: 999px; font-size: 15px; font-weight: 500;
-    border: 1px solid var(--line); background: var(--glass); color: var(--heading);
-    transition: background .18s ease, border-color .18s ease, transform .18s ease;
-  }
-  .btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(223,229,244,0.2); text-decoration: none; transform: translateY(-1px); }
-  .btn.primary { background: var(--accent); border-color: transparent; color: #061018; }
-  .btn.primary:hover { background: #24c4f2; }
-  .status {
-    display: inline-flex; align-items: center; gap: 8px; margin-top: 18px;
-    font-size: 13px; color: var(--dim);
-  }
-  .status b { color: var(--muted); font-weight: 600; }
-  .status .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(1,182,233,0.15); }
-
-  .shot {
-    margin: 44px auto 0; border-radius: 14px; overflow: hidden;
-    border: 1px solid rgba(223,229,244,0.12);
-    box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.35);
-    background: #1c1733;
-  }
-  .shot img { display: block; width: 100%; height: auto; }
-
-  /* The film where the picture was: it plays, muted, while it is on screen, and waits when it is not. */
-  .film { position: relative; }
-  .film video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #1c1733; cursor: pointer; }
-  .film figcaption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px 10px 18px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); }
-  .film figcaption b { color: var(--heading); font-weight: 600; }
-  .film-controls { display: flex; gap: 8px; flex: none; }
-  .film button {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px; min-width: 34px; padding: 0 9px;
-    border-radius: 17px; border: 1px solid var(--line); background: rgba(255,255,255,0.06); color: var(--heading);
-    font: inherit; font-size: 13px; cursor: pointer;
-  }
-  .film button:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.24); }
-  .film button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .film button svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .film .i-pause, .film.playing .i-play, .film .i-on, .film.sound .i-off { display: none; }
-  .film.playing .i-pause, .film.sound .i-on { display: block; }
-  .film-stage { position: relative; }
-  .film-start { position: absolute; left: 50%; top: 50%; width: 72px; height: 72px !important; margin: -36px 0 0 -36px; border-radius: 50% !important; padding: 0 0 0 4px !important; background: rgba(13,10,24,0.7) !important; border-color: rgba(255,255,255,0.2) !important; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-  .film-start svg { width: 26px !important; height: 26px !important; fill: currentColor !important; stroke: none !important; }
-  .film-start[hidden] { display: none; }
-
-  section { padding: 72px 0 0; }
-  h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
-  .intro { max-width: 640px; margin: 0 0 28px; color: var(--muted); font-size: 18px; }
-
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
-  .card { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--glass); }
-  .card img { display: block; width: 100%; height: auto; }
-  .card figcaption { padding: 12px 16px 14px; font-size: 14px; color: var(--muted); }
-  .card figcaption b { color: var(--heading); font-weight: 600; }
-  .card.wide { grid-column: 1 / -1; display: grid; grid-template-columns: 3fr 2fr; align-items: center; }
-  .card.wide figcaption { padding: 22px 28px; font-size: 15px; line-height: 1.5; }
-  .card.wide figcaption p { margin: 0 0 10px; }
-  .card.wide figcaption p:last-child { margin: 0; }
-
-  .list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 40px; margin: 0; padding: 0; list-style: none; }
-  .list li { padding-left: 18px; position: relative; color: var(--muted); font-size: 16px; }
-  .list li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.8; }
-  .list b { color: var(--heading); font-weight: 600; }
-
-  .routes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-  .route { min-width: 0; padding: 20px 20px 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); }
-  .route h3 { margin: 0 0 6px; font-size: 16px; color: var(--heading); font-weight: 600; display: flex; align-items: baseline; gap: 10px; }
-  .route h3 small { font-size: 12px; font-weight: 500; color: var(--dim); letter-spacing: 0.04em; }
-  .route p { margin: 0; font-size: 14px; color: var(--muted); }
-  code, pre { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
-  pre {
-    margin: 12px 0 0; padding: 12px 14px; border-radius: 9px; font-size: 12.5px; line-height: 1.6;
-    background: rgba(0,0,0,0.35); border: 1px solid var(--line); color: #cfe0ff; white-space: pre-wrap; word-break: break-all;
-  }
-  .kbd { display: inline-block; padding: 0 6px; border-radius: 5px; font-size: 13px; font-family: inherit; background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--heading); }
-
-  .support p, .support-p { max-width: 640px; color: var(--muted); margin: 0; font-size: 16px; }
-
-  /* A picture, clicked, grows from its place into the middle of the window
-     over a blur of the page, and shrinks back to where it came from. */
-  .shot img, .card img { cursor: zoom-in; }
-  .lightbox { position: fixed; inset: 0; z-index: 50; }
-  .lightbox[hidden] { display: none; }
-  .lb-scrim { position: absolute; inset: 0; background: rgba(9, 7, 18, 0.74); backdrop-filter: blur(22px) saturate(1.1); -webkit-backdrop-filter: blur(22px) saturate(1.1); opacity: 0; transition: opacity .4s ease; }
-  .lightbox.open .lb-scrim { opacity: 1; }
-  .lb-img { position: absolute; top: 0; left: 0; display: block; border-radius: 14px; border: 1px solid rgba(223,229,244,0.14); box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.35); transform-origin: top left; will-change: transform; cursor: zoom-out; background: #1c1733; transition: transform .46s cubic-bezier(.2,.8,.2,1), opacity .25s ease; }
-  .lb-caption { position: absolute; left: 28px; right: 28px; bottom: 26px; text-align: center; font-size: 14px; color: var(--muted); opacity: 0; transition: opacity .3s ease .18s; }
-  .lb-caption b { color: var(--heading); font-weight: 600; }
-  .lb-caption kbd { display: inline-block; margin-left: 10px; padding: 0 6px; border-radius: 5px; font-size: 12px; font-family: inherit; background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--dim); }
-  .lightbox.open .lb-caption { opacity: 1; }
-  @media (prefers-reduced-motion: reduce) {
-    .lb-scrim, .lb-img, .lb-caption { transition: none; }
+  .veil::after {
+    content: ""; position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
   }
 
-  footer { margin-top: 84px; padding: 28px 0 44px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--dim); }
-  footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; justify-content: space-between; }
-  footer nav { gap: 20px; font-size: 13.5px; }
-  footer em { color: var(--dim); }
+  /* ---- The bar at the top ---- */
+  .top {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 30; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 max(28px, (100vw - 1400px) / 2);
+    transition: background .3s ease, box-shadow .3s ease, backdrop-filter .3s ease;
+  }
+  .scrolled .top { background: rgba(16, 12, 28, 0.55); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); box-shadow: 0 1px 0 var(--line); }
+  .mark { display: flex; align-items: center; gap: 11px; }
+  .mark .icon { width: 28px; height: 28px; border-radius: 7px; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
+  .mark .word { height: 14px; width: auto; opacity: 0.8; }
+  .top nav { display: flex; align-items: center; gap: 26px; font-size: 14px; color: var(--muted); }
+  .top nav a { transition: color .2s; }
+  .top nav a:hover { color: var(--heading); }
+  .top nav .get { padding: 6px 14px; border-radius: 999px; color: var(--heading); box-shadow: inset 0 0 0 1px rgba(223,229,244,0.22); transition: background .2s, color .2s; }
+  .top nav .get:hover { background: var(--heading); color: #15112a; }
 
-  @media (max-width: 720px) {
-    .grid, .list, .routes, .card.wide { grid-template-columns: 1fr; }
-    header { height: 64px; }
-    nav { gap: 18px; }
-    .hero { padding-top: 40px; }
-    .film figcaption .more, .film-sound span { display: none; }
-    .film figcaption b { white-space: nowrap; }
-    footer .row { flex-direction: column; align-items: flex-start; }
+  /* ---- The opening ---- */
+  .hero { position: relative; z-index: 2; padding: 132px 28px 0; text-align: center; }
+  .travel .hero { min-height: 100svh; margin-top: -100vh; margin-top: -100svh; }
+  h1, h2, h3 { margin: 0; color: var(--heading); font-weight: 400; }
+  h1 { font: 400 clamp(46px, 7.4vw, 100px)/1.0 var(--serif); letter-spacing: -0.022em; }
+  h1 em { font-style: italic; letter-spacing: -0.03em; }
+  /* The app's caret, at rest after the last word. */
+  h1::after {
+    content: ""; display: inline-block; vertical-align: -0.13em; width: 0.04em; min-width: 3px; height: 0.84em; margin-left: 0.08em;
+    border-radius: 2px; background: #6fa8ff; box-shadow: 0 0 18px rgba(111, 168, 255, 0.55);
   }
   @media (prefers-reduced-motion: no-preference) {
-    .hero, .shot { animation: rise .7s ease-out both; }
-    .shot { animation-delay: .12s; }
-    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    h1::after { animation: blink 1.25s ease-in-out infinite; }
+    @keyframes blink { 0%, 45% { opacity: 1; } 60%, 85% { opacity: 0.12; } 100% { opacity: 1; } }
+  }
+  .lead { max-width: 33em; margin: 26px auto 0; font-size: clamp(17px, 1.5vw, 20px); line-height: 1.55; color: var(--muted); text-wrap: balance; }
+  .actions { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: center; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px; height: 46px; padding: 0 24px; border-radius: 999px;
+    font-size: 15.5px; font-weight: 500; color: #15112a; background: var(--heading);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(0,0,0,0.38); }
+  .btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .quiet { font-size: 15.5px; color: var(--heading); display: inline-flex; align-items: center; gap: 7px; }
+  .quiet span { transition: transform .25s var(--ease); }
+  .quiet:hover span { transform: translateY(2px); }
+  .fine { margin-top: 22px; font-size: 13.5px; color: var(--dim); text-wrap: balance; }
+
+  /* ---- The window, and the page it travels down ----
+     Without a script (or under Reduce Motion) this is a plain page: the film
+     under the opening, then each part with its own picture. With one, .travel
+     is set, the pictures beside the parts are dropped, and the one window stays
+     on screen and moves from part to part, showing each in turn. */
+  .story { position: relative; display: flex; flex-direction: column; }
+  .stage { position: relative; z-index: 1; padding: 56px 28px 0; }
+  .window { position: relative; width: min(100%, 1120px); margin: 0 auto; }
+  .screens {
+    position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #1b1631;
+    box-shadow: 0 0 0 1px rgba(223,229,244,0.14), 0 40px 110px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35);
+  }
+  .screen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; opacity: 0; }
+  .screen.film { opacity: 1; }
+  .screen video { display: block; width: 100%; height: 100%; object-fit: cover; cursor: pointer; background: #1b1631; }
+  .filmbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px 0; font-size: 14px; color: var(--muted); }
+  .filmbar b { font: 400 17px var(--serif); color: var(--heading); margin-right: 8px; }
+  .filmbar .controls { display: flex; gap: 8px; flex: none; }
+  .filmbar button, .film-start {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 32px; min-width: 32px; padding: 0 10px;
+    border: 0; border-radius: 16px; background: rgba(255,255,255,0.08); box-shadow: inset 0 0 0 1px var(--line); color: var(--heading);
+    font: 13px var(--sans); cursor: pointer; transition: background .2s;
+  }
+  .filmbar button:hover { background: rgba(255,255,255,0.16); }
+  .filmbar svg, .film-start svg { display: block; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .i-pause, .playing .i-play, .i-on, .sound .i-off { display: none; }
+  .playing .i-pause, .sound .i-on { display: block; }
+  .film-start { position: absolute; left: 50%; top: 50%; width: 72px; height: 72px; margin: -36px 0 0 -36px; border-radius: 50%; padding-left: 14px; background: rgba(13,10,24,0.66); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .film-start svg { width: 26px; height: 26px; fill: currentColor; stroke: none; }
+  .film-start[hidden] { display: none; }
+
+  .part { position: relative; z-index: 2; width: var(--content); margin: 0 auto; padding: 96px 0 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; }
+  .part.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .part.flip .copy { order: 2; }
+  .part.film-part { display: none; }
+  .copy h2 { font: 400 clamp(30px, 3.3vw, 46px)/1.08 var(--serif); letter-spacing: -0.015em; text-wrap: balance; }
+  .copy p { margin: 18px 0 0; color: var(--muted); max-width: 30em; }
+  .still { margin: 0; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(223,229,244,0.14), 0 30px 80px rgba(0,0,0,0.5); }
+  .still img { display: block; width: 100%; height: auto; }
+
+  .lights { margin: 24px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); gap: 10px; }
+  .lights button {
+    width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; cursor: pointer; background: var(--swatch, #333);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16), 0 4px 12px rgba(0,0,0,0.3); transition: transform .25s var(--ease), box-shadow .25s;
+  }
+  .lights button:hover { transform: translateY(-2px); }
+  .lights button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3), 0 0 0 2px var(--bg), 0 0 0 3.5px var(--heading); }
+  .lights-note { margin-top: 12px !important; font-size: 13.5px; color: var(--dim) !important; min-height: 1.6em; }
+  html:not(.lit) .lights, html:not(.lit) .lights-note { display: none; }
+
+  /* The travelling window */
+  /* (The room the stage takes is given back by the opening's margin, not the stage's own: a sticky box is
+     held inside its parent by its margin box, and one with none would stay a screen too long.) */
+  .travel .stage { order: -1; position: sticky; top: 0; height: 100vh; height: 100svh; padding: 0; overflow: hidden; pointer-events: none; perspective: 1600px; }
+  .travel .window { position: absolute; left: 0; top: 0; margin: 0; width: var(--base, 1120px); transform-origin: 0 0; will-change: transform; pointer-events: auto; }
+  .travel .filmbar { will-change: opacity; }
+  .travel .screen { will-change: opacity; }
+  .travel .part { min-height: 92vh; padding: 0; display: flex; align-items: center; }
+  .travel .part.film-part { display: block; min-height: 100vh; }
+  .travel .part .still { display: none; }
+  .travel .part .copy { width: var(--copy, 380px); will-change: opacity, transform; }
+  .travel .part.flip { justify-content: flex-end; }
+  .travel .part:last-of-type { margin-bottom: 12vh; }
+  .travel.narrow .part { align-items: flex-start; min-height: 100vh; min-height: 100svh; padding-top: var(--under, 320px); }
+  .travel.narrow .part .copy { width: 100%; max-width: 34em; margin: 0 auto; }
+  .travel.narrow .stage { z-index: 3; }   /* the words pass under the window here, not over it */
+  .travel.narrow .part.film-part { min-height: 80vh; }
+
+  /* ---- Below the story ---- */
+  .band { position: relative; z-index: 2; width: var(--content); margin: 0 auto; padding: 120px 0 0; }
+  .band > h2 { font: 400 clamp(28px, 3vw, 40px)/1.1 var(--serif); letter-spacing: -0.015em; }
+  .band > .sub { margin: 12px 0 0; color: var(--muted); max-width: 36em; }
+
+  .rest { margin: 40px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 40px; }
+  .rest li { padding: 20px 0 22px; border-top: 1px solid var(--line); font-size: 15px; line-height: 1.55; color: var(--muted); }
+  .rest b { display: block; margin-bottom: 4px; font-weight: 500; font-size: 16px; color: var(--heading); }
+
+  .news { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 56px; }
+  .news ul { margin: 0; padding: 0; list-style: none; }
+  .news li { padding: 16px 0 18px; border-top: 1px solid var(--line); font-size: 15px; line-height: 1.55; color: var(--muted); }
+  .news li:first-child { border-top: 0; padding-top: 4px; }
+  .news li b { font-weight: 500; color: var(--heading); }
+  .news h2 { font: 400 clamp(28px, 3vw, 40px)/1.1 var(--serif); letter-spacing: -0.015em; }
+  .news .sub { margin: 12px 0 0; color: var(--muted); font-size: 15px; }
+
+  .get { text-align: center; }
+  .get h2 { font: 400 clamp(36px, 5vw, 64px)/1.04 var(--serif); letter-spacing: -0.02em; }
+  .get .sub { margin: 16px auto 0; }
+  .ways { margin: 56px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 40px; text-align: left; }
+  .way { padding-top: 20px; border-top: 1px solid var(--line); font-size: 15px; line-height: 1.55; color: var(--muted); }
+  .way h3 { font: 500 16px var(--sans); margin-bottom: 6px; }
+  .way p { margin: 0; }
+  .way pre { margin: 10px 0 0; white-space: pre-wrap; word-break: break-all; color: #cfe0ff; line-height: 1.7; }
+
+  footer { position: relative; z-index: 2; width: var(--content); margin: 120px auto 0; padding: 26px 0 48px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; font-size: 13.5px; color: var(--dim); }
+  footer nav { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  footer a:hover { color: var(--heading); }
+  footer em { font-family: var(--serif); font-size: 14.5px; }
+
+  @media (max-width: 899px) {
+    .top nav a:not(.get):not(.keep) { display: none; }
+    .hero { padding-top: 112px; }
+    .part, .part.flip { grid-template-columns: 1fr; gap: 28px; padding-top: 72px; }
+    .part.flip .copy { order: 0; }
+    .rest, .ways { grid-template-columns: 1fr; }
+    .news { grid-template-columns: 1fr; gap: 28px; }
+    .band { padding-top: 88px; }
+    .filmbar .more, .filmbar .sound-word { display: none; }
+  }
+  @media (min-width: 900px) and (max-width: 1100px) { .rest { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero > *, .stage { animation: rise .9s var(--ease) both; }
+    .hero > :nth-child(2) { animation-delay: .06s; } .hero > :nth-child(3) { animation-delay: .12s; } .hero > :nth-child(4) { animation-delay: .16s; }
+    .stage { animation-delay: .22s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
+<canvas id="backdrop" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
 
-  <header>
-    <a class="mark" href="/" aria-label="Glassine">
-      <img class="icon" src="/icon.png?v=0828cdf4" alt="" width="30" height="30">
-      <img class="word" src="/wordmark.png?v=dc9cb457" alt="glassine" height="15">
-    </a>
-    <nav>
-      <a href="https://docs.glassine.ink">Manual</a>
-      <a href="#new">What's new</a>
-      <a href="#get">Get it</a>
-      <a href="https://github.com/a-libre/glassine">Source</a>
-    </nav>
-  </header>
+<header class="top">
+  <a class="mark" href="/" aria-label="Glassine">
+    <img class="icon" src="/icon.png?v=0828cdf4" alt="" width="28" height="28">
+    <img class="word" src="/wordmark.png?v=dc9cb457" alt="glassine" width="62" height="14">
+  </a>
+  <nav>
+    <a href="https://docs.glassine.ink">Manual</a>
+    <a href="#new">What's new</a>
+    <a href="https://github.com/a-libre/glassine">Source</a>
+    <a class="get" href="#get">Get Glassine</a>
+  </nav>
+</header>
 
-  <div class="hero">
-    <h1>A quiet place to write.</h1>
-    <p class="lead">Glassine is a Markdown writing app for the Mac. A window of translucent glass, a caret that glides instead of jumps, and files that are plain text — in iCloud Drive, or a private GitHub repository — saved as you type, yours to keep.</p>
-    <div class="cta">
-      <a class="btn primary" href="https://apps.apple.com/us/app/glassine-writer/id6808032066?mt=12">Get it on the Mac App Store</a>
-      <a class="btn" href="https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg">Download the .dmg</a>
-      <a class="btn" href="https://docs.glassine.ink">Read the manual</a>
+<main>
+<div class="story" id="story">
+
+  <section class="hero" data-screen="film" data-pose="hero" data-light="aurora">
+    <h1>A <em>quiet</em> place to write.</h1>
+    <p class="lead">Glassine is a Markdown writing app for the Mac: a sheet of glass, a caret that glides, and plain text files that stay yours.</p>
+    <div class="actions">
+      <a class="btn" href="https://apps.apple.com/us/app/glassine-writer/id6808032066?mt=12">Get it on the Mac App Store</a>
+      <a class="quiet" href="https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg">or download the .dmg <span aria-hidden="true">↓</span></a>
     </div>
-    <div class="status"><span class="dot"></span><span>Version <!-- version -->0.2.17<!-- /version --> — free, open source, macOS 14 or later. The store copy is called <b>Glassine Writer</b>; the <code>.dmg</code> updates itself.</span></div>
+    <p class="fine">Free and open source. macOS 14 or later. Version <!-- version -->0.2.17<!-- /version -->.</p>
+  </section>
+
+  <div class="stage" id="film">
+    <div class="window" id="window">
+      <div class="screens">
+        <div class="screen film" data-screen="film">
+          <video muted loop playsinline preload="none" width="1920" height="1080" poster="/film-poster.jpg?v=202a9301"
+            data-src="/film.mp4?v=9994a4cb" data-small-src="/film-720.mp4?v=fa33ec11"
+            aria-label="A 46-second film of one page in Glassine, start to finish: an empty sheet of glass; a title typed, the caret gliding; the essay written; the finished page kept beside the editor, then read through like a book; Esc, and the page takes its place among the cards of All Documents; Timelapse; and the light behind the glass changed to Moss. Captions are part of the picture."></video>
+          <button class="film-start" type="button" aria-label="Play the film" hidden><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+        </div>
+        <img class="screen" data-screen="write" data-src="/editor.jpg?v=944a1e29" alt="The editor with the sidebar open: an essay on a sheet of dark glass, the paragraph being written lit and the rest stepped back" width="1440" height="900" decoding="async">
+        <img class="screen" data-screen="read" data-src="/review.jpg?v=31947b58" alt="Review in the Book style, dark: the essay set as a finished page, over the Graphite backdrop" width="1440" height="900" decoding="async">
+        <img class="screen" data-screen="keep" data-src="/library.jpg?v=f1d0987f" alt="All Documents, the library as a wall of cards with live previews, over a warm backdrop" width="1440" height="900" decoding="async">
+        <img class="screen" data-screen="return" data-src="/daily.jpg?v=fc9d23b1" alt="Timelapse over the Moss backdrop: today's note in front, earlier days receding behind it" width="1440" height="900" decoding="async">
+        <img class="screen" data-screen="light" data-src="/backdrops.jpg?v=c2cb58bf" alt="Settings, Behind the glass: tiles of the backdrops with Aurora chosen, its folds of colour showing through the card" width="1440" height="900" decoding="async">
+      </div>
+      <div class="filmbar" id="filmbar">
+        <span><b>One page, start to finish.</b><span class="more">Written, read, put away, and found again the next day — 46 seconds.</span></span>
+        <div class="controls">
+          <button class="film-toggle" type="button" aria-label="Pause the film"><svg class="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
+          <button class="film-sound" type="button" aria-pressed="false" aria-label="Sound"><svg class="i-off" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg><svg class="i-on" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span class="sound-word">Sound</span></button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <figure class="shot film" id="film">
-    <div class="film-stage">
-    <video muted loop playsinline preload="none" width="1920" height="1080" poster="/film-poster.jpg?v=202a9301"
-      data-src="/film.mp4?v=9994a4cb" data-small-src="/film-720.mp4?v=fa33ec11"
-      aria-label="A 46-second film of one page in Glassine, start to finish: an empty sheet of glass; a title typed, the caret gliding; the essay written; the finished page kept beside the editor, then read through like a book; Esc, and the page takes its place among the cards of All Documents; Timelapse; and the light behind the glass changed to Moss. Captions are part of the picture."></video>
-    <button class="film-start" type="button" aria-label="Play the film" hidden><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+  <section class="part film-part" data-screen="film" data-pose="center" data-light="aurora" aria-hidden="true"></section>
+
+  <section class="part" data-screen="write" data-pose="right" data-light="nebula">
+    <div class="copy">
+      <h2>Write.</h2>
+      <p>The caret glides from word to word instead of jumping. The paragraph you are in stays lit and in the middle of the window; the rest steps back. Markdown's marks dim — or leave the page altogether, until you return to the sentence they belong to.</p>
     </div>
-    <figcaption>
-      <span><b>One page, start to finish.</b><span class="more"> Written, read, put away, and found again the next day — 46 seconds.</span></span>
-      <div class="film-controls">
-      <button class="film-toggle" type="button" aria-label="Pause the film"><svg class="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
-      <button class="film-sound" type="button" aria-pressed="false" aria-label="Sound"><svg class="i-off" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg><svg class="i-on" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Sound</span></button>
-      </div>
-    </figcaption>
-    <noscript><style>.film .film-stage, .film .film-controls { display: none; }</style><img src="/hero.jpg?v=1bb5096a" alt="The window with the sidebar hidden: a sheet of dark glass over the Aurora backdrop, and one line of text in the middle of the page — Glassine. Focused. Minimal. Markdown." width="1440" height="900"></noscript>
-  </figure>
+    <figure class="still"><img src="/editor.jpg?v=944a1e29" alt="The editor with the sidebar open: an essay on a sheet of dark glass, the paragraph being written lit and the rest stepped back" width="1440" height="900" loading="lazy"></figure>
+  </section>
 
-  <section>
-    <h2>What it is</h2>
-    <p class="intro">Fewer features than most writing apps, and fewer interruptions. Everything it does is on one screen or one key away.</p>
-    <div class="grid">
-      <figure class="card">
-        <img src="/review.jpg?v=31947b58" alt="Review in the Book style, dark: the essay set as a finished page, over the Graphite backdrop" width="720" height="450" loading="lazy">
-        <figcaption><b>Review.</b> <span class="kbd">⌘↩</span> renders the document as a finished page in one of six styles — this is Book, dark — then puts you back where you were.</figcaption>
-      </figure>
-      <figure class="card">
-        <img src="/library.jpg?v=f1d0987f" alt="All Documents, the library as a wall of cards with live previews, over a warm backdrop" width="720" height="450" loading="lazy">
-        <figcaption><b>All Documents.</b> The library as a wall of cards with live previews; a click grows the card into the page.</figcaption>
-      </figure>
-      <figure class="card">
-        <img src="/daily.jpg?v=fc9d23b1" alt="Timelapse over the Moss backdrop: today's note in front, earlier days receding behind it" width="720" height="450" loading="lazy">
-        <figcaption><b>Timelapse.</b> Today's note in front, earlier days receding behind it. Scroll to walk back.</figcaption>
-      </figure>
-      <figure class="card">
-        <img src="/caret.jpg?v=30aef7aa" alt="Settings, the Caret section, with a caret gliding along a line of specimen text, the page showing through behind the card" width="720" height="450" loading="lazy">
-        <figcaption><b>Settings that show you.</b> A card over the page, so every change is visible behind it. The Caret section keeps a caret gliding and blinking as it is set; Type shows a piece of page in the face you chose. A search box finds any setting by name; <span class="kbd">⌘Z</span> takes a change back.</figcaption>
-      </figure>
-      <figure class="card wide">
-        <img src="/backdrops.jpg?v=c2cb58bf" alt="Settings, Behind the glass: tiles of the backdrops with Aurora chosen, its folds of colour showing through the card" width="720" height="450" loading="lazy">
-        <figcaption>
-          <p><b>Behind the glass.</b> The window is a blur of whatever is behind it — with the right wallpaper, colour and light moving softly behind the page. Without one, a backdrop puts the colour inside the window: long, deep, slowly drifting folds of it, like silk lit from one side.</p>
-          <p>Nine come built in — Aurora, on from the first launch, takes the theme's own colours; Dusk, Nebula, Ocean, Borealis, Ember, Sunset, Moss, Rose and Graphite each run through a palette of their own — and any can be duplicated and recoloured into one of yours. Drift and frost to taste, and a paper grain of its own.</p>
-        </figcaption>
-      </figure>
+  <section class="part flip" data-screen="read" data-pose="left" data-light="graphite">
+    <div class="copy">
+      <h2>Read it as a page.</h2>
+      <p><kbd>⌘</kbd><kbd>↩</kbd> sets the document as a finished page in one of six styles — this is Book, after dark — then puts you back where you were. <kbd>⌘</kbd><kbd>⇧</kbd><kbd>↩</kbd> keeps that page beside the text, redrawn as you write.</p>
     </div>
+    <figure class="still"><img src="/review.jpg?v=31947b58" alt="Review in the Book style, dark: the essay set as a finished page, over the Graphite backdrop" width="1440" height="900" loading="lazy"></figure>
   </section>
 
-  <section id="sync">
-    <h2>Two Macs, no iCloud required</h2>
-    <p class="intro">iCloud Drive is the simple way to have the same documents on every Mac. For a Mac you'd rather not sign into iCloud on — a work laptop, say — Glassine can keep the library in a private GitHub repository of yours instead.</p>
-    <p class="support-p">A token for that one repository, and nothing else about your accounts touches the machine. Every round of changes is a commit, so the repository holds every version of every note; no git to install, no background process. Settings → Library → Sync, and the <a href="https://docs.glassine.ink/library/sync">manual page</a> walks through it.</p>
+  <section class="part" data-screen="keep" data-pose="right" data-light="ember">
+    <div class="copy">
+      <h2>A library, not a file picker.</h2>
+      <p>Every document is a plain <code>.md</code> file, named from its first line and saved as you type — in iCloud Drive, in any folder you choose, or in a <a href="https://docs.glassine.ink/library/sync">private GitHub repository</a> of yours that keeps every version. All Documents lays them out as a wall of pages; a click grows one into the window.</p>
+    </div>
+    <figure class="still"><img src="/library.jpg?v=f1d0987f" alt="All Documents, the library as a wall of cards with live previews, over a warm backdrop" width="1440" height="900" loading="lazy"></figure>
   </section>
 
-  <section>
-    <h2>And the rest</h2>
-    <ul class="list">
-      <li><b>Focus mode and typewriter scrolling.</b> The paragraph you are writing stays put and lit; the rest steps back, Markdown styling intact.</li>
-      <li><b>Formatting as you go.</b> Select words and a bar appears over them — bold, italic, strike, code, chip, link, headings, lists, a task, a quote. <span class="kbd">/</span> at the start of a line opens a menu of the same; keep typing to filter.</li>
-      <li><b>Themes.</b> Nine built in, dark by default and a few light ones; make your own with live preview, and import or export them as files.</li>
-      <li><b>A caret that glides.</b> Speed, blink, width and shape — eight of them — are yours to set. Left alone a few seconds it does a trick: a hop, a bounce, a flip. Off under Reduce Motion.</li>
-      <li><b>A library, not a file picker.</b> Plain <code>.md</code> files and folders in iCloud Drive, or any folder you point it at, named from the first line as you write.</li>
-      <li><b>Open With.</b> Finder can open <code>.md</code> and <code>.txt</code> files in Glassine; a file from outside the library is edited where it is and never copied in.</li>
-      <li><b>Autosave that never asks.</b> Half a second after you stop typing, and every few seconds while you keep going.</li>
-      <li><b>Tasks that behave.</b> Click a box; the strike sweeps across; a moment later the item settles below the unfinished ones.</li>
-      <li><b>Dates as you type.</b> <code>@today</code> becomes the date, drawn as a capsule, kept as text.</li>
-      <li><b>Markdown, lightly styled — or hidden.</b> The marks step back, or leave the page altogether except in the sentence being written; the file is the same plain text either way.</li>
-      <li><b>Chips.</b> <span class="kbd">⌘⇧H</span> puts a word in a capsule, like a date's. In the file it is <code>==this==</code>, which other editors read too.</li>
-      <li><b>Float on top.</b> <span class="kbd">⌘.</span> keeps the window over everything else, Stage Manager included.</li>
-      <li><b>One key away.</b> <span class="kbd">⌘K</span> is a command bar for everything; <span class="kbd">⌘1</span> <span class="kbd">⌘2</span> <span class="kbd">⌘3</span> are All Documents, Timelapse and a new page; <span class="kbd">⌘/</span> shows every shortcut on one sheet.</li>
-      <li><b>Nothing sent anywhere.</b> No accounts, no analytics, no servers. The <a href="https://docs.glassine.ink/about/privacy">privacy page</a> is one paragraph.</li>
-    </ul>
+  <section class="part flip" data-screen="return" data-pose="left" data-light="moss">
+    <div class="copy">
+      <h2>Yesterday is still there.</h2>
+      <p>Timelapse keeps today's note in front and the earlier days receding behind it. Scroll to walk back through them.</p>
+    </div>
+    <figure class="still"><img src="/daily.jpg?v=fc9d23b1" alt="Timelapse over the Moss backdrop: today's note in front, earlier days receding behind it" width="1440" height="900" loading="lazy"></figure>
   </section>
 
-  <section id="new">
+  <section class="part" data-screen="light" data-pose="right" data-light="aurora" id="light">
+    <div class="copy">
+      <h2>Change the light behind the glass.</h2>
+      <p>The window is a blur of whatever is behind it. Or put the colour inside: long, slowly drifting folds of it, like silk lit from one side. Ten come built in, and any of them can be recoloured into one of yours.</p>
+      <ul class="lights" id="lights" aria-label="Backdrops to try on this page"></ul>
+      <p class="lights-note" id="lights-note">This page is lit by the same shader. Try one.</p>
+    </div>
+    <figure class="still"><img src="/backdrops.jpg?v=c2cb58bf" alt="Settings, Behind the glass: tiles of the backdrops with Aurora chosen, its folds of colour showing through the card" width="1440" height="900" loading="lazy"></figure>
+  </section>
+
+</div>
+
+<section class="band" id="rest">
+  <h2>And the rest.</h2>
+  <p class="sub">Fewer features than most writing apps, and fewer interruptions. Everything is on one screen or one key away.</p>
+  <ul class="rest">
+    <li><b>Formatting as you go</b>Select words and a bar appears over them. <kbd>/</kbd> at the start of a line opens a menu of the same; keep typing to filter.</li>
+    <li><b>Tasks that behave</b>Click a box; the strike sweeps across; a moment later the item settles below the unfinished ones.</li>
+    <li><b>Dates and chips</b><code>@today</code> becomes the date, drawn as a capsule and kept as text. <kbd>⌘</kbd><kbd>⇧</kbd><kbd>H</kbd> puts any word in one: <code>==this==</code> in the file.</li>
+    <li><b>A caret of your own</b>Speed, blink, width, and eight shapes. Left alone a few seconds it does a trick — a hop, a bounce, a flip. Off under Reduce Motion.</li>
+    <li><b>Themes</b>Nine built in, dark by default and a few light ones. Make your own with a live preview; import and export them as files.</li>
+    <li><b>Settings that show you</b>A card over the page, so every change is visible behind it. Search finds any setting by name; <kbd>⌘</kbd><kbd>Z</kbd> takes a change back.</li>
+    <li><b>One key away</b><kbd>⌘</kbd><kbd>K</kbd> is a command bar for everything, and <kbd>⌘</kbd><kbd>/</kbd> shows every shortcut on one sheet.</li>
+    <li><b>Open With, and float on top</b>Finder opens <code>.md</code> and <code>.txt</code> files in Glassine, edited where they are. <kbd>⌘</kbd><kbd>.</kbd> keeps the window over everything else.</li>
+    <li><b>Nothing sent anywhere</b>No accounts, no analytics, no servers. The <a href="https://docs.glassine.ink/about/privacy">privacy page</a> is one paragraph.</li>
+  </ul>
+</section>
+
+<section class="band news" id="new">
+  <div>
     <h2>What's new</h2>
-    <p class="intro">Version <!-- whats-new-head -->0.2.17 — September 19, 2026<!-- /whats-new-head -->. The <a href="https://docs.glassine.ink/about/changelog">changelog</a> has every line, by day.</p>
-    <ul class="list"><!-- whats-new -->
+    <p class="sub">Version <!-- whats-new-head -->0.2.17 — September 19, 2026<!-- /whats-new-head -->. The <a href="https://docs.glassine.ink/about/changelog">changelog</a> has every line, by day.</p>
+  </div>
+  <ul><!-- whats-new -->
       <li><b>A quotation ends where its <code>&gt;</code> lines end, and a list where its items end.</b> In Review the paragraph after a quote, or after a task, no longer sits inside it; the page draws what the editor draws.</li>
       <li><b>The page beside the editor.</b> <span class="kbd">⌘⇧↩</span> keeps Review to the right of the text: the same page, in the same style, redrawn in place as you write and scrolling to the paragraph you are in. Drag the hairline to share the width.</li>
       <li><b>A Welcome page for the app as it is.</b> The document a first launch opens now tours the backdrop behind the page, the bar over a selection and the slash menu, chips, hiding the syntax, Timelapse, the command bar, Review, Settings and sync — with every key checked. And it opens from its heading, not its end.</li>
@@ -303,188 +369,382 @@
       <li><b>Settings, remade.</b> A rail of sections, a search box that finds any setting by name, <span class="kbd">⌘Z</span> to take a change back, and the Type and Caret sections showing what they do before you look behind the card.</li>
       <li><b>On the Mac App Store</b>, as Glassine Writer. The direct download stays, and updates itself.</li>
     <!-- /whats-new --></ul>
-  </section>
+</section>
 
-  <section id="get">
-    <h2>Get it</h2>
-    <p class="intro">Requires macOS 14 or later. Free, open source, MIT.</p>
-    <div class="routes">
-      <div class="route">
-        <h3>Mac App Store <small>NOW</small></h3>
-        <p><a href="https://apps.apple.com/us/app/glassine-writer/id6808032066?mt=12">Glassine Writer</a> — the plain name was already reserved there; the app itself is Glassine everywhere. Free. Updates come through the store.</p>
-      </div>
-      <div class="route">
-        <h3>Direct download <small>NOW</small></h3>
-        <p><a href="https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg">Glassine.dmg</a> — notarized, drag to Applications. It checks for a new version once a day and installs it itself. Every version is under <a href="https://github.com/a-libre/glassine/releases">Releases</a> on GitHub.</p>
-      </div>
-      <div class="route">
-        <h3>Build from source <small>NOW</small></h3>
-        <p>Xcode's tools, three lines, a minute.</p>
-        <pre>git clone https://github.com/a-libre/glassine
+<section class="band get" id="get">
+  <h2>Free, and yours to keep.</h2>
+  <p class="sub">Open source under the MIT licence. Requires macOS 14 or later.</p>
+  <div class="actions">
+    <a class="btn" href="https://apps.apple.com/us/app/glassine-writer/id6808032066?mt=12">Get it on the Mac App Store</a>
+    <a class="quiet" href="https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg">or download the .dmg <span aria-hidden="true">↓</span></a>
+  </div>
+  <div class="ways">
+    <div class="way">
+      <h3>Mac App Store</h3>
+      <p>It is <a href="https://apps.apple.com/us/app/glassine-writer/id6808032066?mt=12">Glassine Writer</a> there — the plain name was already taken; the app itself is Glassine everywhere. Updates come through the store.</p>
+    </div>
+    <div class="way">
+      <h3>Direct download</h3>
+      <p><a href="https://github.com/a-libre/glassine/releases/latest/download/Glassine.dmg">Glassine.dmg</a>, notarized; drag it to Applications. It checks for a new version once a day and installs it itself. Every version is under <a href="https://github.com/a-libre/glassine/releases">Releases</a>.</p>
+    </div>
+    <div class="way">
+      <h3>From source</h3>
+      <p>Xcode's tools, three lines, a minute.</p>
+      <pre>git clone https://github.com/a-libre/glassine
 cd glassine
 ./build.sh --install</pre>
-      </div>
     </div>
-  </section>
+  </div>
+  <p class="fine" id="support">The <a href="https://docs.glassine.ink">manual</a> covers every feature, key and setting. For a bug or a question, <a href="https://github.com/a-libre/glassine/issues">open an issue</a>; Help → Copy Debug Info puts everything useful on your clipboard.</p>
+</section>
+</main>
 
-  <section id="support" class="support">
-    <h2>Support</h2>
-    <p>The <a href="https://docs.glassine.ink">manual</a> covers every feature, key and setting. For a bug or a question, <a href="https://github.com/a-libre/glassine/issues">open an issue on GitHub</a>; Help → Copy Debug Info in the app puts everything useful on your clipboard to paste in.</p>
-  </section>
-
-  <footer>
-    <div class="row">
-      <nav>
-        <a href="https://docs.glassine.ink">Manual</a>
-        <a href="https://docs.glassine.ink/about/changelog">Changelog</a>
-        <a href="https://docs.glassine.ink/about/privacy">Privacy</a>
-        <a href="https://github.com/a-libre/glassine">Source</a>
-        <a href="https://github.com/a-libre/glassine/blob/main/LICENSE">MIT</a>
-      </nav>
-      <em>Glassine is the thin, translucent paper used to protect prints.</em>
-    </div>
-  </footer>
-
-</div>
-
-<div class="lightbox" id="lightbox" hidden aria-hidden="true">
-  <div class="lb-scrim"></div>
-  <img class="lb-img" alt="">
-  <div class="lb-caption"></div>
-</div>
+<footer>
+  <nav>
+    <a href="https://docs.glassine.ink">Manual</a>
+    <a href="https://docs.glassine.ink/about/changelog">Changelog</a>
+    <a href="https://docs.glassine.ink/about/privacy">Privacy</a>
+    <a href="https://github.com/a-libre/glassine">Source</a>
+    <a href="https://github.com/a-libre/glassine/blob/main/LICENSE">MIT</a>
+  </nav>
+  <em>Glassine is the thin, translucent paper used to protect prints.</em>
+</footer>
 <script>
-// The film plays while it is on screen and waits when it is not. It starts muted, as browsers require;
-// Sound is one click. Under Reduce Motion or a data saver it does not start itself: a still and a play button.
+// The light behind the page is the app's own backdrop: the fragment shader from
+// Sources/Glassine/UI/Backdrop.swift, line for line, with the same sets of colours
+// and the same rule for a dark theme. It drifts as slowly as it does in the app,
+// and scrolling carries the folds along — back again when the page scrolls back.
 (() => {
-  const fig = document.getElementById('film');
-  if (!fig) return;
-  const v = fig.querySelector('video');
-  const start = fig.querySelector('.film-start'), toggle = fig.querySelector('.film-toggle'), sound = fig.querySelector('.film-sound');
-  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || !!(navigator.connection && navigator.connection.saveData);
-  let wanted = !calm, seen = false, loaded = false;
-  const load = () => {
-    if (loaded) return;
-    loaded = true;
-    v.src = matchMedia('(max-width: 720px)').matches ? v.dataset.smallSrc : v.dataset.src;
+  const root = document.documentElement;
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const saver = !!(navigator.connection && navigator.connection.saveData);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const mix = (a, b, t) => a + (b - a) * t;
+
+  // ---------------------------------------------------------------- the light
+  const SETS = {
+    dusk: [[250, .8], [218, .85], [282, .75], [312, .6], [262, .7]],
+    nebula: [[300, .7], [240, .8], [182, .75], [268, .7], [335, .6]],
+    ocean: [[222, .85], [190, .8], [168, .7], [255, .55], [205, .8]],
+    borealis: [[145, .75], [185, .7], [265, .6], [100, .65], [200, .7]],
+    ember: [[352, .8], [24, .9], [42, .85], [322, .6], [10, .8]],
+    sunset: [[275, .7], [25, .85], [345, .7], [45, .8], [245, .75]],
+    moss: [[130, .7], [85, .7], [175, .6], [50, .6], [155, .7]],
+    rose: [[340, .7], [20, .65], [300, .5], [5, .7], [330, .6]],
+    graphite: [[220, .08], [240, .06], [200, .08], [260, .06], [230, .05]],
   };
+  const BLURBS = {
+    aurora: 'Aurora — the theme’s own colours, and hues either side of them.',
+    dusk: 'Dusk — indigo, cobalt and violet, with a thread of magenta.',
+    nebula: 'Nebula — magenta, indigo and teal.',
+    ocean: 'Ocean — navy, cyan and teal, with a touch of violet.',
+    borealis: 'Borealis — green, teal and violet.',
+    ember: 'Ember — crimson, orange and gold, with plum.',
+    sunset: 'Sunset — violet, orange, rose and gold.',
+    moss: 'Moss — green, lime and teal, with gold.',
+    rose: 'Rose — rose, peach, mauve and coral.',
+    graphite: 'Graphite — grey, barely tinted.',
+  };
+  const hsv = (h, s, v) => {
+    h = ((h % 360) + 360) % 360 / 60;
+    const c = v * s, x = c * (1 - Math.abs(h % 2 - 1)), m = v - c;
+    const [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+    return [r + m, g + m, b + m];
+  };
+  const hueSat = (hex) => {
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+    const h = !d ? 0 : max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [h * 60, max ? d / max : 0];
+  };
+  // Aurora takes the theme's tint and accent (Dusk: #42316A, #01B6E9).
+  (() => {
+    const [t, ts] = hueSat('#42316A'), [a] = hueSat('#01B6E9');
+    const s = clamp(ts + 0.3, 0.3, 0.75), between = t + (((a - t + 540) % 360) - 180) / 2;
+    SETS.aurora = [[t, s], [a, Math.min(0.85, s + 0.15)], [t + 30, s * 0.9], [between, s], [t - 30, s * 0.9]];
+  })();
+  // ground (rgb + how many colours), five colours, and the bright edge: 28 numbers.
+  const palette = (name) => {
+    const set = SETS[name] || SETS.aurora, out = new Float32Array(28);
+    out.set([...hsv(set[0][0], set[0][1] * 0.7, 0.045), 5], 0);
+    set.forEach(([h, s], i) => out.set([...hsv(h, Math.min(0.92, s), 0.55), 1], 4 + i * 4));
+    out.set([...hsv(set[1][0], 0.35, 0.85), 1], 24);
+    return out;
+  };
+  const css = (name, i) => { const [h, s] = SETS[name][i]; const [r, g, b] = hsv(h, Math.min(0.92, s), 0.62); return `rgb(${r * 255 | 0},${g * 255 | 0},${b * 255 | 0})`; };
+
+  const VERT = `#version 300 es
+    out vec2 uv;
+    void main() { vec2 c = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0); uv = c * 0.5 + 0.5; gl_Position = vec4(c, 0.0, 1.0); }`;
+  const FRAG = `#version 300 es
+    precision highp float;
+    uniform float uTime, uAspect, uFrost;
+    uniform vec4 uGround;
+    uniform vec4 uColors[6];
+    in vec2 uv; out vec4 o;
+    float hash21(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+    float vnoise(vec2 p) {
+      vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x), mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);
+    }
+    float fbm(vec2 p, int octaves) {
+      float v = 0.0, a = 0.5; mat2 m = mat2(0.8, 0.6, -0.6, 0.8);
+      for (int i = 0; i < octaves; i++) { v += a * vnoise(p); p = m * p * 2.0 + vec2(7.3, 1.9); a *= 0.5; }
+      return v;
+    }
+    float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+    float chroma(vec3 c) { return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b)); }
+    vec3 chromaMix(vec3 a, vec3 b, float t) {
+      vec3 m = mix(a, b, t); float target = mix(chroma(a), chroma(b), t), L = luma(m);
+      return clamp(L + (m - L) * (target / max(chroma(m), 1e-4)), 0.0, 1.0);
+    }
+    vec3 ramp(int n, float u) {
+      float idx = u * float(n); int i0 = int(floor(idx)) % n, i1 = (i0 + 1) % n;
+      float tt = fract(idx); tt = tt * tt * (3.0 - 2.0 * tt);
+      return chromaMix(uColors[i0].rgb, uColors[i1].rgb, tt);
+    }
+    void main() {
+      vec2 p = vec2(uv.x * uAspect, uv.y) + vec2(3.7, 11.2);
+      float t = uTime * 0.016;
+      vec2 pw = p * 0.7;
+      vec2 q = vec2(fbm(pw + vec2(t * 0.6, -t * 0.4), 2), fbm(pw + vec2(5.2, 1.3) - t * 0.5, 2));
+      vec2 r = vec2(fbm(pw + 3.0 * q + vec2(1.7, 9.2) + t * 0.2, 2), fbm(pw + 3.0 * q + vec2(8.3, 2.8) - t * 0.25, 2));
+      float f = fbm(p * 1.6 + 2.0 * r, 4);
+      float ph1 = (p.x * 1.1 + p.y * 0.8) * 2.0 + r.x * 3.0 + q.y * 2.0 + t * 0.7;
+      float ph2 = (p.x * -0.6 + p.y * 1.4) * 2.6 + r.y * 2.5 + q.x * 1.5 - t * 0.5;
+      float b1 = sin(ph1), b2 = sin(ph2);
+      float lit = 0.5 + 0.5 * sin(ph1 + 1.2), lit2 = 0.5 + 0.5 * sin(ph2 + 1.0);
+      float e1 = pow(1.0 - abs(b1), 9.0) * smoothstep(0.35, 0.65, r.y);
+      float e2 = pow(1.0 - abs(b2), 9.0) * 0.5 * smoothstep(0.4, 0.7, q.x);
+      float ridge = pow(1.0 - abs(b1), 3.0) * 0.5;
+      float uu = fract(0.5 + 0.32 * b1 + 0.22 * b2 + 0.18 * (f - 0.5) + 0.35 * r.x + t * 0.05);
+      vec3 col = ramp(max(1, int(uGround.w)), uu);
+      float light = 0.6 * lit + 0.4 * lit2, fr = uFrost * uFrost;
+      float edges = (e1 * 0.18 + e2 * 0.1) * (1.0 - 0.6 * uFrost);
+      vec3 outc = uGround.rgb + 0.06 * fr + col * ((0.18 + 0.82 * light + ridge) * 0.8) + uColors[5].rgb * edges;
+      float L = luma(outc);
+      outc = L + (outc - L) * (1.0 - 0.5 * fr);
+      o = vec4(clamp(outc, 0.0, 1.0), 1.0);
+    }`;
+
+  const canvas = document.getElementById('backdrop');
+  let gl = null, uni = null;
+  const cur = palette('aurora'), want = palette('aurora');
+  let lightDirty = true;
+  try {
+    gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'low-power' });
+    if (gl) {
+      const prog = gl.createProgram();
+      [[gl.VERTEX_SHADER, VERT], [gl.FRAGMENT_SHADER, FRAG]].forEach(([type, src]) => {
+        const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+        gl.attachShader(prog, s);
+      });
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+      gl.useProgram(prog);
+      uni = Object.fromEntries(['uTime', 'uAspect', 'uFrost', 'uGround', 'uColors'].map((n) => [n, gl.getUniformLocation(prog, n)]));
+      canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); canvas.classList.remove('on'); gl = null; });
+    }
+  } catch (e) { gl = null; }
+  const size = () => {
+    if (!gl) return;
+    const w = Math.max(64, Math.round(canvas.clientWidth * 0.3)), h = Math.max(64, Math.round(canvas.clientHeight * 0.3));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); lightDirty = true; }
+  };
+  const draw = (seconds) => {
+    gl.uniform1f(uni.uTime, seconds);
+    gl.uniform1f(uni.uAspect, canvas.width / canvas.height);
+    gl.uniform1f(uni.uFrost, 0.22);
+    gl.uniform4fv(uni.uGround, cur.subarray(0, 4));
+    gl.uniform4fv(uni.uColors, cur.subarray(4));
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  };
+  const setLight = (a, b, t) => { const A = palette(a), B = b ? palette(b) : A; for (let i = 0; i < 28; i++) want[i] = mix(A[i], B[i], t || 0); };
+  if (gl) { root.classList.add('lit'); size(); draw(40); requestAnimationFrame(() => canvas.classList.add('on')); }
+
+  // ------------------------------------------------------------ the travelling window
+  const story = document.getElementById('story'), stage = story.querySelector('.stage');
+  const win = document.getElementById('window'), bar = document.getElementById('filmbar');
+  const hero = story.querySelector('.hero'), fine = hero.querySelector('.fine');
+  const chapters = Array.from(story.querySelectorAll('[data-pose]'));
+  const copies = chapters.map((c) => c.querySelector('.copy'));
+  const screens = {};
+  win.querySelectorAll('.screen').forEach((el) => { screens[el.dataset.screen] = el; });
+  let mode = 'static', geo = null, shown = null, chosen = null, filmSeen = true, lastY = -1, settled = false;
+
+  const measure = () => {
+    const vw = root.clientWidth, vh = innerHeight;
+    const next = calm || vh < 540 ? 'static' : 'travel';
+    if (next !== mode) {
+      mode = next;
+      root.classList.toggle('travel', mode === 'travel');
+      if (mode === 'static') {
+        root.classList.remove('narrow');
+        win.style.transform = ''; bar.style.opacity = ''; bar.style.pointerEvents = '';
+        copies.forEach((c) => { if (c) { c.style.opacity = ''; c.style.transform = ''; } });
+        Object.values(screens).forEach((s) => { s.style.opacity = ''; });
+      } else {
+        Object.values(screens).forEach((s) => { if (s.dataset.src && !s.src) s.src = s.dataset.src; });
+      }
+    }
+    if (mode === 'static') { geo = null; return; }
+    const content = Math.min(vw - 56, 1400), left = (vw - content) / 2, H = (w) => w * 9 / 16, barH = 46;
+    let side = Math.min(content * 0.64, (vh - 150) * 16 / 9, 1100), copyW = Math.min(440, content - side - 64);
+    const narrow = vw < 900 || copyW < 300;
+    root.classList.toggle('narrow', narrow);
+    const poses = {};
+    if (narrow) {
+      side = Math.min(vw - 32, 640, (vh * 0.4) * 16 / 9);
+      const pinned = { x: (vw - side) / 2, y: 76, w: side };
+      poses.center = poses.left = poses.right = pinned;
+      story.style.setProperty('--under', Math.round(76 + H(side) + 30) + 'px');
+    } else {
+      const centre = Math.min(content, (vh - 200) * 16 / 9, 1320);
+      poses.center = { x: (vw - centre) / 2, y: Math.max(76, (vh - H(centre) - barH) / 2 + 22), w: centre };
+      poses.right = { x: left + content - side, y: (vh - H(side)) / 2 + 16, w: side };
+      poses.left = { x: left, y: (vh - H(side)) / 2 + 16, w: side };
+      story.style.setProperty('--copy', Math.round(copyW) + 'px');
+    }
+    const heroW = Math.min(vw - (narrow ? 32 : 56), 1120);
+    const storyTop = story.getBoundingClientRect().top + scrollY;
+    poses.hero = { x: (vw - heroW) / 2, y: fine.getBoundingClientRect().bottom + scrollY - storyTop + (narrow ? 40 : 60), w: heroW };
+    const base = Math.ceil(Math.max(poses.hero.w, poses.center.w, side));
+    story.style.setProperty('--base', base + 'px');
+    const centres = chapters.map((c) => { const r = c.getBoundingClientRect(); return r.top + scrollY + r.height / 2; });
+    centres[0] = Math.min(centres[0], vh / 2 + storyTop);
+    geo = { vw, vh, base, poses, centres, narrow, under: 76 + H(side) };
+    lastY = -1; settled = false;
+    if (!shown) shown = { ...poses.hero, tilt: 0 };
+  };
+
+  const step = (dt) => {
+    if (!geo) return;
+    const y = scrollY, focus = y + geo.vh / 2, c = geo.centres;
+    let i = 0;
+    while (i < c.length - 2 && focus > c[i + 1]) i++;
+    const p = clamp((focus - c[i]) / (c[i + 1] - c[i]), 0, 1);
+    const from = chapters[i], to = chapters[i + 1];
+    const e = i === 0 ? smooth(0, 0.85, p) : smooth(0.2, 0.8, p);
+    const A = geo.poses[from.dataset.pose], B = geo.poses[to.dataset.pose];
+    const target = { x: mix(A.x, B.x, e), y: mix(A.y, B.y, e), w: mix(A.w, B.w, e) };
+    // A little weight: the window follows its place rather than sitting in it, and leans as it crosses.
+    const k = 1 - Math.exp(-dt / 0.085);
+    const lean = geo.narrow ? 0 : clamp(((target.x + target.w / 2) - (shown.x + shown.w / 2)) * 0.035, -5, 5);
+    shown.x = mix(shown.x, target.x, k); shown.y = mix(shown.y, target.y, k); shown.w = mix(shown.w, target.w, k);
+    shown.tilt = mix(shown.tilt, lean, 1 - Math.exp(-dt / 0.16));
+    const still = Math.abs(shown.x - target.x) + Math.abs(shown.y - target.y) + Math.abs(shown.w - target.w) < 0.05 && Math.abs(shown.tilt) < 0.01;
+    if (still && y === lastY && settled) return;
+    settled = still; lastY = y;
+    const s = shown.w / geo.base, hw = geo.base / 2, hh = geo.base * 9 / 32;
+    win.style.transform = `translate3d(${(shown.x + shown.w / 2).toFixed(2)}px, ${(shown.y + shown.w * 9 / 32).toFixed(2)}px, 0) rotateY(${shown.tilt.toFixed(3)}deg) scale(${s.toFixed(5)}) translate(${-hw}px, ${-hh}px)`;
+
+    // Which picture is in the window: the next one comes up over this one as the window crosses.
+    const fromS = from.dataset.screen, toS = to.dataset.screen, up = smooth(0.3, 0.7, p);
+    for (const name in screens) {
+      const o = name === fromS ? 1 : name === toS ? up : 0;
+      if (screens[name]._o !== o) { screens[name]._o = o; screens[name].style.opacity = o; }
+    }
+    const filmShare = fromS === 'film' ? (toS === 'film' ? 1 : 1 - up) : 0;
+    const barO = i === 0 ? 1 : i === 1 ? 1 - smooth(0.05, 0.4, p) : 0;
+    bar.style.opacity = barO; bar.style.pointerEvents = barO > 0.5 ? '' : 'none';
+    filmSeen = filmShare > 0.5 && stage.getBoundingClientRect().bottom > geo.vh * 0.4;
+
+    // The words of each part are there while the part is; they fade as it leaves.
+    copies.forEach((copy, n) => {
+      if (!copy) return;
+      const r = copy.getBoundingClientRect(), mid = r.top + r.height / 2;
+      const d = geo.narrow ? Math.abs(mid - (geo.under + geo.vh) / 2) / (geo.vh - geo.under) : Math.abs(mid - geo.vh / 2) / geo.vh;
+      const o = geo.narrow ? 1 - smooth(0.34, 0.6, d) : 1 - smooth(0.24, 0.46, d);
+      copy.style.opacity = o.toFixed(3);
+      copy.style.transform = `translate3d(0, ${((mid - geo.vh / 2) * 0.05).toFixed(1)}px, 0)`;
+      copy.style.pointerEvents = o < 0.3 ? 'none' : '';
+    });
+
+    // And the light behind the page goes with the part: each picture's own backdrop.
+    const last = c.length - 2;
+    if (chosen && i + p > last + 0.5) setLight(chosen); else setLight(from.dataset.light, to.dataset.light, smooth(0.15, 0.85, p));
+  };
+
+  // ------------------------------------------------------------------ the film
+  const v = win.querySelector('video'), startBtn = win.querySelector('.film-start');
+  const toggle = bar.querySelector('.film-toggle'), sound = bar.querySelector('.film-sound');
+  let wanted = !(calm || saver), loaded = false;
   const paint = () => {
     const playing = !v.paused && !v.ended;
-    fig.classList.toggle('playing', playing);
-    fig.classList.toggle('sound', !v.muted);
-    fig.classList.toggle('waiting', !playing);
-    start.hidden = playing || wanted;   // the big button only when the film will not start by itself
+    win.classList.toggle('playing', playing); win.classList.toggle('sound', !v.muted);
+    startBtn.hidden = playing || wanted;   // the big button only when the film will not start by itself
     toggle.setAttribute('aria-label', playing ? 'Pause the film' : 'Play the film');
     sound.setAttribute('aria-pressed', String(!v.muted));
   };
   const play = () => {
-    load();
-    const p = v.play();
-    if (p && p.catch) p.catch(() => { wanted = false; paint(); });
+    if (!loaded) { loaded = true; v.src = matchMedia('(max-width: 720px)').matches ? v.dataset.smallSrc : v.dataset.src; }
+    const pr = v.play();
+    // Only a refusal to start by itself turns the film into a still with a button; a play cut short by a pause is not one.
+    if (pr && pr.catch) pr.catch((err) => { if (err && err.name === 'NotAllowedError') { wanted = false; paint(); } });
   };
   const flip = () => { wanted = v.paused; if (wanted) play(); else v.pause(); };
-  v.addEventListener('click', flip);
-  start.addEventListener('click', flip);
-  toggle.addEventListener('click', flip);
+  [v, startBtn, toggle].forEach((el) => el.addEventListener('click', flip));
   sound.addEventListener('click', () => { v.muted = !v.muted; if (!v.muted && v.paused) { wanted = true; play(); } paint(); });
-  ['play', 'playing', 'pause', 'ended', 'volumechange'].forEach((e) => v.addEventListener(e, paint));
-  fig.classList.add('ready');
+  ['play', 'playing', 'pause', 'ended', 'volumechange'].forEach((ev) => v.addEventListener(ev, paint));
   paint();
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver((entries) => {
-      seen = entries[0].intersectionRatio >= 0.4;
-      if (seen && wanted) play(); else if (!seen && !v.paused) v.pause();
-    }, { threshold: [0, 0.4, 0.75] }).observe(fig);
-  } else if (wanted) play();
-})();
-</script>
-<script>
-(() => {
-  const lb = document.getElementById('lightbox');
-  const img = lb.querySelector('.lb-img');
-  const cap = lb.querySelector('.lb-caption');
-  const pics = Array.from(document.querySelectorAll('.shot img, .card img'));
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let at = -1, busy = false;
+  let onScreen = true;
+  if ('IntersectionObserver' in window) new IntersectionObserver((en) => { onScreen = en[0].intersectionRatio >= 0.2; }, { threshold: [0, 0.2, 0.5] }).observe(win);
+  const film = () => {
+    const see = onScreen && (mode === 'static' || filmSeen) && !document.hidden;
+    if (see && wanted && v.paused) play(); else if (!see && !v.paused) v.pause();
+  };
 
-  // Where the big picture sits: as large as the window allows, centred, with room for the caption.
-  const place = (w, h) => {
-    const vw = innerWidth, vh = innerHeight;
-    const maxW = Math.min(vw - 56, 1440), maxH = vh - 120;
-    const s = Math.min(maxW / w, maxH / h);
-    const W = Math.round(w * s), H = Math.round(h * s);
-    return { left: Math.round((vw - W) / 2), top: Math.round((vh - 40 - H) / 2), width: W, height: H };
+  // ------------------------------------------------------- the backdrops to try
+  const lights = document.getElementById('lights'), note = document.getElementById('lights-note');
+  if (gl && lights) {
+    ['aurora', 'dusk', 'nebula', 'ocean', 'borealis', 'ember', 'sunset', 'moss', 'rose', 'graphite'].forEach((name) => {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', name[0].toUpperCase() + name.slice(1));
+      b.title = name[0].toUpperCase() + name.slice(1);
+      b.style.setProperty('--swatch', `linear-gradient(135deg, ${css(name, 0)}, ${css(name, 1)} 55%, ${css(name, 2)})`);
+      b.addEventListener('click', () => {
+        chosen = chosen === name ? null : name;
+        lights.querySelectorAll('button').forEach((o) => o.setAttribute('aria-pressed', String(o === b && !!chosen)));
+        note.textContent = chosen ? BLURBS[name] : 'This page is lit by the same shader. Try one.';
+        if (mode === 'static') setLight(chosen || 'aurora');
+        lastY = -1; settled = false;
+      });
+      li.appendChild(b); lights.appendChild(li);
+    });
+  }
+
+  // ------------------------------------------------------------------ the clock
+  let then = performance.now(), drawn = 0, busyUntil = 0, carried = 0, lastScroll = scrollY;
+  const tick = (now) => {
+    const dt = Math.min(0.25, (now - then) / 1000); then = now;   // (a slow frame still catches up: the easing is by time, not by frame)
+    root.classList.toggle('scrolled', scrollY > 24);
+    if (scrollY !== lastScroll) { carried += (scrollY - lastScroll) * 0.018; lastScroll = scrollY; busyUntil = now + 400; }
+    step(dt);
+    film();
+    if (gl && !document.hidden) {
+      let moving = false;
+      const k = 1 - Math.exp(-dt / 0.5);
+      for (let n = 0; n < 28; n++) { const d = want[n] - cur[n]; if (Math.abs(d) > 0.0005) { cur[n] += d * k; moving = true; } else cur[n] = want[n]; }
+      if (moving) busyUntil = now + 100;
+      // Every frame while something is changing; otherwise as often as the app does, which is plenty for a drift this slow.
+      const due = now < busyUntil || lightDirty ? 0 : calm ? Infinity : 66;
+      if (now - drawn >= due) { drawn = now; lightDirty = false; draw(calm ? 40 : 40 + now / 1000 * 1.5 + carried); }
+    }
+    requestAnimationFrame(tick);
   };
-  const caption = (el) => {
-    const fig = el.closest('figure');
-    const b = fig && fig.querySelector('figcaption b');
-    return b ? b.textContent.replace(/\.$/, '') : (el.alt || '');
-  };
-  const from = (el, to) => {
-    const r = el.getBoundingClientRect();
-    return `translate(${r.left - to.left}px, ${r.top - to.top}px) scale(${r.width / to.width}, ${r.height / to.height})`;
-  };
-  const show = (i) => {
-    const el = pics[i];
-    at = i;
-    img.src = el.currentSrc || el.src; img.alt = el.alt;
-    cap.innerHTML = '';
-    const b = document.createElement('b'); b.textContent = caption(el); cap.appendChild(b);
-    if (pics.length > 1) { const k = document.createElement('kbd'); k.textContent = '← →'; cap.appendChild(k); }
-    const w = el.naturalWidth || 1440, h = el.naturalHeight || 900;
-    const to = place(w, h);
-    Object.assign(img.style, { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px' });
-    return { el, to };
-  };
-  const open = (i) => {
-    if (busy || !lb.hidden) return;
-    const { el, to } = show(i);
-    lb.hidden = false; lb.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    img.style.transition = 'none';
-    img.style.transform = still ? 'none' : from(el, to);
-    img.style.opacity = '1';
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      img.style.transition = '';
-      lb.classList.add('open');
-      img.style.transform = 'none';
-    }));
-  };
-  const close = () => {
-    if (lb.hidden || busy) return;
-    busy = true;
-    const el = pics[at];
-    const to = { left: parseFloat(img.style.left), top: parseFloat(img.style.top), width: parseFloat(img.style.width), height: parseFloat(img.style.height) };
-    lb.classList.remove('open');
-    const done = () => {
-      lb.hidden = true; lb.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
-      img.style.transform = 'none'; img.removeAttribute('src');
-      busy = false;
-    };
-    if (still) { done(); return; }
-    const r = el.getBoundingClientRect();
-    const onScreen = r.bottom > 0 && r.top < innerHeight;
-    if (onScreen) { img.style.transform = from(el, to); } else { img.style.opacity = '0'; }
-    img.addEventListener('transitionend', done, { once: true });
-    setTimeout(done, 520);
-  };
-  const step = (d) => {
-    if (lb.hidden || busy || pics.length < 2) return;
-    const n = (at + d + pics.length) % pics.length;
-    img.style.transition = 'opacity .18s ease';
-    img.style.opacity = '0';
-    setTimeout(() => { show(n); img.style.opacity = '1'; setTimeout(() => { img.style.transition = ''; }, 200); }, 180);
-  };
-  pics.forEach((el, i) => el.addEventListener('click', (e) => { e.preventDefault(); open(i); }));
-  lb.addEventListener('click', close);
-  addEventListener('keydown', (e) => {
-    if (lb.hidden) return;
-    if (e.key === 'Escape') close();
-    else if (e.key === 'ArrowRight') step(1);
-    else if (e.key === 'ArrowLeft') step(-1);
-  });
-  addEventListener('resize', () => { if (!lb.hidden && !busy) show(at); });
+  measure();
+  // The README's link to the film: on the travelling page the film's place is a scroll position, not a box.
+  const toFilm = () => { if (location.hash === '#film' && geo) scrollTo({ top: geo.centres[1] - geo.vh / 2, behavior: 'instant' }); };
+  addEventListener('hashchange', toFilm);
+  addEventListener('load', () => setTimeout(toFilm, 0));
+  addEventListener('resize', () => { size(); measure(); });
+  addEventListener('load', measure);
+  if ('ResizeObserver' in window) new ResizeObserver(() => measure()).observe(hero);
+  requestAnimationFrame(tick);
 })();
 </script>
+
 </body>
 </html>
