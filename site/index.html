@@ -617,6 +617,7 @@ cd glassine
     geo = { vw, vh, base, poses, centres, narrow, under: 76 + H(side) };
     lastY = -1; settled = false;
     if (!shown) shown = { ...poses.hero, tilt: 0 };
+    step(0);   // in place at once, not on the next frame: a page opened in a background tab has no next frame for a while
   };
 
   const step = (dt) => {
