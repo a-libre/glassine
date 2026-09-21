@@ -1226,6 +1226,86 @@ final class GlassineTextView: NSTextView {
         super.moveDown(sender)
     }
 
+    // MARK: - The end of the line
+
+    /// A hidden marker is a glyph that takes no room, and the typesetter lays
+    /// such glyphs at the start of a paragraph — a task's `- `, a heading's
+    /// `# `, a quote's `>` — into the line *before* it, after that line's
+    /// newline. AppKit's own ⌘→ goes to the end of the line's glyphs, so with
+    /// the syntax hidden it stepped over the newline and the marker and came
+    /// out at the start of the next line. The end of a line is worked out here
+    /// instead, and never lies past the end of the caret's own paragraph.
+    private func endOfVisualLine(at location: Int, upstream: Bool) -> (index: Int, wrapped: Bool)? {
+        guard let lm = layoutManager, let storage = textStorage, storage.length > 0 else { return nil }
+        let ns = storage.string as NSString
+        let loc = min(max(0, location), ns.length)
+        var paraStart = 0, contentsEnd = 0
+        ns.getParagraphStart(&paraStart, end: nil, contentsEnd: &contentsEnd, for: NSRange(location: loc, length: 0))
+        guard loc < contentsEnd else { return (contentsEnd, false) }
+        func lineY(_ c: Int) -> CGFloat {
+            lm.lineFragmentRect(forGlyphAt: lm.glyphIndexForCharacter(at: c), effectiveRange: nil).minY
+        }
+        // Drawn at the end of a soft-wrapped line already: that is where it stays.
+        if upstream, loc > paraStart, lineY(loc) != lineY(loc - 1) { return (loc, true) }
+        // A hidden glyph may belong to the line above; ask the first one that is drawn.
+        var probe = loc
+        while probe < contentsEnd, lm.propertyForGlyph(at: lm.glyphIndexForCharacter(at: probe)) == .null { probe += 1 }
+        guard probe < contentsEnd else { return (contentsEnd, false) }
+        var glyphs = NSRange()
+        _ = lm.lineFragmentRect(forGlyphAt: lm.glyphIndexForCharacter(at: probe), effectiveRange: &glyphs)
+        let end = NSMaxRange(lm.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil))
+        return end >= contentsEnd ? (contentsEnd, false) : (end, true)
+    }
+
+    private func moveToEndOfVisualLine() -> Bool {
+        let sel = selectedRange()
+        guard let target = endOfVisualLine(at: NSMaxRange(sel), upstream: sel.length == 0 && selectionAffinity == .upstream) else { return false }
+        let range = NSRange(location: target.index, length: 0)
+        setSelectedRanges([NSValue(range: range)], affinity: target.wrapped ? .upstream : .downstream, stillSelecting: false)
+        scrollRangeToVisible(range)
+        return true
+    }
+
+    /// ⌘⇧→ stays AppKit's, so the end that ⇧← then moves is the one it always
+    /// was; only a selection that ran on past the end of the line is brought
+    /// back to it.
+    private func extendToEndOfVisualLine(_ sender: Any?, stock: (Any?) -> Void) {
+        let sel = selectedRange()
+        let target = endOfVisualLine(at: NSMaxRange(sel), upstream: sel.length == 0 && selectionAffinity == .upstream)
+        stock(sender)
+        guard let target else { return }
+        let limit = max(target.index, NSMaxRange(sel))
+        guard NSMaxRange(selectedRange()) > limit else { return }
+        var steps = 0
+        while NSMaxRange(selectedRange()) > limit, steps < 64 {
+            let before = selectedRange()
+            super.moveLeftAndModifySelection(sender)
+            steps += 1
+            if NSMaxRange(selectedRange()) >= NSMaxRange(before) { break }   // the moving end is the other one
+        }
+        let now = selectedRange()
+        if now.location != sel.location || NSMaxRange(now) != limit {
+            setSelectedRanges([NSValue(range: NSRange(location: sel.location, length: limit - sel.location))],
+                              affinity: target.wrapped ? .upstream : .downstream, stillSelecting: false)
+        }
+    }
+
+    override func moveToRightEndOfLine(_ sender: Any?) {
+        if !moveToEndOfVisualLine() { super.moveToRightEndOfLine(sender) }
+    }
+
+    override func moveToEndOfLine(_ sender: Any?) {
+        if !moveToEndOfVisualLine() { super.moveToEndOfLine(sender) }
+    }
+
+    override func moveToRightEndOfLineAndModifySelection(_ sender: Any?) {
+        extendToEndOfVisualLine(sender) { super.moveToRightEndOfLineAndModifySelection($0) }
+    }
+
+    override func moveToEndOfLineAndModifySelection(_ sender: Any?) {
+        extendToEndOfVisualLine(sender) { super.moveToEndOfLineAndModifySelection($0) }
+    }
+
     // MARK: - Typewriter scrolling
 
     func typewriterScroll(animated: Bool) {
