@@ -12,7 +12,7 @@ Native Swift (SwiftUI + AppKit), no dependencies, no Xcode project — a Swift p
 
 <p align="center">
   <a href="https://glassine.ink/#film"><img src="docs/screenshots/film.jpg" alt="A still from the film: a new page in Glassine, the title On Writing Slowly and a first sentence on dark glass, the caret at the end of the line. A play button sits over it."></a><br>
-  <sub>One page, start to finish, in 46 seconds — <a href="https://glassine.ink/#film">the film plays at glassine.ink</a>, with sound if you ask for it.</sub>
+  <sub>One page, start to finish, in 46 seconds, to a song — <a href="https://glassine.ink/#film">the film plays at glassine.ink</a>; sound is one click.</sub>
 </p>
 
 <table>
