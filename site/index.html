@@ -93,6 +93,10 @@
 
   /* ---- The opening ---- */
   .hero { position: relative; z-index: 2; padding: 132px 28px 0; text-align: center; }
+  /* The opening and the parts lie over the window (the stage is behind them), so their empty
+     space must let clicks through to the film and its buttons; only their contents catch the pointer. */
+  .hero, .part { pointer-events: none; }
+  .hero > *, .copy, .still { pointer-events: auto; }
   .travel .hero { min-height: 100svh; margin-top: -100vh; margin-top: -100svh; }
   h1, h2, h3 { margin: 0; color: var(--heading); font-weight: 400; }
   h1 { font: 400 clamp(46px, 7.4vw, 100px)/1.0 var(--serif); letter-spacing: -0.022em; }
@@ -133,6 +137,7 @@
     box-shadow: 0 0 0 1px rgba(223,229,244,0.14), 0 40px 110px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35);
   }
   .screen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; opacity: 0; }
+  img.screen { pointer-events: none; }   /* the pictures lie over the film even when unseen; a click on the film must reach it */
   .screen.film { opacity: 1; }
   .screen video { display: block; width: 100%; height: 100%; object-fit: cover; cursor: pointer; background: #1b1631; }
   .filmbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px 0; font-size: 14px; color: var(--muted); }
