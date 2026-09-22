@@ -43,6 +43,8 @@ targets:
       - path: ../Sources/Shared
       - path: ../Sources/iOS
       - path: ../Resources/wordmark.png
+      # The app icon, full-bleed, both appearances: Resources/make_ios_icon.py.
+      - path: Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.alexlibre.glassine
@@ -50,6 +52,8 @@ targets:
         # toolbar, press Run. (ios/build-sim.sh builds for the simulator unsigned.)
         DEVELOPMENT_TEAM: UW77SGUZ43
         CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Glassine.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_NAME: Glassine
         MARKETING_VERSION: "0.2.17"
         CURRENT_PROJECT_VERSION: "1"

@@ -29,3 +29,4 @@ DerivedData/
 
 # iOS build output (ios/build-sim.sh)
 .build-ios/
+.build-ios-device/
