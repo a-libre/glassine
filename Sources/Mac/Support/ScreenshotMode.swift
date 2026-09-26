@@ -99,7 +99,67 @@ enum ScreenshotMode {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { AppState.shared.toggleReview() }
                 }
             }
+            // A row picked up and carried (`-glassine.shootDrag x,y,dx,dy`, in
+            // points from the window's top left): the mouse goes down at the
+            // point, travels the distance in small steps, and is still held
+            // when the picture is taken; a second picture, "<name>-dropped",
+            // follows the release. The events are sent to the window
+            // directly, so the Mac's own pointer never moves.
+            if let spec = defaults.string(forKey: "glassine.shootDrag") {
+                let parts = spec.split(separator: ",").compactMap { Double($0) }
+                if parts.count == 4 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        startDrag(in: window, x: parts[0], y: parts[1], dx: parts[2], dy: parts[3])
+                    }
+                }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                if let held = heldDrag {
+                    capture(window, name: name, composite: composite, andQuit: false)
+                    post(.leftMouseUp, at: held, in: window)
+                    heldDrag = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                        capture(window, name: (name as NSString).deletingPathExtension + "-dropped.png", composite: composite, andQuit: true)
+                    }
+                } else {
+                    capture(window, name: name, composite: composite, andQuit: true)
+                }
+            }
+        }
+    }
+
+    // MARK: - A synthetic drag
+
+    private static var heldDrag: NSPoint?
+
+    private static func startDrag(in window: NSWindow, x: Double, y: Double, dx: Double, dy: Double) {
+        let h = window.frame.height
+        let from = NSPoint(x: x, y: h - y)
+        let to = NSPoint(x: x + dx, y: h - (y + dy))
+        // A click in a window that is not key only makes it key; this one
+        // is made key first, without bringing the app forward.
+        window.makeKey()
+        post(.leftMouseDown, at: from, in: window)
+        let steps = 24
+        for i in 1...steps {
+            let t = Double(i) / Double(steps)
+            let p = NSPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02 * Double(i)) {
+                post(.leftMouseDragged, at: p, in: window)
+            }
+        }
+        heldDrag = to
+    }
+
+    private static func post(_ type: NSEvent.EventType, at p: NSPoint, in window: NSWindow) {
+        guard let e = NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                         windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1,
+                                         pressure: type == .leftMouseUp ? 0 : 1) else { return }
+        NSApp.sendEvent(e)
+    }
+
+    private static func capture(_ window: NSWindow, name: String, composite: Bool, andQuit: Bool) {
+        do {
                 // The window alone, asked for by its number: the one window of ours,
                 // and nothing else. The backdrop beneath it is still on screen, so the
                 // glass has it to blur. Screen coordinates here have their origin at
@@ -114,7 +174,7 @@ enum ScreenshotMode {
                           image.width > 1, image.height > 1 else {
                         finish(name: name, error: "the window server returned no image for window \(id)"); return
                     }
-                    write(image, name: name)
+                    write(image, name: name, andQuit: andQuit)
                     return
                 }
                 // The array holds the window number itself, pointer-sized, not a boxed number.
@@ -126,8 +186,7 @@ enum ScreenshotMode {
                       image.width > 1, image.height > 1 else {
                     finish(name: name, error: "the window server returned no image for window \(id)"); return
                 }
-                write(image, name: name)
-            }
+                write(image, name: name, andQuit: andQuit)
         }
     }
 
@@ -161,7 +220,7 @@ enum ScreenshotMode {
     }
 
     /// Opaque RGB, because App Store Connect refuses an alpha channel.
-    private static func write(_ image: CGImage, name: String) {
+    private static func write(_ image: CGImage, name: String, andQuit: Bool = true) {
         let folder = outputFolder
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appendingPathComponent(name)
@@ -176,17 +235,17 @@ enum ScreenshotMode {
         }
         CGImageDestinationAddImage(dest, flat, nil)
         guard CGImageDestinationFinalize(dest) else { finish(name: name, error: "could not write \(url.path)"); return }
-        finish(name: name, error: nil)
+        finish(name: name, error: nil, quit: andQuit)
     }
 
     /// A companion file says how it went, so the script never waits on a
     /// picture that is not coming.
-    private static func finish(name: String, error: String?) {
+    private static func finish(name: String, error: String?, quit: Bool = true) {
         let folder = outputFolder
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let note = folder.appendingPathComponent(name + ".status")
         try? (error ?? "ok").write(to: note, atomically: true, encoding: .utf8)
-        NSApp.terminate(nil)
+        if quit || error != nil { NSApp.terminate(nil) }
     }
 
     /// A line in the run's log, for the script to show when a picture fails.

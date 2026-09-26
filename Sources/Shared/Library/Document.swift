@@ -412,7 +412,7 @@ final class DocumentModel: ObservableObject, Identifiable {
         }
     }
 
-    private static func stats(of text: String) -> (characters: Int, words: Int) {
+    static func stats(of text: String) -> (characters: Int, words: Int) {
         let ns = text as NSString
         var words = 0
         ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byWords, .substringNotRequired]) { _, _, _, _ in

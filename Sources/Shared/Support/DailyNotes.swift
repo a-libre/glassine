@@ -23,6 +23,13 @@ enum DailyNotes {
         return date(fromTitle: stem) != nil
     }
 
+    /// A day as one number, 20260903 for September 3, 2026 — the key the
+    /// calendar and the day index share.
+    static func dayKey(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return (c.year ?? 0) * 10000 + (c.month ?? 0) * 100 + (c.day ?? 0)
+    }
+
     private static let titleFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE, MMMM d, yyyy"

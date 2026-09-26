@@ -17,6 +17,9 @@ struct DocumentRef: Identifiable, Hashable {
     var tags: [String]
     /// The first ~2000 characters, used for gallery cards.
     var preview: String = ""
+    /// Words in the whole text as of the last read — what the sidebar's
+    /// calendar shades a day by. 0 until the file has been read.
+    var words: Int = 0
     /// False until the file has been read (the launch listing skips reading).
     var contentLoaded: Bool = true
 }
@@ -74,6 +77,7 @@ final class LibraryStore: ObservableObject {
         let preview: String
         /// The whole text, folded for searching (lowercase, accents stripped).
         let searchable: String
+        let words: Int
     }
 
     /// Text as the search compares it: case- and accent-insensitive.
@@ -275,10 +279,12 @@ final class LibraryStore: ObservableObject {
 
                     var tags: [String] = []
                     var preview = ""
+                    var words = 0
                     var loaded = true
                     if let cached = tagCache[childRel], cached.modified == modified {
                         tags = cached.tags
                         preview = cached.preview
+                        words = cached.words
                     } else if !readContents {
                         loaded = false
                     } else if size > 0 && allocated == 0 {
@@ -290,14 +296,15 @@ final class LibraryStore: ObservableObject {
                             tags = TagExtractor.tags(in: text)
                             preview = String(text.prefix(2000))
                             searchable = LibraryStore.searchable(text)
+                            words = DocumentModel.stats(of: text).words
                         }
-                        tagCache[childRel] = CachedMeta(modified: modified, tags: tags, preview: preview, searchable: searchable)
+                        tagCache[childRel] = CachedMeta(modified: modified, tags: tags, preview: preview, searchable: searchable, words: words)
                     }
                     docs.append(DocumentRef(
                         id: childRel, url: item,
                         title: item.deletingPathExtension().lastPathComponent,
                         modified: modified, created: created, size: size,
-                        folder: rel, tags: tags, preview: preview, contentLoaded: loaded
+                        folder: rel, tags: tags, preview: preview, words: words, contentLoaded: loaded
                     ))
                 }
             }
