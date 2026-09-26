@@ -730,7 +730,9 @@ final class AppState: ObservableObject {
             if !FileManager.default.fileExists(atPath: library.url(forRelativePath: folder).path) {
                 _ = try library.createFolder(named: folder, in: "")
             }
-            let contents = "# \(title)\n\n"
+            // The heading and one line under it for the caret — not a blank
+            // line and then the caret, which read as a paragraph nobody wrote.
+            let contents = "# \(title)\n"
             let ref = try library.createDocument(in: folder, stem: title.sanitizedFileStem, contents: contents)
             open(ref)
             reviewMode = false

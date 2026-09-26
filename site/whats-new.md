@@ -10,6 +10,7 @@ every release. Newest version first. Three to five lines a version, each
 
 - **⌘3 and ⌘D are today's note.** The third row in the sidebar is now *Today* — the day's note, started for you if it has none — and ⌘D goes there too. Timelapse keeps ⌘2; New Document keeps ⌘N.
 - **The search bar lands cleanly.** Esc sends the ⌘F bar back to its spot in the header without the jump to the middle of the window it made as it went; the command bar no longer refills its list as it fades.
+- **Two small things put right.** A new daily note starts on the line under its heading, not two below; Editorial's first paragraph is set like the rest, not as a standfirst.
 
 ## 0.2.20 — September 25, 2026
 

@@ -561,7 +561,6 @@ enum ReviewHTML {
             h2 { font-size: 1.7em; font-weight: 700; margin-top: 2em; }
             h3 { font-size: 1.15em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
             p { font-size: 1.05em; }
-            article > h1 + p { font-size: 1.28em; line-height: 1.5; color: \(muted); font-weight: 300; }
             blockquote { border: 0; padding: 0.4em 0 0.4em 0; margin: 1.6em 0; font-size: 1.45em; line-height: 1.3; font-weight: 300; \
             letter-spacing: -0.01em; font-style: normal; color: \(text); border-top: 1px solid \(rule); border-bottom: 1px solid \(rule); }
             blockquote p::before { content: "“"; color: var(--accent); margin-right: 0.1em; }
