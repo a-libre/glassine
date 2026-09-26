@@ -38,6 +38,11 @@ final class AppState: ObservableObject {
 
     /// The mosaic is what the content area shows (asked for, or nothing is open).
     var galleryOnScreen: Bool { !showingDaily && (showingGallery || document == nil) }
+    /// Today's note is the document showing — for the sidebar's Today row.
+    var todaysNoteOnScreen: Bool {
+        guard !galleryOnScreen, !showingDaily, let doc = document else { return false }
+        return dailyNotesByDay[DailyNotes.dayKey(Date())]?.id == doc.relativePath
+    }
 
     /// The Daily timeline: today's note in front, earlier days receding behind it.
     @Published var showingDaily = false
@@ -45,6 +50,9 @@ final class AppState: ObservableObject {
     /// ⌘F overlay. The mosaic's inline box reports its frame so the overlay can
     /// glide out of it; the value lives outside @Published because it changes on layout.
     @Published var showingSearch = false
+    /// Counts the times the search overlay has come out, so each one is its
+    /// own view with its own glide, and one going down never inherits the next.
+    @Published var searchSession = 0
     /// The overlay is on its way back to the header: it glides home before it goes.
     @Published var searchRetreating = false
     var searchFieldFrame: CGRect = .zero
@@ -390,18 +398,38 @@ final class AppState: ObservableObject {
         showingDaily = false
         showingCommandBar = false
         if document != nil { showingGallery = true }
+        // ⌘F while the bar is still on its way back, or gone a moment ago:
+        // a fresh overlay comes out from home; the old one finishes fading.
+        if !showingSearch || searchRetreating { searchSession += 1 }
+        searchRetreating = false
         showingSearch = true
     }
 
     /// Esc, or a click beside it: the search bar glides back to its spot in
     /// the header the way it came, and is taken down once it has landed. The
-    /// reverse of focusSearch(), at the same pace.
+    /// reverse of focusSearch(), at the same pace. The overlay says when it
+    /// has landed (`searchLanded`); the timer behind it is for a glide that
+    /// never reports — reduced motion, say.
     func hideSearch() {
         guard showingSearch, !searchRetreating else { return }
         searchRetreating = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) { [weak self] in
-            guard let self, self.searchRetreating else { return }
-            self.showingSearch = false
+        let session = searchSession
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            guard let self, self.searchSession == session else { return }
+            self.searchLanded()
+        }
+    }
+
+    /// The bar is home: the overlay comes down over the header's own field,
+    /// which fades up under it. The retreat flag is left standing through the
+    /// same update, so the outgoing overlay is not told to come back out
+    /// while it fades — that was a jump to the middle of the window before
+    /// it went.
+    func searchLanded() {
+        guard showingSearch, searchRetreating else { return }
+        showingSearch = false
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.showingSearch else { return }
             self.searchRetreating = false
         }
     }
@@ -1151,8 +1179,8 @@ final class AppState: ObservableObject {
             add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.showGallery() }
         } else if galleryOnScreen || showingDaily {
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
-            add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
-            add("daily", showingDaily ? "All Documents" : "Timelapse", keys: showingDaily ? "⌘P" : "⌘D") { [weak self] in
+            add("today", "Today's Note", keys: "⌘3  ⌘D") { [weak self] in self?.openTodaysNote() }
+            add("daily", showingDaily ? "All Documents" : "Timelapse", keys: showingDaily ? "⌘P" : "⌘2") { [weak self] in
                 guard let self else { return }
                 if self.showingDaily { self.showGallery() } else { self.showDaily() }
             }
@@ -1171,8 +1199,8 @@ final class AppState: ObservableObject {
             add("all-docs", "All Documents", keys: "⌘P") { [weak self] in self?.showGallery() }
             add("review", "Review", keys: "⌘↩  ⌘⇧S") { [weak self] in self?.toggleReview() }
             add("beside", settings.data.reviewBeside ? "Put away the page beside the editor" : "Review beside the editor", keys: "⌘⇧↩") { [weak self] in self?.toggleReviewBeside() }
-            add("today", "Today's Note", keys: "⌥⌘D") { [weak self] in self?.openTodaysNote() }
-            add("daily", "Timelapse", keys: "⌘D") { [weak self] in self?.showDaily() }
+            add("today", "Today's Note", keys: "⌘3  ⌘D") { [weak self] in self?.openTodaysNote() }
+            add("daily", "Timelapse", keys: "⌘2") { [weak self] in self?.showDaily() }
             add("new-doc", "New Document", keys: "⌘N") { [weak self] in self?.newDocument() }
             add("typewriter", "\(settings.data.typewriterMode ? "Turn off" : "Turn on") typewriter scrolling", keys: "⌃⌘T") { [weak self] in self?.toggleTypewriter() }
             add("focus", "\(settings.data.focusMode ? "Turn off" : "Turn on") focus mode", keys: "⌃⌘F") { [weak self] in self?.toggleFocus() }
@@ -1212,9 +1240,10 @@ final class AppState: ObservableObject {
         let list = filteredCommands
         guard index >= 0, index < list.count else { showingCommandBar = false; return }
         let command = list[index]
+        // The query and the highlight are reset when the bar next opens
+        // (toggleCommandBar); clearing them here refilled the list under
+        // the card as it faded.
         showingCommandBar = false
-        commandQuery = ""
-        commandSelection = 0
         DispatchQueue.main.async { command.action() }
     }
 
@@ -1277,12 +1306,12 @@ enum WelcomeDocument {
     ## A few things to try
 
     - Watch the caret glide as you type. Leave it alone for a few seconds and it may do a trick. Both are tuned under **Settings → Caret**.
-    - ⌘S hides the sidebar; ⌘S brings it back. ⌘1 shows every document as a wall of cards, ⌘2 is Timelapse — today's note in front, earlier days receding behind it — and ⌘F searches everything you have written.
+    - ⌘S hides the sidebar; ⌘S brings it back. ⌘1 shows every document as a wall of cards, ⌘2 is Timelapse — today's note in front, earlier days receding behind it — ⌘3 is today's note, and ⌘F searches everything you have written.
     - ⌘K opens a command bar with whatever makes sense where you are. ⌘/ shows every shortcut on one card.
     - ⌘↩ shows this page the way a reader will see it, in any of six styles; Esc comes back. ⌘⇧↩ keeps that page beside the editor, following as you write.
     - Typewriter scrolling (⌃⌘T) and focus mode (⌃⌘F) are both on. Turn either off and see which you miss.
     - The file's name follows the first line of the document. Change this heading and watch the sidebar.
-    - ⌥⌘D opens today's note. Type @today, @yesterday or @tomorrow and a space anywhere.
+    - ⌘D opens today's note, like ⌘3. Type @today, @yesterday or @tomorrow and a space anywhere.
 
     ## Markdown, lightly styled
 

@@ -224,7 +224,7 @@ struct DailyTimelineView: View {
                 Text("Start today's note")
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text("⌥⌘D")
+                Text("⌘D")
                     .font(.system(size: 11))
                     .opacity(0.35)
             }

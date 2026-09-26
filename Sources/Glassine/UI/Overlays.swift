@@ -16,12 +16,20 @@ struct SearchFieldFrameKey: PreferenceKey {
 /// the middle of the window and takes the keyboard. The mosaic filters live
 /// behind it; arrows walk the results, Return opens, Esc clears and sends it
 /// gliding back the way it came.
+///
+/// Where the bar is comes from the view's own `centered`, never from the
+/// app's flags: the flags say when to come out and when to go back, and the
+/// view answers with a glide it owns. So when the overlay is taken down
+/// after landing, and its flags reset under it while it fades, nothing in it
+/// moves — before, the reset read as "come out again" and the bar leapt back
+/// to the middle of the window for the last frames of the fade.
 struct SearchOverlay: View {
     @EnvironmentObject var state: AppState
     @FocusState private var focused: Bool
     @State private var centered = false
 
     private var theme: Theme { state.theme }
+    private static let glide = Animation.spring(response: 0.34, dampingFraction: 0.82)
 
     var body: some View {
         GeometryReader { geo in
@@ -31,10 +39,9 @@ struct SearchOverlay: View {
             let start = hasOrigin ? CGPoint(x: origin.midX, y: origin.midY) : target
 
             // Home is the header's field; the middle of the window is where it
-            // works. It sits home before it has come out and again while it goes
-            // back, and the going back runs on the same spring as the coming out.
-            let retreating = state.searchRetreating
-            let home = !centered || retreating
+            // works. It sits home before it has come out and again once it has
+            // gone back, on the same spring both ways.
+            let home = !centered
 
             ZStack(alignment: .topLeading) {
                 // Click anywhere else to put it back.
@@ -47,16 +54,24 @@ struct SearchOverlay: View {
                            height: home ? (hasOrigin ? origin.height : 46) : 46)
                     .position(home ? start : target)
                     .opacity(home ? (hasOrigin ? 0.85 : 0) : 1)
-                    .animation(.spring(response: 0.34, dampingFraction: 0.82), value: retreating)
-                    .allowsHitTesting(!retreating)
+                    .allowsHitTesting(!state.searchRetreating)
             }
             .onAppear {
                 DispatchQueue.main.async { focused = true }
-                withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) { centered = true }
+                withAnimation(GlassineTextView.reduceMotion ? nil : Self.glide) { centered = true }
             }
-            .onChange(of: retreating) { _, going in
+            .onChange(of: state.searchRetreating) { _, going in
+                guard going else { return }
                 // The keyboard goes back with it, so nothing is typed into a bar in flight.
-                if going { focused = false }
+                focused = false
+                // Home again, and the app hears when it has landed, so the
+                // overlay comes down the moment the bar is over the header's
+                // field and not a beat before or after.
+                withAnimation(GlassineTextView.reduceMotion ? nil : Self.glide, completionCriteria: .logicallyComplete) {
+                    centered = false
+                } completion: {
+                    state.searchLanded()
+                }
             }
         }
         .ignoresSafeArea()

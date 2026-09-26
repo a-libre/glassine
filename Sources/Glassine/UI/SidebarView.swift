@@ -31,6 +31,7 @@ struct SidebarView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: Self.rowSpacing) {
                     allDocumentsRow
+                    timelapseRow
                     todayRow
                     newDocumentRow
                         .padding(.bottom, 8)
@@ -253,7 +254,7 @@ struct SidebarView: View {
         .buttonStyle(HoverRowStyle(theme: theme, selected: state.galleryOnScreen))
     }
 
-    private var todayRow: some View {
+    private var timelapseRow: some View {
         Button {
             state.showDaily()
         } label: {
@@ -274,7 +275,33 @@ struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(HoverRowStyle(theme: theme, selected: state.showingDaily))
-        .help("Timelapse — today's note in front, earlier days receding behind it (⌘2 or ⌘D). ⌥⌘D opens today's note directly.")
+        .help("Timelapse — today's note in front, earlier days receding behind it (⌘2).")
+    }
+
+    /// Today's note, made on first use: the third numbered row, so the day's
+    /// page is one key away like the two views above it.
+    private var todayRow: some View {
+        Button {
+            state.openTodaysNote()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "sun.max")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(theme.accent.color)
+                    .frame(width: 18)
+                Text("Today")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Text("⌘3")
+                    .font(.system(size: 11))
+                    .opacity(0.35)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverRowStyle(theme: theme, selected: state.todaysNoteOnScreen))
+        .help("Today's note — in the Daily folder, started for you if the day has none yet (⌘3 or ⌘D).")
     }
 
     private var newDocumentRow: some View {
@@ -289,7 +316,7 @@ struct SidebarView: View {
                 Text("New Document")
                     .font(.system(size: 13, weight: .medium))
                 Spacer()
-                Text("⌘3")
+                Text("⌘N")
                     .font(.system(size: 11))
                     .opacity(0.35)
             }

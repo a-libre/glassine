@@ -141,8 +141,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "\\":
                 state.toggleSidebar()
                 return nil
-            // The three rows at the top of the sidebar, in order, for the left
-            // hand alone while the right is on the mouse. ⌘P, ⌘D and ⌘N still work.
+            // The three numbered rows at the top of the sidebar, in order, for
+            // the left hand alone while the right is on the mouse. ⌘P and ⌘D
+            // are the other names for the first and third.
             case "1":
                 state.showGallery()
                 return nil
@@ -150,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state.showDaily()
                 return nil
             case "3":
-                state.newDocument()
+                state.openTodaysNote()
                 return nil
             case "f":
                 state.focusSearch()
@@ -264,7 +265,7 @@ struct GlassineCommands: Commands {
             Button("Open…") { withWindow { state.openFilePanel() } }
                 .keyboardShortcut("o", modifiers: .command)
             Button("Today's Note") { withWindow { state.openTodaysNote() } }
-                .keyboardShortcut("d", modifiers: [.command, .option])
+                .keyboardShortcut("d", modifiers: .command)
             Divider()
             Button("Save Now") { state.document?.save() }
                 .disabled(state.document == nil)
@@ -353,7 +354,7 @@ struct GlassineCommands: Commands {
             Button("Command Bar") { withWindow { state.toggleCommandBar() } }
                 .keyboardShortcut("k", modifiers: .command)
             Button("Timelapse") { withWindow { state.showDaily() } }
-                .keyboardShortcut("d", modifiers: .command)
+                .keyboardShortcut("2", modifiers: .command)
             Button(state.reviewMode && !state.showingGallery ? "Leave Review" : "Review") { state.toggleReview() }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(state.document == nil)

@@ -6,6 +6,11 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.21 — September 26, 2026
+
+- **⌘3 and ⌘D are today's note.** The third row in the sidebar is now *Today* — the day's note, started for you if it has none — and ⌘D goes there too. Timelapse keeps ⌘2; New Document keeps ⌘N.
+- **The search bar lands cleanly.** Esc sends the ⌘F bar back to its spot in the header without the jump to the middle of the window it made as it went; the command bar no longer refills its list as it fades.
+
 ## 0.2.20 — September 25, 2026
 
 - **The icon is the glass.** The app's icon now shows its own window — Dusk over the Aurora backdrop — with the wordmark's g on it.

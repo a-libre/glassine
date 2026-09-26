@@ -37,6 +37,7 @@ struct ContentView: View {
 
             if state.showingSearch {
                 SearchOverlay()
+                    .id(state.searchSession)
                     .zIndex(9)
             }
 
