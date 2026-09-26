@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Generates AppIcon.iconset (PNGs) for Glassine. Run once; build.sh turns it into .icns.
 With --dark, the same drawing in the dark palette, into AppIcon-Dark.iconset.
+With --aurora, the sheet is the app's own glass: a square cut from a picture
+of the window with the Dusk theme over the Aurora backdrop (Resources/aurora.png,
+taken by the app itself — tests/shot-icon.sh), the letter in paper-white on it,
+into AppIcon-Aurora.iconset.
 
 The mark is the wordmark's lowercase g on a sheet of paper, with ruled lines
 running in from the left and fading out — lines of text arriving at the letter.
@@ -47,14 +51,24 @@ PALETTES = {
         edge=(255, 255, 255, 30),
     ),
 }
-VARIANT = "dark" if "--dark" in sys.argv else "light"
-P = PALETTES[VARIANT]
+VARIANT = "aurora" if "--aurora" in sys.argv else ("dark" if "--dark" in sys.argv else "light")
+P = PALETTES["dark" if VARIANT == "aurora" else VARIANT]
 PAPER_TOP, PAPER_BOTTOM = P["paper"]
 INK_TOP, INK_BOTTOM = P["ink"]
 RULE = P["rule"]
-if VARIANT == "dark":
-    OUT = os.path.join(HERE, "AppIcon-Dark.iconset")
+if VARIANT != "light":
+    OUT = os.path.join(HERE, "AppIcon-Dark.iconset" if VARIANT == "dark" else "AppIcon-Aurora.iconset")
     os.makedirs(OUT, exist_ok=True)
+
+# The glass itself, for the aurora icon: a square of the window's picture,
+# clear of the caret at the top left and the traffic lights. The picture is
+# 2400×1720 (a 1200×860 window on a Retina display); the square is the
+# window's full height, from the right, where the folds cross.
+AURORA = None
+if VARIANT == "aurora":
+    src = Image.open(os.path.join(HERE, "aurora.png")).convert("RGBA")
+    side = src.height
+    AURORA = src.crop((src.width - side, 0, src.width, side))
 
 # --- The letter -------------------------------------------------------------------------------
 # Measured from the wordmark's g, in a 279×428 box: a near-monoline bowl, a
@@ -121,12 +135,16 @@ def build(size):
     icon_px = ICON * k * ss
     off_px = OFF * k * ss
 
-    art = vertical_gradient(int(round(icon_px)), PAPER_TOP, PAPER_BOTTOM)
-    n = art.width
-    # A breath of light across the top, so the paper reads as a surface.
-    sheen = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(sheen).ellipse([-n * 0.2, -n * 0.6, n * 1.2, n * 0.4], fill=P["sheen"])
-    art = Image.alpha_composite(art, sheen.filter(ImageFilter.GaussianBlur(n * 0.08)))
+    if AURORA is not None:
+        art = AURORA.resize((int(round(icon_px)),) * 2, Image.LANCZOS)
+        n = art.width
+    else:
+        art = vertical_gradient(int(round(icon_px)), PAPER_TOP, PAPER_BOTTOM)
+        n = art.width
+        # A breath of light across the top, so the paper reads as a surface.
+        sheen = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+        ImageDraw.Draw(sheen).ellipse([-n * 0.2, -n * 0.6, n * 1.2, n * 0.4], fill=P["sheen"])
+        art = Image.alpha_composite(art, sheen.filter(ImageFilter.GaussianBlur(n * 0.08)))
 
     # Letter geometry in art pixels
     gx = (G_RIGHT - OFF) * k * ss - G_W * (G_HEIGHT * k * ss / G_H)
@@ -146,6 +164,8 @@ def build(size):
             starts = RULE_STARTS
         thickness = max(1.0 * ss, 7.0 * k * ss)                      # never thinner than a pixel
         alpha_max = 0.34 if size >= 64 else 0.5
+        if AURORA is not None:
+            alpha_max *= 0.8           # over the folds the lines stay a whisper
         rules = Image.new("L", (n, n), 0)
         rd = ImageDraw.Draw(rules)
         x_end = gx + 262 * gk                                        # to the stem's middle, never past it
@@ -167,6 +187,12 @@ def build(size):
 
     # The letter itself, in ink that darkens toward the top like the wordmark study.
     letter = draw_g(n, gx, gy, gh, 255)
+    if AURORA is not None:
+        # A soft shadow under the letter, so it sits on the glass where a
+        # bright fold passes rather than dissolving into it.
+        shade = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+        shade.putalpha(letter.filter(ImageFilter.GaussianBlur(n * 0.012)).point(lambda a: int(a * 0.38)))
+        art = Image.alpha_composite(art, shade)
     ink = vertical_gradient(n, INK_TOP, INK_BOTTOM)
     ink.putalpha(letter)
     art = Image.alpha_composite(art, ink)
@@ -191,7 +217,8 @@ def build(size):
 
 
 if __name__ == "__main__":
-    build(1024).save(os.path.join(HERE, "AppIcon-1024.png" if VARIANT == "light" else "AppIcon-Dark-1024.png"))
+    master = {"light": "AppIcon-1024.png", "dark": "AppIcon-Dark-1024.png", "aurora": "AppIcon-Aurora-1024.png"}[VARIANT]
+    build(1024).save(os.path.join(HERE, master))
     for px in (16, 32, 128, 256, 512):
         for scale in (1, 2):
             n = px * scale
