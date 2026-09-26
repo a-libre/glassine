@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CoreServices
 
 struct DocumentRef: Identifiable, Hashable {
     /// Path relative to the library root, e.g. "Essays/On Writing.md".
@@ -186,8 +187,12 @@ final class LibraryStore: ObservableObject {
         url.pathRelative(to: rootURL)
     }
 
+    /// Documents by path, rebuilt with each scan; a lookup is a dictionary
+    /// read rather than a walk of the list.
+    private var byID: [String: DocumentRef] = [:]
+
     func document(withID id: String) -> DocumentRef? {
-        allDocuments.first { $0.id == id }
+        byID[id]
     }
 
     func folder(withID id: String) -> LibraryFolder? {
@@ -229,12 +234,32 @@ final class LibraryStore: ObservableObject {
         lastSignature = result.signature
         contentsComplete = result.complete
         generation += 1
+        let docs = result.root.allDocuments
+        var index: [String: DocumentRef] = [:]
+        index.reserveCapacity(docs.count)
+        for d in docs { index[d.id] = d }
+        byID = index
         root = result.root
-        allDocuments = result.root.allDocuments
+        allDocuments = docs
         var counts: [String: Int] = [:]
         for d in allDocuments { for t in d.tags { counts[t, default: 0] += 1 } }
         tags = counts.map { TagInfo(name: $0.key, count: $0.value) }
             .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
+    }
+
+    // MARK: - Watching
+
+    private var watcher: LibraryWatcher?
+
+    /// Hears the file system's own word that something under the library
+    /// changed — a save from the other Mac through iCloud, a file dropped in
+    /// Finder, sync's commit — and rescans then, rather than walking the
+    /// whole tree every few seconds to find out nothing did.
+    func startWatching(_ changed: @escaping () -> Void) {
+        watcher = LibraryWatcher(url: rootURL) { [weak self] in
+            self?.rescan()
+            changed()
+        }
     }
 
     private struct ScanResult {
@@ -497,6 +522,49 @@ enum TagExtractor {
             found.insert(tag.lowercased())
         }
         return found.sorted()
+    }
+}
+
+/// An FSEvents stream over one folder, recursive, delivered on the main
+/// queue and coalesced: a burst of events (iCloud writing a file in pieces,
+/// a folder of files arriving) becomes one call a beat after the last. The
+/// app's own saves count too — that is how the sidebar's order and the
+/// mosaic's previews follow the writing.
+final class LibraryWatcher {
+    private var stream: FSEventStreamRef?
+    private let onChange: () -> Void
+    private var pending: DispatchWorkItem?
+
+    init(url: URL, onChange: @escaping () -> Void) {
+        self.onChange = onChange
+        var context = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
+                                           retain: nil, release: nil, copyDescription: nil)
+        let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
+            guard let info else { return }
+            Unmanaged<LibraryWatcher>.fromOpaque(info).takeUnretainedValue().fire()
+        }
+        guard let stream = FSEventStreamCreate(kCFAllocatorDefault, callback, &context,
+                                               [url.path] as CFArray, FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
+                                               0.4, FSEventStreamCreateFlags(kFSEventStreamCreateFlagNoDefer)) else { return }
+        self.stream = stream
+        FSEventStreamSetDispatchQueue(stream, .main)
+        FSEventStreamStart(stream)
+    }
+
+    private func fire() {
+        pending?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.onChange() }
+        pending = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+    }
+
+    deinit {
+        pending?.cancel()
+        if let stream {
+            FSEventStreamStop(stream)
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+        }
     }
 }
 

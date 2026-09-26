@@ -111,7 +111,7 @@ struct SidebarCalendar: View {
         let notes = state.dailyNotesByDay
         let reference = Self.reference(notes, liveDay: liveDay, liveWords: liveWords)
         let today = DailyNotes.dayKey(Date())
-        let (cells, rows) = monthCells()
+        let (cells, rows) = Self.monthCells(for: month)
         return VStack(spacing: Self.gap) {
             weekdayRow
             ZStack(alignment: .top) {
@@ -120,15 +120,14 @@ struct SidebarCalendar: View {
                         HStack(spacing: Self.gap) {
                             ForEach(0..<7, id: \.self) { col in
                                 if let cell = cells[row * 7 + col] {
-                                    let (day, date) = cell
-                                    let key = DailyNotes.dayKey(date)
+                                    let key = cell.key
                                     let words = key == liveDay ? liveWords : (notes[key]?.words ?? 0)
                                     let hasNote = key == liveDay || notes[key] != nil
-                                    DayCell(day: day, words: words, hasNote: hasNote,
+                                    DayCell(day: cell.day, words: words, hasNote: hasNote,
                                             intensity: hasNote ? Self.intensity(words, reference: reference) : 0,
                                             isToday: key == today, isOpen: key == liveDay, isFuture: key > today,
-                                            title: Self.dayFormatter.string(from: date), theme: theme) {
-                                        state.openNote(for: date)
+                                            title: cell.title, theme: theme) {
+                                        state.openNote(for: cell.date)
                                     }
                                 } else {
                                     Color.clear
@@ -163,20 +162,33 @@ struct SidebarCalendar: View {
         }
     }
 
+    /// One day's cell: its number, its date, its key and the words of its
+    /// tooltip — worked out once per month, since the grid redraws with
+    /// every word typed into today's note.
+    struct Cell {
+        let day: Int
+        let date: Date
+        let key: Int
+        let title: String
+    }
+
+    private static var cellsMemo: (start: Date, cells: [Cell?], rows: Int)?
+
     /// The month's weeks of cells — as many rows as it needs — nil where the
-    /// month is not, else the day of the month and its date.
-    private func monthCells() -> (cells: [(Int, Date)?], rows: Int) {
-        let cal = Self.calendar
-        let start = month
+    /// month is not.
+    private static func monthCells(for start: Date) -> (cells: [Cell?], rows: Int) {
+        if let memo = cellsMemo, memo.start == start { return (memo.cells, memo.rows) }
+        let cal = calendar
         let count = cal.range(of: .day, in: .month, for: start)?.count ?? 30
         let lead = (cal.component(.weekday, from: start) - cal.firstWeekday + 7) % 7
         let rows = (lead + count + 6) / 7
-        var cells: [(Int, Date)?] = Array(repeating: nil, count: rows * 7)
+        var cells: [Cell?] = Array(repeating: nil, count: rows * 7)
         for day in 1...count {
             if let date = cal.date(byAdding: .day, value: day - 1, to: start) {
-                cells[lead + day - 1] = (day, date)
+                cells[lead + day - 1] = Cell(day: day, date: date, key: DailyNotes.dayKey(date), title: dayFormatter.string(from: date))
             }
         }
+        cellsMemo = (start, cells, rows)
         return (cells, rows)
     }
 

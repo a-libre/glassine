@@ -224,12 +224,21 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// The library is watched through the file system's own events (a
+    /// rescan a beat after anything changes), with a slow poll behind it for
+    /// what events can miss — a dataless iCloud file filling in, a volume
+    /// that does not report. The poll used to be the only way, every three
+    /// seconds, walking the whole tree each time.
     private func startPolling() {
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+        library.startWatching { [weak self] in
+            self?.document?.checkExternalChanges()
+        }
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             guard let self, NSApp.isActive else { return }
             self.library.rescan()
             self.document?.checkExternalChanges()
         }
+        pollTimer?.tolerance = 5
         RunLoop.main.add(pollTimer!, forMode: .common)
     }
 
@@ -237,8 +246,14 @@ final class AppState: ObservableObject {
 
     /// Everything that is not on the Shelf — what Recents, Starred and All
     /// Documents draw from. Search still looks at the whole library.
+    /// Filtered once per scan rather than on every read: the sidebar, the
+    /// mosaic, Recents and Starred all ask for this several times a render.
+    private var activeMemo: (generation: Int, docs: [DocumentRef]) = (-1, [])
     var activeDocuments: [DocumentRef] {
-        library.allDocuments.filter { !Shelf.holds($0.id) }
+        if activeMemo.generation == library.generation { return activeMemo.docs }
+        let docs = library.allDocuments.filter { !Shelf.holds($0.id) }
+        activeMemo = (library.generation, docs)
+        return docs
     }
 
     var recentDocuments: [DocumentRef] {
@@ -249,9 +264,11 @@ final class AppState: ObservableObject {
     }
 
     var starredDocuments: [DocumentRef] {
-        let starred = settings.data.starred
-        return activeDocuments.filter { starred.contains($0.id) }
-            .sorted { starred.firstIndex(of: $0.id)! < starred.firstIndex(of: $1.id)! }
+        var rank: [String: Int] = [:]
+        for (i, id) in settings.data.starred.enumerated() where rank[id] == nil { rank[id] = i }
+        return activeDocuments.compactMap { doc in rank[doc.id].map { (doc, $0) } }
+            .sorted { $0.1 < $1.1 }
+            .map(\.0)
     }
 
     /// Folders a document can be moved into by hand; the Shelf has its own commands.

@@ -81,7 +81,19 @@ final class DocumentModel: ObservableObject, Identifiable {
         knownModificationDate = url.contentModificationDate
         titleAtLoad = loaded.derivedMarkdownTitle
         lastFirstLine = titleAtLoad
-        recomputeStats()
+        recomputeStatsAtOpen()
+    }
+
+    /// A short document is counted before the first frame; a long one is
+    /// counted off the main thread, so opening it never waits on the walk
+    /// through its words. The counter ticks to the number a beat later.
+    private func recomputeStatsAtOpen() {
+        if text.utf16.count > 24_000 {
+            characterCount = (text as NSString).length
+            recomputeStatsInBackground()
+        } else {
+            recomputeStats()
+        }
     }
 
     deinit {
@@ -320,7 +332,7 @@ final class DocumentModel: ObservableObject, Identifiable {
         savedGeneration = editGeneration
         titleAtLoad = onDisk.derivedMarkdownTitle
         lastFirstLine = titleAtLoad
-        recomputeStats()
+        recomputeStatsAtOpen()
         onReloaded?()
     }
 
