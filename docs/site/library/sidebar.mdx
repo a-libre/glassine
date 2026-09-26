@@ -1,6 +1,6 @@
 ---
 title: "The sidebar"
-description: "Recents, Starred, the folder tree, Tags and the Shelf, and everything in the right-click menus."
+description: "The month, Recents, Starred, the folder tree you can rearrange by hand, Tags and the Shelf, and everything in the right-click menus."
 icon: "panel-left"
 ---
 
@@ -12,11 +12,13 @@ The sidebar is the library. ⌘S (or ⌘\, or the button in its header) hides an
 
 **Three rows**, numbered so the left hand can reach them while the right is on the mouse: **All Documents** (⌘1), **Timelapse** (⌘2) and **New Document** (⌘3). The first two also answer to ⌘P and ⌘D, the third to ⌘N.
 
+**The month** — a calendar, one cell a day, each shaded by how much of that day's note there is. See [the calendar](#the-calendar) below.
+
 **Recents** — the six documents you opened most recently, newest first.
 
 **Starred** — documents you have starred, from the right-click menu. The section appears when there is at least one.
 
-**Documents** — the folder tree, with a count. It starts collapsed on a fresh install, because All Documents is the better way to browse and the sidebar stays calmer without it; open it once and it stays open. Hovering a folder swaps its count for a **+** that makes a new document inside it; the arrows button in the header sorts everything by last edited, name or date created. Folders remember whether they are expanded.
+**Documents** — the folder tree, with a count. It starts collapsed on a fresh install, because All Documents is the better way to browse and the sidebar stays calmer without it; open it once and it stays open. Hovering a folder swaps its count for a **+** that makes a new document inside it; the arrows button in the header sorts everything by last edited, name, date created or *your order*. Folders remember whether they are expanded. The rows can be dragged into any order you like, and onto folders — see [dragging](#dragging) below.
 
 **Shelf** — documents [set aside](/library/shelf), collapsed, with a count. Present only when something is on it.
 
@@ -26,6 +28,22 @@ The sidebar is the library. ⌘S (or ⌘\, or the button in its header) hides an
 
 Hover any document row for a moment and the time it was last edited appears.
 
+## The calendar
+
+Under the three rows sits the month: a header with the month and year, the days of the week, and a cell for every day. A cell is shaded by how much of that day's [daily note](/library/timelapse) there is — the notes the Timelapse shows, and nothing else — from a faint tint for a few lines to the full accent for a heavy day. A day without a note is bare. Today is ringed in the accent; the day whose note is open is ringed in the text colour.
+
+The shading is against your own habit, not the month's biggest day: a day is full once it reaches your usual heavy day (the 85th percentile of your notes, and never less than 150 words), so a month of short notes does not read as a month of great ones, and one long day does not flatten the rest. The note you are writing is counted as you type, so today's cell deepens under the writing.
+
+**Click** a day to open its note, or to start it if there is none — for any day, past or to come. **Hover** for the date and its word count. **‹** and **›** turn the month; *today* comes back to this one. The header's chevron folds the calendar away; it stays folded until you open it again. The calendar steps aside while a search or a tag filter is showing, to give the results the room.
+
+## Dragging
+
+Press on a document in the tree and move: the row lifts, with a shadow, and travels with the pointer; the rows it passes step aside to make a gap; let go and it glides into the gap. The order you make this way is the library's **Your order** — the arrows button switches to it the moment you drag, and remembers it, folder by folder. A new document, or one moved in from elsewhere, goes to the top until you place it. The other sorts are still there in the arrows menu; choose one and the dragging order is kept for when you come back to it. ⌘Z takes a drag back, like any other change to the library.
+
+Carry a row over a folder — or over the *Documents* header, for the top level — and the folder lights up; let go and the document moves there. Carry it to the top or bottom edge of the tree and the tree scrolls.
+
+Only the rows of the tree and the Shelf can be dragged. Recents, Starred and search results have orders of their own.
+
 ## Right-click on a document
 
 | Item | What it does |
@@ -34,7 +52,7 @@ Hover any document row for a moment and the time it was last edited appears.
 | Rename… (⌘R) | Renames the file. A file you rename yourself keeps that name; Glassine stops deriving it from the first line |
 | Duplicate | A copy next to the original, "Name Copy", opened straight away |
 | Copy as Markdown / Copy as Rich Text | The whole document to the clipboard |
-| Move To | Any folder in the library, or the top level. (Drag and drop between folders is not wired up; this is the way to move things) |
+| Move To | Any folder in the library, or the top level. Dragging the row onto a folder does the same |
 | Shelve / Unshelve (⌘⇧⌫) | Out of the way, not gone |
 | Reveal in Finder | Selects the file in Finder |
 | Copy Path | The file's full path as text |
@@ -50,4 +68,4 @@ New Document Here, New Subfolder…, Rename…, Reveal in Finder, Shelve (the wh
 
 ## Small things
 
-Rows slide in and out as documents come and go — a new one, a shelved one, a search that ends. Counts tick between values rather than flashing. Stars spring in. The search field brightens while it has the keyboard.
+Rows slide in and out as documents come and go — a new one, a shelved one, a search that ends. Counts tick between values rather than flashing. Stars spring in. The search field brightens while it has the keyboard. A carried row casts a shadow and the rows it passes spring aside; a folder it is held over glows. The month slides when it turns, and today's cell deepens as the note grows.

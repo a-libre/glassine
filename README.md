@@ -217,6 +217,7 @@ Resources/    Info.plist, icon (make_icon.py draws it), entitlements for each bu
 docs/appstore/  the store listing, a showcase library, and the script that takes the screenshots
 docs/site/    the documentation site (Mintlify): docs.json plus one .mdx per page
 site/         glassine.ink, the one-page site (static HTML, served by Vercel; vercel.json holds the redirects; screenshots.sh takes its pictures, the README's and the manual's)
+tests/        synctest.sh (the merge, with no network), compare-shots.sh (the same pictures from two builds, compared), shot-sidebar.sh (the calendar and a row carried through the tree, on a temp library), ioscheck.sh (does the shared code still compile for iOS?)
 build.sh      assembles and signs Glassine.app (--appstore for the sandboxed flavor, --demo for Glassine Demo.app: sample pages for a library, for pictures and recordings)
 release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for the Mac App Store
 ```

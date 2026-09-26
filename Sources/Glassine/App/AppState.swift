@@ -264,7 +264,59 @@ final class AppState: ObservableObject {
         case .modified: return docs.sorted { $0.modified > $1.modified }
         case .created: return docs.sorted { $0.created > $1.created }
         case .name: return docs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .manual: return handSorted(docs)
         }
+    }
+
+    /// The order the rows were dragged into. Documents that were never placed
+    /// come first, newest edit at the top — a new document belongs at the top
+    /// until it is put somewhere. Across folders (the mosaic shows them all)
+    /// the top level comes first, then the folders by name.
+    private func handSorted(_ docs: [DocumentRef]) -> [DocumentRef] {
+        var rank: [String: Int] = [:]
+        for (_, list) in settings.data.documentOrder {
+            for (i, id) in list.enumerated() where rank[id] == nil { rank[id] = i }
+        }
+        return docs.sorted { a, b in
+            if a.folder != b.folder {
+                if a.folder.isEmpty != b.folder.isEmpty { return a.folder.isEmpty }
+                return a.folder.localizedStandardCompare(b.folder) == .orderedAscending
+            }
+            switch (rank[a.id], rank[b.id]) {
+            case let (x?, y?): return x < y
+            case (nil, nil): return a.modified > b.modified
+            case (nil, _): return true
+            default: return false
+            }
+        }
+    }
+
+    /// A row dragged to a new place among its folder's documents. `shown` is
+    /// the order the folder's rows had on screen, whatever sort made it; that
+    /// order, with this one move, becomes the hand-made order and the sort
+    /// switches to it, so what was dragged stays put. ⌘Z puts it back.
+    func placeDocument(_ id: String, at index: Int, in folder: String, shown: [DocumentRef]) {
+        var order = settings.data.documentOrder
+        // The first drag out of another sort keeps every folder as it stood
+        // under that sort, so nothing else in the tree moves when the sort
+        // switches; only the dragged row has changed places.
+        if settings.data.sortDocumentsBy != .manual {
+            for f in [library.root] + library.root.allFolders where order[f.id] == nil {
+                order[f.id] = sorted(f.documents).map(\.id)
+            }
+        }
+        var list = shown.map(\.id).filter { $0 != id }
+        list.insert(id, at: max(0, min(index, list.count)))
+        order[folder] = list
+        setDocumentOrder(order, sort: .manual)
+    }
+
+    private func setDocumentOrder(_ order: [String: [String]], sort: SortMode) {
+        let wasOrder = settings.data.documentOrder, wasSort = settings.data.sortDocumentsBy
+        settings.data.documentOrder = order
+        settings.data.sortDocumentsBy = sort
+        libraryUndo.registerUndo(withTarget: self) { s in s.setDocumentOrder(wasOrder, sort: wasSort) }
+        libraryUndo.setActionName("Reorder")
     }
 
     /// Documents matching the search box and/or the tag filter, or nil when neither is set.
@@ -617,15 +669,18 @@ final class AppState: ObservableObject {
     }
 
     /// ⌘⇧D: today's note in the Daily folder, made on first use.
-    func openTodaysNote() {
-        let title = DailyNotes.title(for: Date())
-        let folder = DailyNotes.folder
-        let rel = folder + "/" + title.sanitizedFileStem + ".md"
-        if let existing = library.document(withID: rel) {
+    func openTodaysNote() { openNote(for: Date()) }
+
+    /// A day's note in the Daily folder — today's, or any day the calendar
+    /// points at — made on first use.
+    func openNote(for date: Date) {
+        if let existing = dailyNotesByDay[DailyNotes.dayKey(date)] {
             open(existing)
             reviewMode = false
             return
         }
+        let title = DailyNotes.title(for: date)
+        let folder = DailyNotes.folder
         do {
             if !FileManager.default.fileExists(atPath: library.url(forRelativePath: folder).path) {
                 _ = try library.createFolder(named: folder, in: "")
@@ -634,11 +689,30 @@ final class AppState: ObservableObject {
             let ref = try library.createDocument(in: folder, stem: title.sanitizedFileStem, contents: contents)
             open(ref)
             reviewMode = false
-            registerCreationUndo(of: ref.id, label: "Today's Note")
+            registerCreationUndo(of: ref.id, label: Calendar.current.isDateInToday(date) ? "Today's Note" : "Day's Note")
             settings.setExpanded(folder, true)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// The daily notes by the day they are named for (`DailyNotes.dayKey`),
+    /// as of the last scan — what the sidebar's calendar shades and opens.
+    /// Built again only when the library changes; the note being written is
+    /// counted live by the calendar itself.
+    private var dailyNotesMemo: (generation: Int, notes: [Int: DocumentRef]) = (-1, [:])
+    var dailyNotesByDay: [Int: DocumentRef] {
+        if dailyNotesMemo.generation == library.generation { return dailyNotesMemo.notes }
+        var notes: [Int: DocumentRef] = [:]
+        for doc in library.allDocuments where doc.folder == DailyNotes.folder {
+            guard let date = DailyNotes.date(fromTitle: doc.title) else { continue }
+            let key = DailyNotes.dayKey(date)
+            // Two notes for one day (a conflict copy, say): the longer stands for it.
+            if let had = notes[key], had.words >= doc.words { continue }
+            notes[key] = doc
+        }
+        dailyNotesMemo = (library.generation, notes)
+        return notes
     }
 
     /// File → Export as PDF…: the document in the current Review style, paginated.

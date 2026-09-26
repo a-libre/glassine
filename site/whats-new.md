@@ -6,6 +6,14 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.19 — September 25, 2026
+
+- **The month in the sidebar.** A calendar under the top rows, one cell a day, shaded by how much of that day's note there is — deepening under today's as you write. Click a day for its note. [How it reads.](https://docs.glassine.ink/library/sidebar#the-calendar)
+- **Drag the rows into order.** Pick up a document in the tree and carry it: the rows step aside, the row glides into place, and the order holds as *Your order*. Drop it on a folder to move it there.
+- **⌘→ stops at the end of the line.** With the syntax hidden, a line followed by a task, a heading or a quotation sent the caret to the start of that next line, and [[⌘⇧→]] selected into it. Both now stop where the line ends.
+- **A quotation ends where its `>` lines end, and a list where its items end.** In Review the paragraph after a quote, or after a task, no longer sits inside it; the page draws what the editor draws.
+- **The page beside the editor.** [[⌘⇧↩]] keeps Review to the right of the text: the same page, in the same style, redrawn in place as you write and scrolling to the paragraph you are in. Drag the hairline to share the width.
+
 ## 0.2.18 — September 21, 2026
 
 - **⌘→ stops at the end of the line.** With the syntax hidden, a line followed by a task, a heading or a quotation sent the caret to the start of that next line, and [[⌘⇧→]] selected into it. Both now stop where the line ends.

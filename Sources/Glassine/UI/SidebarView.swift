@@ -5,6 +5,12 @@ import SwiftUI
 struct SidebarView: View {
     @EnvironmentObject var state: AppState
     @FocusState private var searchFocused: Bool
+    /// The coordinate space the carry works in — the whole sidebar, which
+    /// does not move when the tree scrolls.
+    static let space = "sidebar"
+    /// The seam between rows of the tree; the carry's arithmetic uses it.
+    static let rowSpacing: CGFloat = 1
+    @State private var drag = SidebarDrag()
     @State private var recentsExpanded = true
     @State private var starredExpanded = true
     @State private var tagsExpanded = true
@@ -23,11 +29,15 @@ struct SidebarView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 8)
             ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 1) {
+                LazyVStack(alignment: .leading, spacing: Self.rowSpacing) {
                     allDocumentsRow
                     todayRow
                     newDocumentRow
                         .padding(.bottom, 8)
+                    if state.filteredDocuments == nil {
+                        SidebarCalendar()
+                            .padding(.bottom, 8)
+                    }
                     if let loose = state.looseDocument {
                         SectionHeader(title: "Elsewhere", expanded: .constant(true))
                         LooseDocumentRow(doc: loose)
@@ -76,6 +86,7 @@ struct SidebarView: View {
                                 SortMenu()
                             })
                         })
+                        .folderDropTarget("")
                         .padding(.top, 10)
                         if documentsExpanded.wrappedValue {
                             FolderContents(folder: state.library.root, depth: 0)
@@ -114,9 +125,13 @@ struct SidebarView: View {
                 // finished search — slide rather than blink.
                 .animation(.easeOut(duration: 0.22), value: state.library.generation)
                 .animation(.easeOut(duration: 0.18), value: state.searchText.isEmpty && state.tagFilter == nil)
+                .background(ScrollHostFinder(drag: drag))
             }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { drag.viewport = $0 }
             footer
         }
+        .coordinateSpace(name: Self.space)
+        .environment(drag)
         .frame(maxHeight: .infinity)
         .foregroundStyle(theme.text.color)
         .onExitCommand { searchFocused = false; state.searchText = "" }
@@ -438,8 +453,9 @@ struct FolderContents: View {
         ForEach(subfolders) { sub in
             FolderRow(folder: sub, depth: depth)
         }
-        ForEach(keyed(state.sorted(folder.documents), "tree")) { item in
-            DocumentRow(doc: item.doc, depth: depth)
+        let shown = state.sorted(folder.documents)
+        ForEach(Array(keyed(shown, "tree").enumerated()), id: \.element.id) { i, item in
+            DocumentRow(doc: item.doc, depth: depth, slot: ReorderSlot(folder: folder.id, index: i, shown: shown))
         }
         if folder.isRoot && subfolders.isEmpty && folder.documents.isEmpty {
             Text("No documents yet")
@@ -497,6 +513,7 @@ struct FolderRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(HoverRowStyle(theme: state.theme, selected: false, emphasized: isTarget))
+        .folderDropTarget(folder.id)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.14), value: hovering)
         .transition(.opacity.combined(with: .offset(y: -4)))
@@ -562,49 +579,38 @@ struct LooseDocumentRow: View {
 
 struct DocumentRow: View {
     @EnvironmentObject var state: AppState
+    @Environment(SidebarDrag.self) private var drag: SidebarDrag?
     let doc: DocumentRef
     let depth: Int
     var showsFolder: Bool = false
+    /// Set for the rows of the folder tree, which can be picked up and carried.
+    var slot: ReorderSlot? = nil
     @State private var hovering = false
+    @State private var pressed = false
+    /// This row is the one under the pointer, lifted.
+    @State private var carrying = false
+    /// Let go, and gliding into its gap before the order is written down.
+    @State private var settling = false
+
+    /// A tree row's height; the carry steps by this plus the seam.
+    static let treeHeight: CGFloat = 27
 
     private var selected: Bool { state.selection == doc.id }
     private var starred: Bool { state.settings.isStarred(doc.id) }
 
     var body: some View {
-        Button {
-            state.open(doc)
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "doc.text")
-                    .font(.system(size: 12))
-                    .opacity(selected ? 0.9 : 0.5)
-                    .frame(width: 16)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(doc.title)
-                        .font(.system(size: 13, weight: selected ? .medium : .regular))
-                        .lineLimit(1)
-                    if showsFolder && !doc.folder.isEmpty {
-                        Text(doc.folder)
-                            .font(.system(size: 10.5))
-                            .opacity(0.4)
-                            .lineLimit(1)
-                    }
+        Group {
+            if slot != nil {
+                carriedRow
+            } else {
+                Button {
+                    state.open(doc)
+                } label: {
+                    label
                 }
-                Spacer(minLength: 4)
-                if starred {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(state.theme.accent.color.opacity(0.8))
-                        .transition(.scale(scale: 0.3).combined(with: .opacity))
-                }
+                .buttonStyle(HoverRowStyle(theme: state.theme, selected: selected))
             }
-            .animation(.spring(response: 0.32, dampingFraction: 0.55), value: starred)
-            .padding(.leading, CGFloat(depth) * 14 + (depth > 0 ? 22 : 8))
-            .padding(.trailing, 8)
-            .frame(height: showsFolder && !doc.folder.isEmpty ? 34 : 27)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(HoverRowStyle(theme: state.theme, selected: selected))
         .onHover { hovering = $0 }
         .transition(.opacity.combined(with: .offset(y: -4)))
         .help(doc.modified.shortRelative)
@@ -631,6 +637,122 @@ struct DocumentRow: View {
             }
             Divider()
             Button("Move to Trash", role: .destructive) { state.trash(doc.id) }
+        }
+        .zIndex(carrying ? 1 : 0)
+    }
+
+    private var label: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 12))
+                .opacity(selected ? 0.9 : 0.5)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(doc.title)
+                    .font(.system(size: 13, weight: selected ? .medium : .regular))
+                    .lineLimit(1)
+                if showsFolder && !doc.folder.isEmpty {
+                    Text(doc.folder)
+                        .font(.system(size: 10.5))
+                        .opacity(0.4)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 4)
+            if starred {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(state.theme.accent.color.opacity(0.8))
+                    .transition(.scale(scale: 0.3).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.32, dampingFraction: 0.55), value: starred)
+        .padding(.leading, CGFloat(depth) * 14 + (depth > 0 ? 22 : 8))
+        .padding(.trailing, 8)
+        .frame(height: showsFolder && !doc.folder.isEmpty ? 34 : Self.treeHeight)
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - Carrying
+
+    /// A tree row: pressed, it is a button; moved, it lifts and travels with
+    /// the pointer while its neighbours step aside (SidebarReorder.swift).
+    private var carriedRow: some View {
+        let dark = state.theme.isDark
+        return label
+            .background(
+                // A plate under the lifted row, so the rows it crosses do not
+                // show through it.
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(state.theme.sidebarTintColor.asColor.opacity(carrying ? (dark ? 0.72 : 0.9) : 0))
+            )
+            .modifier(HoverRowChrome(theme: state.theme, selected: selected || carrying, pressed: pressed))
+            .offset(y: shift)
+            .animation(.spring(response: 0.3, dampingFraction: 0.78), value: shift)
+            .offset(y: carrying ? (drag?.lift ?? 0) : 0)
+            .scaleEffect(carrying ? 1.025 : 1)
+            .shadow(color: .black.opacity(carrying ? (dark ? 0.45 : 0.18) : 0), radius: carrying ? 9 : 0, y: carrying ? 4 : 0)
+            .animation(.easeOut(duration: 0.16), value: carrying)
+            .gesture(carryGesture)
+    }
+
+    /// How far this row steps aside for the one being carried past it.
+    private var shift: CGFloat {
+        guard let drag, let slot, drag.active, !carrying, drag.folder == slot.folder else { return 0 }
+        let i = slot.index
+        if drag.from < drag.to, i > drag.from, i <= drag.to { return -SidebarDrag.pitch }
+        if drag.to < drag.from, i >= drag.to, i < drag.from { return SidebarDrag.pitch }
+        return 0
+    }
+
+    private var carryGesture: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(SidebarView.space))
+            .onChanged { v in
+                let moved = hypot(v.translation.width, v.translation.height)
+                if !carrying {
+                    if moved < 4 { pressed = true; return }
+                    guard let drag, let slot, !drag.active, !settling else { return }
+                    pressed = false
+                    carrying = true
+                    drag.begin(id: doc.id, folder: slot.folder, index: slot.index, count: slot.count, at: v.startLocation)
+                }
+                drag?.update(to: v.location)
+            }
+            .onEnded { v in
+                pressed = false
+                if carrying {
+                    letGo()
+                } else if hypot(v.translation.width, v.translation.height) < 4 {
+                    state.open(doc)
+                }
+            }
+    }
+
+    private func letGo() {
+        guard let drag, let slot else { carrying = false; return }
+        switch drag.outcome() {
+        case .move(let folder):
+            carrying = false
+            drag.clear()
+            state.move(doc.id, toFolder: folder)
+        case .place(let to):
+            let target = CGFloat(to - slot.index) * SidebarDrag.pitch
+            let commit = {
+                // The row is drawn exactly where the new order puts it, so the
+                // order can change under it without a flicker.
+                var t = Transaction()
+                t.disablesAnimations = true
+                withTransaction(t) {
+                    if to != slot.index { state.placeDocument(doc.id, at: to, in: slot.folder, shown: slot.shown) }
+                    carrying = false
+                    settling = false
+                    drag.clear()
+                }
+            }
+            if GlassineTextView.reduceMotion || abs(drag.lift - target) < 1 { commit(); return }
+            settling = true
+            withAnimation(.spring(response: 0.26, dampingFraction: 0.86)) { drag.lift = target }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.27, execute: commit)
         }
     }
 }
@@ -767,37 +889,39 @@ struct HoverRowStyle: ButtonStyle {
     var emphasized: Bool = false
 
     func makeBody(configuration: Configuration) -> some View {
-        HoverRow(theme: theme, selected: selected, emphasized: emphasized, pressed: configuration.isPressed) {
-            configuration.label
-        }
+        configuration.label
+            .modifier(HoverRowChrome(theme: theme, selected: selected, emphasized: emphasized, pressed: configuration.isPressed))
+    }
+}
+
+/// The highlight behind a row, for buttons and for the carried rows alike.
+/// While a row is being carried the others keep still: no hover glow under
+/// the one passing over them.
+struct HoverRowChrome: ViewModifier {
+    let theme: Theme
+    let selected: Bool
+    var emphasized: Bool = false
+    let pressed: Bool
+    @State private var hovering = false
+    @Environment(SidebarDrag.self) private var drag: SidebarDrag?
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(theme.text.color.opacity(fillOpacity))
+            )
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: hovering)
     }
 
-    private struct HoverRow<Content: View>: View {
-        let theme: Theme
-        let selected: Bool
-        let emphasized: Bool
-        let pressed: Bool
-        @ViewBuilder let content: () -> Content
-        @State private var hovering = false
-
-        var body: some View {
-            content()
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(theme.text.color.opacity(fillOpacity))
-                )
-                .onHover { hovering = $0 }
-                .animation(.easeOut(duration: 0.12), value: hovering)
-        }
-
-        private var fillOpacity: Double {
-            let dark = theme.isDark
-            if selected { return dark ? 0.13 : 0.10 }
-            if pressed { return dark ? 0.10 : 0.08 }
-            if hovering { return dark ? 0.06 : 0.045 }
-            if emphasized { return dark ? 0.035 : 0.025 }
-            return 0
-        }
+    private var fillOpacity: Double {
+        let dark = theme.isDark
+        if selected { return dark ? 0.13 : 0.10 }
+        if pressed { return dark ? 0.10 : 0.08 }
+        if hovering, !(drag?.active ?? false) { return dark ? 0.06 : 0.045 }
+        if emphasized { return dark ? 0.035 : 0.025 }
+        return 0
     }
 }
 
