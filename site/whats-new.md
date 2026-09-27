@@ -6,6 +6,10 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.22 — September 26, 2026
+
+- **`---` is a rule the moment it is typed.** The third hyphen draws the rule and drops the caret to the line under it. No Return.
+
 ## 0.2.21 — September 26, 2026
 
 - **⌘3 and ⌘D are today's note.** The third row in the sidebar is now *Today* — the day's note, started for you if it has none — and ⌘D goes there too. Timelapse keeps ⌘2; New Document keeps ⌘N.

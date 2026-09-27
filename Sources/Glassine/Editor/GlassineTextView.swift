@@ -578,6 +578,7 @@ final class GlassineTextView: NSTextView {
         if dashLine {
             isAutomaticDashSubstitutionEnabled = smartDashes
             straightenDashLine()
+            dropBelowRuleIfComplete()
         }
         // A slash on its own — at the start of a line or after a space — opens
         // the menu; one inside a word or an address is just a slash.
@@ -619,6 +620,26 @@ final class GlassineTextView: NSTextView {
         storage.replaceCharacters(in: para, with: straight)
         didChangeText()
         setSelectedRange(NSRange(location: para.location + straight.nsLength, length: 0))
+    }
+
+    /// The third dash of `---` finishes the rule: the caret goes to a fresh
+    /// line under it without a Return, since nothing is ever written on a
+    /// rule and the next thing typed is the paragraph after it. Only the
+    /// exact three, at the end of the line, so a longer line of dashes and
+    /// a rule being edited are left alone.
+    private func dropBelowRuleIfComplete() {
+        guard let storage = textStorage else { return }
+        let ns = storage.string as NSString
+        let sel = selectedRange()
+        guard sel.length == 0 else { return }
+        var para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
+        if para.length > 0, ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }
+        guard para.length == 3, sel.location == para.upperBoundValue, ns.substring(with: para) == "---" else { return }
+        let at = NSRange(location: sel.location, length: 0)
+        guard shouldChangeText(in: at, replacementString: "\n") else { return }
+        storage.replaceCharacters(in: at, with: "\n")
+        didChangeText()
+        setSelectedRange(NSRange(location: at.location + 1, length: 0))
     }
 
     /// Replaces a shortcut word right before the caret with the actual date. Returns true if it did.
