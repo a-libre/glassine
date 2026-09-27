@@ -9,6 +9,8 @@ every release. Newest version first. Three to five lines a version, each
 ## 0.2.22 — September 26, 2026
 
 - **`---` is a rule the moment it is typed.** The third hyphen draws the rule and drops the caret to the line under it. No Return.
+- **Eight more Review styles.** Reader, Gallery, Newspaper, Typewriter, Notebook, Thesis, Verse and Blueprint join the six — fourteen ways to see the page. [All of them.](https://docs.glassine.ink/review/review#styles)
+- **A rule stays a rule.** Clicking on a horizontal rule no longer turns it back into three dashes.
 
 ## 0.2.21 — September 26, 2026
 

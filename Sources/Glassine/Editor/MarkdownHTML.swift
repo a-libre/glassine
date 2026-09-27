@@ -140,9 +140,14 @@ enum MarkdownHTML {
         var paragraphStart = 0
         var i = 0
 
+        // A blank line in the source marks the block after it (`data-gap`),
+        // so a style that sets lines close — Verse — can still show a stanza.
+        var gapBefore = false
         func at(_ line: Int) -> String {
-            guard let base = lineBase else { return "" }
-            return " data-line=\"\(base + line)\""
+            var attrs = ""
+            if let base = lineBase { attrs += " data-line=\"\(base + line)\"" }
+            if gapBefore { attrs += " data-gap"; gapBefore = false }
+            return attrs
         }
 
         func flushParagraph() {
@@ -158,6 +163,7 @@ enum MarkdownHTML {
 
             if trimmed.isEmpty {
                 flushParagraph()
+                if !html.isEmpty { gapBefore = true }
                 i += 1
                 continue
             }

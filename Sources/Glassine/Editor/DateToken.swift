@@ -144,8 +144,9 @@ final class GlassineLayoutManager: NSLayoutManager {
     }
 
     /// A horizontal rule's dashes are laid out like any text — so their line
-    /// is measured like any line — but not drawn, unless the caret is on
-    /// that line. The rule itself is drawn in drawBackground.
+    /// is measured like any line — but never drawn, the caret on that line
+    /// or not: a rule has nothing in it to edit, and the caret sits on the
+    /// line as it does on any other. The rule itself is drawn in drawBackground.
     override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         guard let storage = textStorage else { super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin); return }
         let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
@@ -154,23 +155,21 @@ final class GlassineLayoutManager: NSLayoutManager {
             if value != nil { hasRule = true; stop.pointee = true }
         }
         guard hasRule else { super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin); return }
-        let reveal = revealRange
         storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
-            if value != nil, !NSLocationInRange(range.location, reveal) { return }
+            if value != nil { return }
             let piece = NSIntersectionRange(self.glyphRange(forCharacterRange: range, actualCharacterRange: nil), glyphsToShow)
             if piece.length > 0 { super.drawGlyphs(forGlyphRange: piece, at: origin) }
         }
     }
 
     /// A horizontal rule: a line across the middle of the column, where the
-    /// dashes are — unless the caret is on that line, when the dashes show instead.
+    /// dashes are, whether or not the caret is on that line.
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
         guard let storage = textStorage else { return }
         let chars = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
-        let reveal = revealRange
         storage.enumerateAttribute(Syntax.ruleKey, in: chars, options: []) { value, range, _ in
-            guard let color = value as? NSColor, !NSLocationInRange(range.location, reveal) else { return }
+            guard let color = value as? NSColor else { return }
             let glyphs = self.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
             guard glyphs.length > 0,
                   let container = self.textContainer(forGlyphAt: glyphs.location, effectiveRange: nil) else { return }

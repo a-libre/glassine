@@ -3,16 +3,33 @@ import SwiftUI
 import WebKit
 
 enum ReviewStyle: String, Codable, CaseIterable, Identifiable {
-    case glass, github, book, bookDark, editorial, mono
+    case glass, reader, gallery, editorial, newspaper, book, bookDark, typewriter, notebook, thesis, verse, github, mono, blueprint
     var id: String { rawValue }
     var label: String {
         switch self {
         case .glass: return "Glass"
-        case .github: return "GitHub"
+        case .reader: return "Reader"
+        case .gallery: return "Gallery"
+        case .editorial: return "Editorial"
+        case .newspaper: return "Newspaper"
         case .book: return "Book"
         case .bookDark: return "Book Dark"
-        case .editorial: return "Editorial"
+        case .typewriter: return "Typewriter"
+        case .notebook: return "Notebook"
+        case .thesis: return "Thesis"
+        case .verse: return "Verse"
+        case .github: return "GitHub"
         case .mono: return "Mono"
+        case .blueprint: return "Blueprint"
+        }
+    }
+    /// A style that brings its own paper is light or dark whatever the
+    /// theme; nil follows the theme.
+    var fixedLight: Bool? {
+        switch self {
+        case .book, .typewriter, .notebook: return true
+        case .bookDark, .blueprint: return false
+        default: return nil
         }
     }
 }
@@ -110,7 +127,7 @@ struct ReviewView: View {
 
     /// Whether the rendered page behind the controls is light, so the pill stays legible.
     private var styleIsLight: Bool {
-        style == .book || !theme.isDark
+        style.fixedLight ?? !theme.isDark
     }
 }
 
@@ -376,7 +393,7 @@ enum ReviewHTML {
         \(exportCSS)
         \(centerHeadings ? "h1, h2, h3, h4, h5, h6 { text-align: center; }" : "")
         \(css(for: style, dark: theme.isDark))
-        \(export ? "article { padding-top: 1rem; }" : "")
+        \(export && style != .notebook ? "article { padding-top: 1rem; }" : "")
         </style></head><body class="\(style.rawValue) \(theme.isDark ? "dark" : "light")"><article>\(body)</article></body></html>
         """
     }
@@ -569,6 +586,211 @@ enum ReviewHTML {
             th { text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.06em; color: \(muted); }
             th, td { border-bottom: 1px solid \(rule); }
             a { color: var(--accent); }
+            """
+        case .reader:
+            // A quiet page, the way a reading app sets one: a serif, a narrow
+            // measure, air between the lines, and nothing else on the page.
+            let bg = dark ? "#1b1a18" : "#fbfaf6"
+            let text = dark ? "#d8d3c8" : "#2d2a25"
+            let muted = dark ? "#8f8a80" : "#77716a"
+            return """
+            body { background: \(bg); color: \(text); font-family: Charter, "Iowan Old Style", Georgia, serif; }
+            html { font-size: calc(19px * var(--scale)); }
+            article { max-width: 36rem; line-height: 1.75; padding-top: 5rem; }
+            h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.01em; color: \(text); }
+            h1 { font-size: 1.85em; line-height: 1.15; margin-bottom: 0.8em; }
+            h2 { font-size: 1.3em; margin-top: 2em; } h3 { font-size: 1.05em; }
+            p { margin-bottom: 1.25em; }
+            a { color: \(text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 0.15em; }
+            blockquote { color: \(muted); border-left: 2px solid var(--accent); border-image: none; padding-left: 1.4em; }
+            hr { width: 100%; background: none; height: auto; margin: 2.4em 0; text-align: center; }
+            hr::after { content: "· · ·"; color: \(muted); letter-spacing: 0.4em; }
+            code { background: color-mix(in srgb, \(text) 8%, transparent); } pre { background: color-mix(in srgb, \(text) 6%, transparent); }
+            th, td { border-bottom: 1px solid color-mix(in srgb, \(text) 16%, transparent); }
+            """
+        case .gallery:
+            // Wall text: small sans type, headings as spaced capitals, and
+            // white space as most of the page.
+            let bg = dark ? "#111111" : "#ffffff"
+            let text = dark ? "#e4e4e4" : "#1b1b1b"
+            let muted = dark ? "#8a8a8a" : "#8c8c8c"
+            return """
+            body { background: \(bg); color: \(text); font-family: "Avenir Next", "Helvetica Neue", ui-sans-serif, sans-serif; }
+            html { font-size: calc(15px * var(--scale)); }
+            article { max-width: 30rem; line-height: 1.8; padding-top: 9rem; padding-bottom: 12rem; }
+            h1, h2, h3, h4 { font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; }
+            h1 { font-size: 0.95em; margin: 0 0 4em; color: \(text); }
+            h1::after { content: ""; display: block; width: 1.6rem; height: 1px; background: \(text); margin: 2.2em 0 0; }
+            h2 { font-size: 0.8em; margin: 3.5em 0 1.2em; color: \(muted); }
+            h3, h4 { font-size: 0.75em; margin: 2.5em 0 1em; color: \(muted); letter-spacing: 0.14em; }
+            p { margin-bottom: 1.6em; }
+            strong { font-weight: 600; }
+            blockquote { border: 0; border-image: none; padding: 0; margin: 2.4em 0; font-style: normal; color: \(muted); }
+            hr { width: 1.6rem; margin: 3.5em auto; background: \(text); }
+            a { color: \(text); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: \(muted); }
+            code { background: color-mix(in srgb, \(text) 6%, transparent); } pre { background: color-mix(in srgb, \(text) 5%, transparent); }
+            th { font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75em; color: \(muted); }
+            th, td { border-bottom: 1px solid color-mix(in srgb, \(text) 12%, transparent); }
+            """
+        case .newspaper:
+            // A broadsheet: the headline across the page, the text in two
+            // justified columns of small Times with a rule between them, a
+            // drop cap on the first paragraph. One column when the page is narrow.
+            let bg = dark ? "#1c1b18" : "#f2ede3"
+            let text = dark ? "#e3dccd" : "#1a1815"
+            let rule = dark ? "rgba(227,220,205,0.4)" : "rgba(26,24,21,0.45)"
+            return """
+            body { background: \(bg); color: \(text); font-family: "Times New Roman", Times, "Iowan Old Style", serif; }
+            html { font-size: calc(15.5px * var(--scale)); }
+            article { max-width: 58rem; padding-top: 4rem; line-height: 1.42; text-align: justify; hyphens: auto; \
+            columns: 2; column-gap: 2.4rem; column-rule: 1px solid \(rule); }
+            @media (max-width: 46rem) { article { columns: 1; } }
+            h1 { column-span: all; font-family: "Bodoni 72", "Didot", "Times New Roman", serif; font-size: 3.2em; line-height: 1.05; font-weight: 700; \
+            text-align: center; letter-spacing: -0.01em; margin: 0 0 0.5em; padding: 0.25em 0 0.35em; border-top: 3px double \(rule); border-bottom: 1px solid \(rule); }
+            h2 { font-size: 1.3em; font-weight: 700; line-height: 1.2; margin: 1.2em 0 0.4em; break-after: avoid; }
+            h3, h4 { font-size: 1em; font-weight: 700; font-variant: small-caps; letter-spacing: 0.06em; margin: 1em 0 0.3em; break-after: avoid; }
+            p { margin: 0; } p + p { text-indent: 1.3em; }
+            p:has(+ h2), p:has(+ h3), p:has(+ hr), p:has(+ ul), p:has(+ ol), p:has(+ blockquote), p:has(+ pre), p:has(+ table) { margin-bottom: 0.8em; }
+            article > h1 + p::first-letter { float: left; font-size: 3.4em; line-height: 0.8; padding: 0.06em 0.08em 0 0; font-weight: 700; }
+            ul, ol, blockquote, pre, table, img { margin: 0.8em 0; text-align: left; break-inside: avoid; }
+            blockquote { border: 0; border-image: none; border-top: 1px solid \(rule); border-bottom: 1px solid \(rule); padding: 0.5em 0; \
+            font-size: 1.15em; line-height: 1.3; font-style: italic; text-align: center; }
+            hr { width: 100%; height: 1px; background: \(rule); margin: 1.2em 0; }
+            a { color: \(text); text-decoration: underline; }
+            code { background: color-mix(in srgb, \(text) 8%, transparent); font-size: 0.8em; } pre { background: color-mix(in srgb, \(text) 6%, transparent); font-size: 0.9em; }
+            th, td { border-bottom: 1px solid \(rule); padding: 0.3em 0.5em; font-size: 0.9em; }
+            img { border-radius: 0; }
+            """
+        case .typewriter:
+            // A manuscript: Courier struck on cream paper, double spaced,
+            // paragraphs indented, headings in underlined capitals, emphasis
+            // underlined the way a typewriter had to.
+            return """
+            body { background: transparent; color: #2c2a26; font-family: "Courier Prime", "Courier New", Courier, monospace; }
+            html { font-size: calc(15px * var(--scale)); }
+            article { max-width: 42rem; background: #f8f4e9; margin: 3.4rem auto 4rem; padding: 4rem 3.4rem 4.5rem; border-radius: 3px; \
+            box-shadow: 0 30px 60px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2); line-height: 2; text-align: left; hyphens: none; \
+            text-shadow: 0 0 0.6px rgba(44,42,38,0.5); }
+            h1, h2, h3, h4 { font-family: inherit; font-weight: 700; font-size: 1em; text-transform: uppercase; letter-spacing: 0.1em; line-height: 2; color: inherit; }
+            h1 { text-align: center; margin: 0 0 2em; text-decoration: underline; text-underline-offset: 0.25em; }
+            h2 { margin: 2em 0 0; text-decoration: underline; text-underline-offset: 0.25em; }
+            h3, h4 { margin: 2em 0 0; text-transform: none; letter-spacing: 0; }
+            p { margin: 0; text-indent: 5ch; }
+            ul, ol, blockquote, pre, table { margin: 1em 0; }
+            ul { list-style: none; padding-left: 5ch; } ul li::before { content: "-"; margin-left: -2ch; margin-right: 1ch; } li.task::before { content: none; }
+            blockquote { border: 0; border-image: none; padding: 0 5ch; font-style: normal; color: inherit; }
+            em { font-style: normal; text-decoration: underline; text-underline-offset: 0.2em; }
+            hr { width: 100%; background: none; height: auto; margin: 1em 0; text-align: center; } hr::after { content: "* * *"; letter-spacing: 0.5em; }
+            code { background: none; padding: 0; font-family: inherit; font-size: 1em; }
+            pre { background: none; border: 1px dashed rgba(44,42,38,0.35); border-radius: 0; font-family: inherit; }
+            a { color: inherit; text-decoration: underline; }
+            th, td { border-bottom: 1px solid rgba(44,42,38,0.35); }
+            .tag { color: inherit; text-decoration: underline; }
+            """
+        case .notebook:
+            // Ruled paper: blue lines a line apart, a red margin, blue-black
+            // ink. Everything keeps to the ruling — one line height for every
+            // block, margins in whole lines — so the writing sits on the lines.
+            return """
+            body { background: transparent; color: #1e2a63; font-family: "Baskerville", "Hoefler Text", "Iowan Old Style", Georgia, serif; }
+            html { font-size: calc(17px * var(--scale)); }
+            article { --lh: 1.85rem; --accent: #b23a3a; max-width: 42rem; margin: 3.4rem auto 4rem; padding: calc(var(--lh) * 2) 2.4rem calc(var(--lh) * 3) 4.6rem; \
+            border-radius: 4px; line-height: var(--lh); background-color: #fdfcf5; \
+            background-image: linear-gradient(90deg, transparent 3.6rem, #f2a9a9 3.6rem, #f2a9a9 calc(3.6rem + 1.5px), transparent calc(3.6rem + 1.5px)), \
+            repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--lh) - 1px), #cfe0f1 calc(var(--lh) - 1px), #cfe0f1 var(--lh)); \
+            background-attachment: local; box-shadow: 0 30px 60px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.15); }
+            h1, h2, h3, h4, p, li, blockquote, pre, pre code, table, th, td { line-height: var(--lh); }
+            h1, h2, h3, h4 { font-weight: 600; color: #15205a; margin: var(--lh) 0 0; }
+            h1 { font-size: 1.7em; line-height: calc(var(--lh) * 2); margin-top: 0; }
+            h2 { font-size: 1.25em; } h3, h4 { font-size: 1.05em; font-style: italic; }
+            p, ul, ol, blockquote, pre, table { margin: 0 0 var(--lh); }
+            li { margin: 0; } li > ul, li > ol { margin: 0; }
+            blockquote { border: 0; border-left: 2px solid #f2a9a9; border-image: none; padding: 0 0 0 1em; font-style: italic; color: #3a4478; }
+            hr { width: 40%; height: var(--lh); margin: 0 auto var(--lh); \
+            background: linear-gradient(180deg, transparent calc(50% - 1px), rgba(30,42,99,0.6) calc(50% - 1px), rgba(30,42,99,0.6) calc(50% + 1px), transparent calc(50% + 1px)); }
+            code { background: rgba(30,42,99,0.08); font-size: 0.85em; }
+            pre { background: rgba(30,42,99,0.05); padding: 0 0.8em; border-radius: 0; }
+            a { color: #1e2a63; text-decoration: underline; text-decoration-color: #f2a9a9; }
+            table { margin-bottom: var(--lh); } th, td { border-bottom: 1px solid rgba(30,42,99,0.25); padding: 0 0.6em; }
+            img { display: block; margin: 0 0 var(--lh); }
+            .tag { color: #b23a3a; }
+            """
+        case .thesis:
+            // A dissertation: Times, double spaced, numbered sections, the
+            // first line of every paragraph indented, quotations set in a
+            // single-spaced block.
+            let bg = dark ? "#151515" : "#ffffff"
+            let text = dark ? "#d6d6d6" : "#111111"
+            return """
+            body { background: \(bg); color: \(text); font-family: "Times New Roman", Times, serif; }
+            html { font-size: calc(17px * var(--scale)); }
+            article { max-width: 40rem; line-height: 2; padding-top: 6rem; counter-reset: sec; }
+            h1, h2, h3, h4 { font-weight: 700; font-size: 1em; line-height: 2; color: \(text); }
+            h1 { font-size: 1.25em; text-align: center; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 2em; }
+            h2 { margin: 2em 0 0; counter-increment: sec; counter-reset: sub; }
+            h2::before { content: counter(sec) ".  "; }
+            h3 { font-style: italic; margin: 1.5em 0 0; counter-increment: sub; }
+            h3::before { content: counter(sec) "." counter(sub) "  "; font-style: normal; }
+            p { margin: 0; text-indent: 2.5em; }
+            h1 + p, h2 + p, h3 + p, h4 + p, hr + p, blockquote + p, ul + p, ol + p, pre + p, table + p { text-indent: 0; }
+            blockquote { border: 0; border-image: none; font-style: normal; margin: 1em 2.5em; padding: 0; line-height: 1.35; font-size: 0.95em; color: \(text); }
+            blockquote p { text-indent: 0; }
+            ul, ol { margin: 0.5em 0; } li { margin: 0; }
+            hr { width: 100%; height: 1px; background: color-mix(in srgb, \(text) 40%, transparent); margin: 1.5em 0; }
+            pre { line-height: 1.4; background: color-mix(in srgb, \(text) 6%, transparent); font-size: 0.95em; border-radius: 0; margin: 1em 0; }
+            code { background: color-mix(in srgb, \(text) 8%, transparent); font-family: "Courier New", Courier, monospace; }
+            a { color: \(text); text-decoration: underline; }
+            table { line-height: 1.4; margin: 1em 0; } th, td { border-top: 1px solid \(text); border-bottom: 1px solid \(text); padding: 0.3em 0.6em; }
+            """
+        case .verse:
+            // For poems: centred, airy, an old-style serif, every line its
+            // own line, and a blank line in the source a stanza's space.
+            let bg = dark ? "#16151a" : "#faf7f1"
+            let text = dark ? "#e4dfd6" : "#2a2622"
+            let muted = dark ? "#8d877e" : "#8a837a"
+            return """
+            body { background: \(bg); color: \(text); font-family: "Cochin", "Hoefler Text", "Baskerville", Georgia, serif; }
+            html { font-size: calc(19px * var(--scale)); }
+            article { max-width: 34rem; line-height: 1.7; padding-top: 7rem; padding-bottom: 10rem; text-align: center; }
+            h1, h2, h3, h4 { font-weight: 400; text-align: center; color: \(text); }
+            h1 { font-size: 1.6em; letter-spacing: 0.06em; font-variant: small-caps; margin: 0 0 2.2em; }
+            h2 { font-size: 1.15em; font-style: italic; margin: 2.6em 0 1.2em; }
+            h3, h4 { font-size: 0.95em; letter-spacing: 0.14em; text-transform: uppercase; color: \(muted); margin: 2.2em 0 1em; }
+            p { margin: 0; }
+            p[data-gap], ul[data-gap], ol[data-gap], blockquote[data-gap], pre[data-gap], hr[data-gap], table[data-gap] { margin-top: 1.7em; }
+            strong { font-weight: 600; }
+            ul, ol { list-style: none; padding: 0; margin: 0; } li { margin: 0; } li.task { margin-left: 0; }
+            blockquote { border: 0; border-image: none; padding: 0; margin: 0; font-style: italic; color: \(muted); }
+            hr { width: 100%; background: none; height: auto; margin: 1.7em 0; } hr::after { content: "❦"; color: \(muted); font-size: 1.1em; }
+            a { color: \(text); text-decoration: underline; text-decoration-color: \(muted); }
+            code { background: color-mix(in srgb, \(text) 8%, transparent); } pre { background: color-mix(in srgb, \(text) 6%, transparent); text-align: left; margin: 1.7em 0; }
+            table { text-align: left; margin: 1.7em 0; } th, td { border-bottom: 1px solid color-mix(in srgb, \(text) 15%, transparent); }
+            """
+        case .blueprint:
+            // A drawing sheet: white line type on blueprint blue, a fine grid
+            // behind it, a double-ruled border, headings as spaced capitals.
+            return """
+            body { --accent: #ffd97a; --link: #ffffff; background: #1a3f7a; color: #eaf2ff; font-family: "Avenir Next", "Futura", ui-sans-serif, sans-serif; \
+            background-image: linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px), \
+            linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px); \
+            background-size: 8rem 8rem, 8rem 8rem, 1rem 1rem, 1rem 1rem; }
+            html { font-size: calc(15.5px * var(--scale)); }
+            article { max-width: 44rem; line-height: 1.7; padding: 3.2rem 2.6rem 4rem; margin: 3rem auto 4rem; background: rgba(18,52,108,0.6); \
+            border: 1px solid rgba(255,255,255,0.5); outline: 1px solid rgba(255,255,255,0.5); outline-offset: 5px; }
+            h1, h2, h3, h4 { font-weight: 500; text-transform: uppercase; letter-spacing: 0.16em; color: #ffffff; }
+            h1 { font-size: 1.5em; margin: 0 0 1.2em; padding-bottom: 0.5em; border-bottom: 1px solid rgba(255,255,255,0.6); }
+            h2 { font-size: 1.05em; margin-top: 2.2em; } h2::before { content: "▸ "; opacity: 0.7; }
+            h3, h4 { font-size: 0.9em; letter-spacing: 0.12em; color: #cfe0ff; }
+            p { margin-bottom: 1.1em; }
+            strong { color: #fff; font-weight: 600; } em { color: #cfe0ff; }
+            a { color: #ffffff; text-decoration: underline; text-decoration-style: dotted; }
+            blockquote { border: 1px dashed rgba(255,255,255,0.5); border-image: none; padding: 0.7em 1em; font-style: normal; color: #eaf2ff; }
+            hr { width: 100%; height: 1px; background: rgba(255,255,255,0.5); margin: 2em 0; }
+            code { background: rgba(255,255,255,0.12); color: #fff; } pre { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.3); border-radius: 2px; }
+            table { display: table; } th, td { border: 1px solid rgba(255,255,255,0.4); padding: 0.4em 0.7em; }
+            th { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.8em; font-weight: 500; }
+            img { border-radius: 0; border: 1px solid rgba(255,255,255,0.4); }
+            .tag { color: #ffd97a; }
             """
         case .mono:
             let bg = dark ? "#0b0c0f" : "#f4f4f2"
