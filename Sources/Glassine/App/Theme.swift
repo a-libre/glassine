@@ -178,6 +178,7 @@ final class ThemeStore: ObservableObject {
 
     @Published var custom: [Theme] {
         didSet {
+            generation &+= 1
             persist()
             // Each edit of a theme is a step ⌘Z in Settings can take back;
             // a run of edits to one theme inside a second is one step.
@@ -205,8 +206,18 @@ final class ThemeStore: ObservableObject {
 
     var all: [Theme] { Theme.builtIns + custom }
 
+    /// The theme by its id. Asked for many times per pass of the window —
+    /// every view reads the theme in force a few times as it draws — so the
+    /// last answer is kept and handed back until a theme changes.
+    private var lastLookup: (id: String, generation: Int, theme: Theme)?
+    /// Bumped with every change to the custom themes.
+    private var generation = 0
+
     func theme(id: String) -> Theme {
-        all.first(where: { $0.id == id }) ?? Theme.dusk
+        if let last = lastLookup, last.id == id, last.generation == generation { return last.theme }
+        let theme = all.first(where: { $0.id == id }) ?? Theme.dusk
+        lastLookup = (id, generation, theme)
+        return theme
     }
 
     func update(_ theme: Theme) {

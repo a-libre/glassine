@@ -30,6 +30,8 @@ Always on; there is no Save. Glassine writes the file about half a second after 
 
 The small dot at the bottom-left of the editor says what is happening: grey is clean, accent-coloured means edits are waiting to be written, and a brief *Saved* with an iCloud mark springs in after each write. File → Save Now forces a write if you want the reassurance.
 
+A document that iCloud has not brought down to this Mac yet opens as an empty page that says *Coming down from iCloud…* in the same place, and fills in when the file lands; until then the page is for looking at, so nothing typed on it is lost under the text that arrives. A file that could not be read at all says so there too, and stays read-only — nothing is ever written over a file from a page that is not it.
+
 ## Naming
 
 A new document starts as *Untitled* and takes its file name from its first line as you write — leading `#` and Markdown marks stripped, characters a file name cannot hold replaced. Rename the file yourself (⌘R, or the right-click menu) and Glassine stops touching its name from then on. Settings → Library → *Name files after the first line* turns the whole behaviour off.
@@ -48,4 +50,4 @@ Move to Trash (⌘⌫) asks first — *Move “…” to the Trash?* — so a st
 
 ## What is remembered outside the files
 
-Settings, the list of starred documents, which folders are expanded, the recent list, the sort order and the window's size and position live in the app's preferences, not in the library. Themes you make are stored there too, and can be exported as JSON from Settings → Theme.
+Settings, the list of starred documents, which folders are expanded, the recent list, the sort order and the window's size and position live in the app's preferences, not in the library. Looks you make are stored there too, and can be exported as a `.glassinelook.json` file from Settings → Look.

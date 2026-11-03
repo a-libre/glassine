@@ -71,7 +71,6 @@ final class GlassineTextView: NSTextView {
     // Editing bookkeeping
     private var pendingEditRange: NSRange?
     private var lastEditAt: CFTimeInterval = 0
-    private var lastTypedWasKeyboard = false
     private var lastFocusRange = NSRange(location: NSNotFound, length: 0)
     /// Focus mode steps aside while the reader scrolls — the whole page comes
     /// back — and returns the moment the caret is placed or moved again.
@@ -475,7 +474,6 @@ final class GlassineTextView: NSTextView {
             syncTypingAttributes()
         }
         updateSyntaxReveal()
-        lastTypedWasKeyboard = true
         lastEditAt = CACurrentMediaTime()
         onTextChanged?()
         let wasLifted = focusLifted
@@ -490,7 +488,6 @@ final class GlassineTextView: NSTextView {
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
         let byKeyboard = NSApp.currentEvent?.type == .keyDown
-        lastTypedWasKeyboard = byKeyboard
         let justEdited = pendingEditRange != nil || CACurrentMediaTime() - lastEditAt < 0.05
         updateCaret(animated: !stillSelectingFlag && (config.smoothWhileTyping || !justEdited))
         if !stillSelectingFlag {
@@ -523,7 +520,7 @@ final class GlassineTextView: NSTextView {
         guard let storage = textStorage else { return }
         let loc = selectedRange().location
         var attrs = config.baseAttributes
-        if loc > 0, loc <= storage.length, (storage.string as NSString).character(at: loc - 1) != 10 {
+        if loc > 0, loc <= storage.length, (storage.ns).character(at: loc - 1) != 10 {
             let styled = storage.attributes(at: loc - 1, effectiveRange: nil)
             for key in [NSAttributedString.Key.font, .foregroundColor, .paragraphStyle, .kern] {
                 if let value = styled[key] { attrs[key] = value }
@@ -570,7 +567,7 @@ final class GlassineTextView: NSTextView {
         var block = text
         var lead = 0
         if text.contains("\n") {
-            let ns = storage.string as NSString
+            let ns = storage.ns
             let before: unichar = range.location > 0 ? ns.character(at: range.location - 1) : 10
             let after: unichar = range.upperBoundValue < ns.length ? ns.character(at: range.upperBoundValue) : 10
             if before != 10, !text.hasPrefix("\n") { block = "\n" + block; lead = 1 }
@@ -647,7 +644,7 @@ final class GlassineTextView: NSTextView {
         guard sel.length > 0,
               let clip = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
               Self.isBareURL(clip) else { return false }
-        let selected = (storage.string as NSString).substring(with: sel)
+        let selected = (storage.ns).substring(with: sel)
         // Any spaces at the ends stay outside the link.
         let core = selected.trimmingCharacters(in: .whitespaces)
         let lead = String(selected.prefix(while: { $0 == " " || $0 == "\t" }))
@@ -724,7 +721,7 @@ final class GlassineTextView: NSTextView {
         // A slash on its own — at the start of a line or after a space — opens
         // the menu; one inside a word or an address is just a slash.
         if let s = string as? String, s == "/", slashAnchor == nil, let storage = textStorage {
-            let ns = storage.string as NSString
+            let ns = storage.ns
             let loc = selectedRange().location - 1
             if loc >= 0, loc < ns.length, ns.character(at: loc) == 47 {
                 let before: unichar = loc > 0 ? ns.character(at: loc - 1) : 10
@@ -752,7 +749,7 @@ final class GlassineTextView: NSTextView {
 
     private func lineBeforeCaret() -> String {
         guard let storage = textStorage else { return "" }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         let para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
         return ns.substring(with: NSRange(location: para.location, length: sel.location - para.location))
@@ -762,7 +759,7 @@ final class GlassineTextView: NSTextView {
     /// so the table reads as one here and everywhere else the file goes.
     private func straightenSeparatorLine() {
         guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         var para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
         if para.length > 0, ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }
@@ -781,7 +778,7 @@ final class GlassineTextView: NSTextView {
     /// it stands for — two per long dash — so `---` is `---` in the file.
     private func straightenDashLine() {
         guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         var para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
         if para.length > 0, ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }
@@ -802,7 +799,7 @@ final class GlassineTextView: NSTextView {
     /// a rule being edited are left alone.
     private func dropBelowRuleIfComplete() {
         guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         guard sel.length == 0 else { return }
         var para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
@@ -821,7 +818,7 @@ final class GlassineTextView: NSTextView {
         guard let storage = textStorage else { return false }
         let sel = selectedRange()
         guard sel.length == 0, sel.location > 0 else { return false }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let paragraphStart = ns.paragraphRange(for: sel).location
         let start = max(paragraphStart, sel.location - 12)
         let lookback = NSRange(location: start, length: sel.location - start)
@@ -843,7 +840,7 @@ final class GlassineTextView: NSTextView {
     /// empty "- " removes the marker.
     private func continueListIfNeeded() -> Bool {
         guard let storage = textStorage else { return false }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         guard sel.length == 0 else { return false }
         let para = ns.paragraphRange(for: sel)
@@ -852,8 +849,7 @@ final class GlassineTextView: NSTextView {
         // Only act when the caret is at the end of the line.
         guard sel.location == lineRange.upperBoundValue else { return false }
         let line = ns.substring(with: lineRange)
-        let regex = try! NSRegularExpression(pattern: "^([ \\t]*)([-*+]|(\\d{1,3})[.)])([ \\t]+)(\\[[ xX]\\][ \\t]+)?(.*)$")
-        guard let m = regex.firstMatch(in: line, options: [], range: NSRange(location: 0, length: (line as NSString).length)) else { return false }
+        guard let m = Self.listLineRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: (line as NSString).length)) else { return false }
         let lineNS = line as NSString
         let indent = lineNS.substring(with: m.range(at: 1))
         let marker = lineNS.substring(with: m.range(at: 2))
@@ -922,7 +918,7 @@ final class GlassineTextView: NSTextView {
     /// The number a numbered item should carry at `width`, judged by the item
     /// just above it at the same depth (1 when it starts a fresh list).
     func nextNumber(before location: Int, width: Int) -> Int {
-        guard let ns = textStorage?.string as NSString? else { return 1 }
+        guard let ns = textStorage?.ns else { return 1 }
         var p = location
         while p > 0 {
             let lr = ns.lineRange(for: NSRange(location: p - 1, length: 0))
@@ -950,7 +946,7 @@ final class GlassineTextView: NSTextView {
     private func shiftListItems(deeper: Bool) -> Bool {
         guard let storage = textStorage else { return false }
         var sel = selectedRange()
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let para = ns.paragraphRange(for: sel)
         var lineRanges: [NSRange] = []
         var loc = para.location
@@ -973,7 +969,7 @@ final class GlassineTextView: NSTextView {
         var shift = 0   // how far earlier edits in this pass have moved later text
         for original in lineRanges {
             let r = NSRange(location: original.location + shift, length: original.length)
-            let current = storage.string as NSString
+            let current = storage.ns
             let line = current.substring(with: r)
             let lineNS = line as NSString
             guard let m = Self.listLineRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: lineNS.length)) else { continue }
@@ -1046,7 +1042,7 @@ final class GlassineTextView: NSTextView {
     private func wrapSelection(prefix: String, suffix: String? = nil, placeholder: String) {
         let suffix = suffix ?? prefix
         guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         var sel = selectedRange()
         func replace(_ range: NSRange, with text: String, thenSelect selection: NSRange) {
             guard shouldChangeText(in: range, replacementString: text) else { return }
@@ -1130,7 +1126,7 @@ final class GlassineTextView: NSTextView {
     @objc func markdownLink(_ sender: Any?) {
         guard let storage = textStorage else { return }
         let sel = selectedRange()
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let selected = sel.length > 0 ? ns.substring(with: sel) : "link text"
         var urlText = "https://"
         if let clip = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1160,7 +1156,7 @@ final class GlassineTextView: NSTextView {
 
     @objc func markdownToggleTask(_ sender: Any?) {
         guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         var para = ns.paragraphRange(for: sel)
         if para.length > 0 && ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }
@@ -1188,7 +1184,7 @@ final class GlassineTextView: NSTextView {
     /// caret is in — finish it and move on, and its marks go too. A selection
     /// keeps its whole paragraph span open. A rule's line is a sentence of its own.
     private func revealRange(in storage: NSTextStorage) -> NSRange {
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange().clamped(to: storage.length)
         let para = ns.paragraphRange(for: sel)
         guard sel.length == 0 else { return para }
@@ -1209,7 +1205,7 @@ final class GlassineTextView: NSTextView {
     /// sentence changes nothing here.
     private func updateSyntaxReveal() {
         guard let lm = layoutManager, let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let new = revealRange(in: storage)
         let old = syntaxRevealRange
         syntaxRevealRange = new
@@ -1347,7 +1343,7 @@ final class GlassineTextView: NSTextView {
     private func refreshSlashMenu() {
         guard let anchor = slashAnchor, let storage = textStorage else { return }
         let sel = selectedRange()
-        let ns = storage.string as NSString
+        let ns = storage.ns
         guard sel.length == 0, sel.location > anchor, anchor < ns.length, ns.character(at: anchor) == 47 else { closeSlashMenu(); return }
         let query = ns.substring(with: NSRange(location: anchor + 1, length: sel.location - anchor - 1))
         guard !query.contains("\n") else { closeSlashMenu(); return }
@@ -1402,7 +1398,7 @@ final class GlassineTextView: NSTextView {
         guard let anchor = slashAnchor, index >= 0, index < slashItems.count, let storage = textStorage else { return }
         let item = slashItems[index]
         let sel = selectedRange()
-        let query = sel.location > anchor + 1 ? (storage.string as NSString).substring(with: NSRange(location: anchor + 1, length: sel.location - anchor - 1)) : ""
+        let query = sel.location > anchor + 1 ? (storage.ns).substring(with: NSRange(location: anchor + 1, length: sel.location - anchor - 1)) : ""
         closeSlashMenu()
         undoManager?.beginUndoGrouping()
         defer { undoManager?.endUndoGrouping() }
@@ -1460,7 +1456,7 @@ final class GlassineTextView: NSTextView {
     /// instead, and never lies past the end of the caret's own paragraph.
     private func endOfVisualLine(at location: Int, upstream: Bool) -> (index: Int, wrapped: Bool)? {
         guard let lm = layoutManager, let storage = textStorage, storage.length > 0 else { return nil }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let loc = min(max(0, location), ns.length)
         var paraStart = 0, contentsEnd = 0
         ns.getParagraphStart(&paraStart, end: nil, contentsEnd: &contentsEnd, for: NSRange(location: loc, length: 0))
@@ -1584,7 +1580,7 @@ final class GlassineTextView: NSTextView {
             return
         }
         let sel = selectedRange()
-        let ns = storage.string as NSString
+        let ns = storage.ns
         var focusRange = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
         if config.focusScope == .sentence {
             var found: NSRange?
@@ -1820,7 +1816,7 @@ final class GlassineTextView: NSTextView {
         guard let storage = textStorage else { return }
         pulse(charRange: boxRange, color: config.theme.accent.nsColor, scale: 1.7, duration: 0.45)
         // The struck text begins after the box and its space; the styler marks it.
-        let paragraph = (storage.string as NSString).paragraphRange(for: boxRange)
+        let paragraph = (storage.ns).paragraphRange(for: boxRange)
         var probe = boxRange.upperBoundValue
         var doneRange = NSRange(location: NSNotFound, length: 0)
         while probe < paragraph.upperBoundValue {
@@ -1852,7 +1848,7 @@ final class GlassineTextView: NSTextView {
     private func animateReopen(boxAt boxRange: NSRange) {
         guard let storage = textStorage else { return }
         pulse(charRange: boxRange, color: config.theme.syntax.nsColor, scale: 1.4, duration: 0.3)
-        let paragraph = (storage.string as NSString).paragraphRange(for: boxRange)
+        let paragraph = (storage.ns).paragraphRange(for: boxRange)
         let rest = NSRange(location: boxRange.upperBoundValue, length: max(0, paragraph.upperBoundValue - boxRange.upperBoundValue))
         guard rest.length > 0 else { return }
         let muted = config.theme.syntax.nsColor
@@ -1887,7 +1883,7 @@ final class GlassineTextView: NSTextView {
         }
         let idx = min(max(0, location - 1), storage.length - 1)
         // Use the following character's font at the very start of a paragraph.
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let useNext = location == 0 || (location < storage.length && ns.character(at: idx) == 10)
         let probe = useNext ? min(location, storage.length - 1) : idx
         return (storage.attribute(.font, at: probe, effectiveRange: nil) as? NSFont) ?? config.bodyFont
@@ -1905,7 +1901,7 @@ final class GlassineTextView: NSTextView {
 
         if length == 0 || loc >= length {
             let extra = lm.extraLineFragmentRect
-            if length == 0 || (extra != .zero && lm.numberOfGlyphs > 0 && (storage.string as NSString).hasSuffix("\n")) {
+            if length == 0 || (extra != .zero && lm.numberOfGlyphs > 0 && (storage.ns).hasSuffix("\n")) {
                 // Empty document, or caret on the empty line after a trailing newline.
                 let line = extra != .zero ? extra : CGRect(x: 0, y: 0, width: 1, height: config.bodyLineHeight)
                 let y = line.minY + ((line.height - glyphHeight) / 2).rounded()
@@ -1925,7 +1921,7 @@ final class GlassineTextView: NSTextView {
             if selectionAffinity == .upstream && loc > 0 {
                 let pg = lm.glyphIndexForCharacter(at: loc - 1)
                 let prevLine = lm.lineFragmentRect(forGlyphAt: pg, effectiveRange: nil)
-                let ns = storage.string as NSString
+                let ns = storage.ns
                 if prevLine.minY != line.minY && ns.character(at: loc - 1) != 10 {
                     // Caret sits at the end of the previous (soft-wrapped) line.
                     g = pg
@@ -2060,7 +2056,7 @@ final class GlassineTextView: NSTextView {
         guard let lm = layoutManager, let tc = textContainer, let storage = textStorage else { return fallback }
         let loc = selectedRange().location
         guard loc < storage.length else { return fallback }
-        let ch = (storage.string as NSString).character(at: loc)
+        let ch = (storage.ns).character(at: loc)
         guard ch != 10, ch != 9 else { return fallback }
         let g = lm.glyphIndexForCharacter(at: loc)
         if selectionAffinity == .upstream, loc > 0 {
@@ -2207,14 +2203,16 @@ final class GlassineTextView: NSTextView {
     /// four to nine between one and the next — unless the caret moves first.
     /// The self-photographing mode can ask for a particular trick at a
     /// particular moment: `-glassine.trickAfter 2 -glassine.trick flip`.
+    /// A self-shot's fixed wait before a trick (`-glassine.trickAfter`), read once.
+    private static let trickAfterOverride: TimeInterval? = UserDefaults.standard.string(forKey: "glassine.trickAfter").flatMap(Double.init)
+
     private func scheduleTrick(after delay: TimeInterval? = nil) {
         trickWork?.cancel()
         trickWork = nil
         guard config.caretTricks, !GlassineTextView.reduceMotion else { return }
         let work = DispatchWorkItem { [weak self] in self?.performTrick() }
         trickWork = work
-        let asked = UserDefaults.standard.string(forKey: "glassine.trickAfter").flatMap(Double.init)
-        let wait = delay ?? asked ?? .random(in: 2.5...4)
+        let wait = delay ?? Self.trickAfterOverride ?? .random(in: 2.5...4)
         ScreenshotMode.note("trick in \(wait)s")
         DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
     }
@@ -2256,7 +2254,6 @@ final class GlassineTextView: NSTextView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        lastTypedWasKeyboard = false
         closeSlashMenu()
         if event.clickCount == 1,
            event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
@@ -2265,10 +2262,27 @@ final class GlassineTextView: NSTextView {
             listDrag = ListDrag(handle: handle, start: event.locationInWindow)
             return
         }
+        if event.clickCount == 1,
+           event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.shift).isEmpty,
+           isInMargin(event) {
+            // The glass beside the column is a handle for the window. Settled
+            // on mouse up too: a press that moves carries the window, a press
+            // that stays puts the caret where a click there always did.
+            marginPress = event
+            return
+        }
         super.mouseDown(with: event)
     }
 
     override func mouseDragged(with event: NSEvent) {
+        if let press = marginPress {
+            guard hypot(event.locationInWindow.x - press.locationInWindow.x,
+                        event.locationInWindow.y - press.locationInWindow.y) >= 4 else { return }
+            marginPress = nil
+            ScreenshotMode.note("glass drag from the editor's margin")
+            window?.performDrag(with: press)
+            return
+        }
         guard var drag = listDrag else { super.mouseDragged(with: event); return }
         if !drag.dragging {
             guard abs(event.locationInWindow.y - drag.start.y) >= 4 else { return }
@@ -2281,6 +2295,11 @@ final class GlassineTextView: NSTextView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if let press = marginPress {
+            marginPress = nil
+            placeCaret(from: press)
+            return
+        }
         guard let drag = listDrag else { super.mouseUp(with: event); return }
         listDrag = nil
         if drag.dragging {
@@ -2296,6 +2315,39 @@ final class GlassineTextView: NSTextView {
             let index = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
             setSelectedRange(NSRange(location: index, length: 0))
         }
+    }
+
+    // MARK: - The margins
+
+    /// A press on the glass beside the column, waiting to be a click or a drag.
+    private var marginPress: NSEvent?
+
+    /// The pointer is on the margin: clear of the column of text on either
+    /// side, with a few points of grace so a click just beside a line still
+    /// lands in it. The band above the first line and below the last is
+    /// part of the column, where a click goes to its ends.
+    private func isInMargin(_ event: NSEvent) -> Bool {
+        guard let tc = textContainer, !isHiddenOrHasHiddenAncestor else { return false }
+        let p = convert(event.locationInWindow, from: nil)
+        let left = textContainerInset.width
+        let right = left + tc.containerSize.width
+        let grace = DateToken.capsulePadding + 6
+        return p.x < left - grace || p.x > right + grace
+    }
+
+    /// The caret where a click on the margin always put it: the nearest
+    /// position on the line beside the pointer, or the selection stretched
+    /// to it with ⇧ held.
+    private func placeCaret(from press: NSEvent) {
+        let index = characterIndexForInsertion(at: convert(press.locationInWindow, from: nil))
+        if press.modifierFlags.contains(.shift) {
+            let anchor = selectedRange()
+            let lo = min(anchor.location, index), hi = max(anchor.upperBoundValue, index)
+            setSelectedRange(NSRange(location: lo, length: hi - lo))
+        } else {
+            setSelectedRange(NSRange(location: index, length: 0))
+        }
+        window?.makeFirstResponder(self)
     }
 
     // MARK: - Task boxes and list handles
@@ -2332,7 +2384,7 @@ final class GlassineTextView: NSTextView {
     private func listHandle(at event: NSEvent) -> ListHandle? {
         guard let storage = textStorage, let index = characterIndex(under: event) else { return nil }
         if storage.attribute(TaskBox.attributeKey, at: index, effectiveRange: nil) != nil { return .box(index) }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let lineRange = ns.lineRange(for: NSRange(location: index, length: 0))
         let line = ns.substring(with: lineRange).trimmingCharacters(in: .newlines)
         guard let marker = TaskReorder.markerRange(in: line), NSLocationInRange(index - lineRange.location, marker) else { return nil }
@@ -2375,7 +2427,7 @@ final class GlassineTextView: NSTextView {
     /// registers first. If the line is edited or unchecked meanwhile, it stays.
     private func scheduleSink(ofTaskAt location: Int) {
         guard let storage = textStorage else { return }
-        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let lines = (storage.ns).components(separatedBy: "\n")
         let (lineIndex, _) = Self.line(containing: location, in: lines)
         let text = lines[lineIndex]
         pendingSinks[text]?.cancel()
@@ -2390,7 +2442,7 @@ final class GlassineTextView: NSTextView {
 
     private func sinkTask(reading text: String, near line: Int) {
         guard config.moveCompletedTasks, let storage = textStorage else { return }
-        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let lines = (storage.ns).components(separatedBy: "\n")
         let index: Int
         if line < lines.count, lines[line] == text { index = line }
         else if let found = lines.firstIndex(of: text) { index = found }
@@ -2415,7 +2467,7 @@ final class GlassineTextView: NSTextView {
     /// The move without the fades, for when the text changed under them.
     private func sinkTaskNow(reading text: String, near line: Int) {
         guard config.moveCompletedTasks, let storage = textStorage else { return }
-        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let lines = (storage.ns).components(separatedBy: "\n")
         let index: Int
         if line < lines.count, lines[line] == text { index = line }
         else if let found = lines.firstIndex(of: text) { index = found }
@@ -2429,7 +2481,7 @@ final class GlassineTextView: NSTextView {
     /// An unchecked task rises straight away, back to where it came from.
     private func riseUncheckedTask(boxAt location: Int) {
         guard let storage = textStorage else { return }
-        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let lines = (storage.ns).components(separatedBy: "\n")
         let (lineIndex, lineStart) = Self.line(containing: location, in: lines)
         let checkedForm = (lines[lineIndex] as NSString).replacingCharacters(in: NSRange(location: location - lineStart + 1, length: 1), with: "x")
         pendingSinks.removeValue(forKey: checkedForm)?.cancel()
@@ -2468,7 +2520,7 @@ final class GlassineTextView: NSTextView {
     /// line units, see `TaskReorder.Siblings`), leaving the caret on the handle.
     private func dropListItem(handleAt handle: Int, toward y: Double) {
         guard let storage = textStorage else { return }
-        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let lines = (storage.ns).components(separatedBy: "\n")
         let (lineIndex, lineStart) = Self.line(containing: handle, in: lines)
         guard let result = TaskReorder.drag(lines: lines, itemLine: lineIndex, toward: y), apply(result, from: lines) else { return }
         let landed = Self.charOffset(ofLine: result.movedTo, in: result.lines) + (handle - lineStart)
@@ -2478,7 +2530,7 @@ final class GlassineTextView: NSTextView {
     /// Tints the item being dragged and draws a bar where it would land.
     private func showDropTarget(for handle: ListHandle, at event: NSEvent) {
         guard let storage = textStorage else { return }
-        let lines = (storage.string as NSString).components(separatedBy: "\n")
+        let lines = (storage.ns).components(separatedBy: "\n")
         let (lineIndex, _) = Self.line(containing: handle.index, in: lines)
         guard let siblings = TaskReorder.siblings(lines: lines, at: lineIndex) else { hideDropTarget(); return }
         CATransaction.begin()
@@ -2513,7 +2565,7 @@ final class GlassineTextView: NSTextView {
     private func linePosition(at event: NSEvent) -> Double {
         guard let storage = textStorage else { return 0 }
         let point = convert(event.locationInWindow, from: nil)
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let index = min(characterIndexForInsertion(at: point), ns.length)
         let lineRange = ns.lineRange(for: NSRange(location: index, length: 0))
         let line = Self.lineNumber(before: lineRange.location, in: ns)
@@ -2654,7 +2706,6 @@ extension GlassineTextView: NSLayoutManagerDelegate {
         let count = glyphRange.length
         let first = characterIndexes[0], last = characterIndexes[count - 1]
         let charRange = NSRange(location: first, length: last - first + 1)
-        let reveal = revealRange(in: storage)
         var hidden: [NSRange] = []
         var bullets: [NSRange] = []
         // A horizontal rule's dashes keep their glyphs and are simply not
@@ -2662,6 +2713,10 @@ extension GlassineTextView: NSLayoutManagerDelegate {
         // room, their line was measured differently by a full layout and by
         // a partial one, and the rule moved when the caret passed through.
         if config.hideSyntax {
+            // The stretch whose marks show is the one updateSyntaxReveal
+            // keeps; worked out afresh here it was found again for every
+            // chunk of glyphs, a walk through the caret's paragraph each.
+            let reveal = syntaxRevealRange.location == NSNotFound ? revealRange(in: storage) : syntaxRevealRange
             storage.enumerateAttribute(Syntax.hiddenKey, in: charRange, options: []) { value, r, _ in
                 if value != nil, !NSLocationInRange(r.location, reveal) { hidden.append(r) }
             }
@@ -2677,7 +2732,7 @@ extension GlassineTextView: NSLayoutManagerDelegate {
             var dot: UniChar = 0x2022
             CTFontGetGlyphsForCharacters(unsafeBitCast(font, to: CTFont.self), &dot, &bullet, 1)
         }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let leading = hidden.filter { $0.location == 0 || ns.character(at: $0.location - 1) == 10 }
         for i in 0..<count {
             let c = characterIndexes[i]
@@ -2696,7 +2751,7 @@ extension GlassineTextView: NSLayoutManagerDelegate {
     func layoutManager(_ layoutManager: NSLayoutManager, shouldUse action: NSLayoutManager.ControlCharacterAction,
                        forControlCharacterAt charIndex: Int) -> NSLayoutManager.ControlCharacterAction {
         guard let storage = textStorage, charIndex < storage.length else { return action }
-        let c = (storage.string as NSString).character(at: charIndex)
+        let c = (storage.ns).character(at: charIndex)
         if c != 9, c != 10, c != 13, c != 0x2028, c != 0x2029,
            storage.attribute(Syntax.hiddenKey, at: charIndex, effectiveRange: nil) != nil {
             return .zeroAdvancement

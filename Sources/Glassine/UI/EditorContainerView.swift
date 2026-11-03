@@ -4,10 +4,14 @@ struct EditorContainerView: View {
     @EnvironmentObject var state: AppState
     @Namespace private var zoom
     @State private var dividerStartFraction: Double?
+    /// The page's share of the width while the divider is being dragged;
+    /// written to the settings once the drag ends (see ContentView's sidebar).
+    @State private var liveFraction: Double?
     @State private var dividerHovered = false
 
     private var theme: Theme { state.theme }
     private var beside: Bool { state.settings.data.reviewBeside }
+    private var besideFraction: Double { liveFraction ?? state.settings.data.reviewBesideFraction }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -34,7 +38,7 @@ struct EditorContainerView: View {
                             divider
                             ReviewView(document: doc, initialScrollFraction: 0, beside: true)
                                 .id(doc.id)
-                                .frame(width: (geo.size.width * state.settings.data.reviewBesideFraction).rounded())
+                                .frame(width: (geo.size.width * besideFraction).rounded())
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
                         }
                     }
@@ -45,13 +49,13 @@ struct EditorContainerView: View {
         // While the pages are fanned out the one on screen steps back.
         .scaleEffect(state.carousel == nil ? 1 : 0.965)
         .opacity(state.carousel == nil ? 1 : 0.4)
-        .animation(.easeOut(duration: 0.2), value: state.carousel == nil)
-        .animation(.easeOut(duration: 0.24), value: state.showingGallery)
-        .animation(.easeOut(duration: 0.24), value: state.showingDaily)
-        .animation(.easeOut(duration: 0.18), value: state.reviewMode)
-        .animation(.easeOut(duration: 0.22), value: beside)
-        .animation(state.pageSlide == 0 ? .easeOut(duration: 0.18) : .spring(response: 0.34, dampingFraction: 0.86), value: state.document?.relativePath)
-        .animation(.easeOut(duration: 0.3), value: state.zoomingCard)
+        .animation(Motion.quiet(.easeOut(duration: 0.2)), value: state.carousel == nil)
+        .animation(Motion.quiet(.easeOut(duration: 0.24)), value: state.showingGallery)
+        .animation(Motion.quiet(.easeOut(duration: 0.24)), value: state.showingDaily)
+        .animation(Motion.quiet(.easeOut(duration: 0.18)), value: state.reviewMode)
+        .animation(Motion.quiet(.easeOut(duration: 0.22)), value: beside)
+        .animation(Motion.quiet(state.pageSlide == 0 ? .easeOut(duration: 0.18) : .spring(response: 0.34, dampingFraction: 0.86)), value: state.document?.relativePath)
+        .animation(Motion.quiet(.easeOut(duration: 0.3)), value: state.zoomingCard)
     }
 
     private func editor(_ doc: DocumentModel) -> some View {
@@ -108,9 +112,13 @@ struct EditorContainerView: View {
                         let editorWidth = width - (state.settings.data.sidebarVisible ? CGFloat(state.settings.data.sidebarWidth) : 0)
                         let f = (dividerStartFraction ?? 0.5) - Double(value.translation.width / max(1, editorWidth))
                         let fraction = (min(0.7, max(0.3, f)) * 1000).rounded() / 1000
-                        if fraction != state.settings.data.reviewBesideFraction { state.settings.data.reviewBesideFraction = fraction }
+                        if fraction != liveFraction { liveFraction = fraction }
                     }
                     .onEnded { _ in
+                        if let fraction = liveFraction, fraction != state.settings.data.reviewBesideFraction {
+                            state.settings.data.reviewBesideFraction = fraction
+                        }
+                        liveFraction = nil
                         dividerStartFraction = nil
                         if !dividerHovered { NSCursor.pop() }
                     }
@@ -137,32 +145,27 @@ struct FooterBar: View {
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             saveIndicator
+            // The name and the pips; ⌥⇥ with one page open gives them a
+            // small shake together, since one page draws no pips to shake.
+            HStack(spacing: 10) {
+                Text(document.title)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                PagePips()
+            }
+            .modifier(Nudge(trigger: state.carouselNudge))
             if let notice = state.transientNotice {
+                // "Copied…" comes in beside the name rather than in its place.
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark").font(.system(size: 9, weight: .bold))
                     Text(notice)
                 }
                 .foregroundStyle(theme.accent.color.opacity(0.95))
-                .transition(.opacity)
-            } else {
-                Text(document.title)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                PagePips()
-                    .modifier(Nudge(trigger: state.carouselNudge))
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             Spacer()
-            Button {
-                cycleCounter()
-            } label: {
-                Text(counterText)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Click to change what's counted")
-            .animation(.easeOut(duration: 0.2), value: counterText)
+            CounterButton(text: counterText, theme: theme) { cycleCounter() }
+                .animation(.easeOut(duration: 0.2), value: counterText)
             if state.settings.data.floatOnTop {
                 Image(systemName: "pin.fill")
                     .font(.system(size: 10, weight: .medium))
@@ -207,6 +210,29 @@ struct FooterBar: View {
 
     @ViewBuilder
     private var saveIndicator: some View {
+        if document.isLoading {
+            // The file is on its way down from iCloud; the page fills in when it lands.
+            HStack(spacing: 4) {
+                Image(systemName: "icloud.and.arrow.down")
+                    .font(.system(size: 10, weight: .semibold))
+                Text("Coming down from iCloud…")
+            }
+            .foregroundStyle(theme.accent.color.opacity(0.9))
+            .transition(.scale(scale: 0.7, anchor: .leading).combined(with: .opacity))
+        } else if let error = document.loadError {
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10))
+                Text("Couldn't read the file")
+            }
+            .foregroundStyle(Color(nsColor: .systemRed).opacity(0.9))
+            .help("\(error) The page is read-only, so nothing is written over the file.")
+        } else {
+            saveStateIndicator
+        }
+    }
+
+    @ViewBuilder
+    private var saveStateIndicator: some View {
         switch document.saveState {
         case .clean:
             Circle().fill(theme.text.color.opacity(0.18)).frame(width: 6, height: 6)
@@ -227,7 +253,7 @@ struct FooterBar: View {
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10))
                 Text("Not saved")
             }
-            .foregroundStyle(.red.opacity(0.9))
+            .foregroundStyle(Color(nsColor: .systemRed).opacity(0.9))
             .help(message)
         }
     }
@@ -256,32 +282,36 @@ struct FooterBar: View {
     }
 }
 
-struct EmptyLibraryView: View {
-    @EnvironmentObject var state: AppState
+/// The counter at the foot of the page. A click walks it through what it
+/// counts — words, characters, the reading time, everything — and under the
+/// pointer it brightens a little, so that there is something to click is
+/// not a secret.
+struct CounterButton: View {
+    let text: String
+    let theme: Theme
+    let action: () -> Void
+    @State private var hovering = false
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "leaf")
-                .font(.system(size: 30, weight: .light))
-                .foregroundStyle(state.theme.accent.color.opacity(0.7))
-            Text("Nothing open")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(state.theme.text.color.opacity(0.6))
-            Text("Pick something in the sidebar, or press ⌘N to start a new document.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(state.theme.text.color.opacity(0.4))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 300)
-            Button("New Document") { state.newDocument() }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .padding(.top, 4)
+        Button(action: action) {
+            Text(text)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .padding(.horizontal, 6)
+                .frame(height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(theme.text.color.opacity(hovering ? 0.08 : 0))
+                )
+                .foregroundStyle(theme.text.color.opacity(hovering ? 0.75 : 0.45))
+                .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+        .help("Words, characters, reading time, or all three — click to change what's counted")
     }
 }
-
 
 /// A small sideways shake, for a key that found nothing to do.
 struct Nudge: ViewModifier {

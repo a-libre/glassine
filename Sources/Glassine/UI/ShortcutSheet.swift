@@ -70,11 +70,7 @@ struct ShortcutSheet: View {
     var body: some View {
         ZStack {
             // A click anywhere outside the card closes it.
-            theme.tint.color.opacity(theme.isDark ? 0.35 : 0.25)
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture { state.showingShortcuts = false }
-
+            Scrim(theme: theme) { state.showingShortcuts = false }
             card
         }
     }
@@ -96,19 +92,7 @@ struct ShortcutSheet: View {
         }
         .padding(24)
         .frame(width: 620)
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blendingMode: .withinWindow)
-                theme.tint.color.opacity(theme.isDark ? 0.38 : 0.5)
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(theme.text.color.opacity(theme.isDark ? 0.12 : 0.1), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(theme.isDark ? 0.45 : 0.18), radius: 30, y: 12)
-        .foregroundStyle(theme.text.color)
+        .glassCard(theme)
         .onTapGesture { }  // swallow clicks on the card itself
     }
 

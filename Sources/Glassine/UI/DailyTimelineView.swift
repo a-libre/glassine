@@ -86,7 +86,20 @@ struct DailyTimelineView: View {
             let written = items.filter { $0.note != nil || !$0.others.isEmpty }.count
 
             ZStack(alignment: .topLeading) {
+                // The ground of the corridor carries the window.
+                Color.clear.dragsWindowByGround()
+
                 corridor(items: items, size: geo.size)
+                    // The far days dissolve before they reach the header, so
+                    // nothing of the corridor is drawn through its words.
+                    .mask(
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: 72)
+                            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 56)
+                            Color.black
+                        }
+                        .ignoresSafeArea()
+                    )
 
                 header(count: written)
                     .padding(.leading, 28)
@@ -107,7 +120,7 @@ struct DailyTimelineView: View {
             }
             .onChange(of: scope) { _, _ in
                 // The days change under the walker; stand at the front again.
-                withAnimation(.spring(response: 0.36, dampingFraction: 0.84)) { walker.offset = 0 }
+                withAnimation(Motion.quiet(.spring(response: 0.36, dampingFraction: 0.84))) { walker.offset = 0 }
             }
             .onDisappear { walker.uninstall() }
         }
@@ -122,7 +135,7 @@ struct DailyTimelineView: View {
     }
 
     private func toggleScope() {
-        withAnimation(.spring(response: 0.36, dampingFraction: 0.84)) {
+        withAnimation(Motion.quiet(.spring(response: 0.36, dampingFraction: 0.84))) {
             state.settings.data.timelapseScope = scope == .notes ? .everything : .notes
         }
     }
@@ -315,7 +328,7 @@ struct DailyTimelineView: View {
             }
             PillPicker(theme: theme, selection: Binding(
                 get: { scope },
-                set: { s in withAnimation(.spring(response: 0.36, dampingFraction: 0.84)) { state.settings.data.timelapseScope = s } }),
+                set: { s in withAnimation(Motion.quiet(.spring(response: 0.36, dampingFraction: 0.84))) { state.settings.data.timelapseScope = s } }),
                 options: TimelapseScope.allCases, label: { $0.label })
                 .padding(.leading, 6)
                 .help("What each day holds: its note alone, or everything written that day (⇥ switches).")
@@ -459,7 +472,7 @@ final class TimelineWalker: ObservableObject {
 
     /// One day further back (or forward, negative), settling the way a scroll does.
     func walk(by days: Double) {
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+        withAnimation(Motion.quiet(.spring(response: 0.32, dampingFraction: 0.82))) {
             offset = min(maxDepth, max(0, (offset + days).rounded()))
         }
     }
@@ -474,11 +487,11 @@ final class TimelineWalker: ObservableObject {
             let step = Double(event.scrollingDeltaY) / 140
             let target = min(self.maxDepth, max(0, self.offset + step))
             if event.phase == .ended || event.momentumPhase == .ended {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                withAnimation(Motion.quiet(.spring(response: 0.32, dampingFraction: 0.82))) {
                     self.offset = min(self.maxDepth, max(0, target.rounded()))
                 }
             } else if event.phase == .cancelled {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                withAnimation(Motion.quiet(.spring(response: 0.32, dampingFraction: 0.82))) {
                     self.offset = min(self.maxDepth, max(0, self.offset.rounded()))
                 }
             } else {

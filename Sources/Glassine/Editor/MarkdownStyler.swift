@@ -29,7 +29,6 @@ final class MarkdownStyler {
     private var bodyFont: NSFont!
     private var boldFont: NSFont!
     private var italicFont: NSFont!
-    private var boldItalicFont: NSFont!
     private var monoFont: NSFont!
     private var headingFonts: [NSFont] = []
     private var baseAttrs: [NSAttributedString.Key: Any] = [:]
@@ -51,7 +50,6 @@ final class MarkdownStyler {
         bodyFont = config.bodyFont
         boldFont = config.boldFont
         italicFont = config.italicFont
-        boldItalicFont = config.boldItalicFont
         monoFont = config.monoFont
         headingFonts = (1...6).map { config.headingFont(level: $0) }
         baseAttrs = config.baseAttributes
@@ -112,7 +110,7 @@ final class MarkdownStyler {
     /// Restyles the paragraphs touching `range`. Pass the full range to style
     /// the whole document.
     func restyle(_ storage: NSTextStorage, range: NSRange) {
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let length = ns.length
         guard length >= 0 else { return }
         var target = ns.paragraphRange(for: range.clamped(to: length))
@@ -201,7 +199,7 @@ final class MarkdownStyler {
     /// Restyles every table in the text — for a column that changed width,
     /// since a table is laid out to the width it has.
     func restyleTables(_ storage: NSTextStorage) {
-        let ns = storage.string as NSString
+        let ns = storage.ns
         guard ns.range(of: "|").location != NSNotFound else { return }
         var at = 0
         while at < ns.length {
@@ -215,10 +213,20 @@ final class MarkdownStyler {
 
     // MARK: - Fences
 
+    /// Where every fence line starts. Run after each keystroke in a document
+    /// that has a fence anywhere, so it reads the paragraphs in place — a
+    /// substring was made and trimmed for every one before — and only looks
+    /// at a line's first characters past its indent.
     private func fenceLineStarts(_ ns: NSString) -> [Int] {
         var starts: [Int] = []
-        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byParagraphs]) { sub, range, _, _ in
-            if let s = sub?.trimmingCharacters(in: .whitespaces), s.hasPrefix("```") || s.hasPrefix("~~~") {
+        let length = ns.length
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
+            var i = range.location
+            let end = min(length, range.upperBoundValue)
+            while i < end, ns.character(at: i) == 32 || ns.character(at: i) == 9 { i += 1 }
+            guard i + 2 < end else { return }
+            let c = ns.character(at: i)
+            if (c == 96 || c == 126), ns.character(at: i + 1) == c, ns.character(at: i + 2) == c {
                 starts.append(range.location)
             }
         }

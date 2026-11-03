@@ -176,7 +176,7 @@ enum MarkdownTable {
     static func layOut(_ table: Table, in storage: NSTextStorage, config: StyleConfig, grid: Grid,
                        headerFont: NSFont, rowParagraph: NSParagraphStyle, separatorParagraph: NSParagraphStyle,
                        lastRowParagraph: NSParagraphStyle, availableWidth: CGFloat) {
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let columns = table.columns
         guard columns > 0 else { return }
         let bodyPipe = grid.pipe
@@ -401,7 +401,7 @@ enum MarkdownTable {
     /// Where Tab goes from a position: the next cell's text, or nil when the
     /// position is not in a table. From the last cell a new row is added.
     static func nextCell(from location: Int, in storage: NSTextStorage, backward: Bool) -> Move? {
-        let ns = storage.string as NSString
+        let ns = storage.ns
         guard let table = table(ns, around: location) else { return nil }
         // The separator's cells are not for writing in: Tab from the last
         // heading goes to the first cell under it.

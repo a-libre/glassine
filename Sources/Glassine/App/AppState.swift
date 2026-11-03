@@ -63,7 +63,7 @@ final class AppState: ObservableObject {
     /// the corridor behind it instead. The tour is not an overlay: it sits
     /// beside the page and the page stays yours.
     var overlayUp: Bool {
-        showingSettings || showingShortcuts || showingCommandBar || pendingPrompt != nil || carousel != nil
+        showingSettings || showingShortcuts || showingCommandBar || pendingPrompt != nil || errorMessage != nil || carousel != nil
     }
     /// Today's note is the document showing — for the sidebar's Today row.
     var todaysNoteOnScreen: Bool {
@@ -487,8 +487,12 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// The library's changes, republished as the app's; replaced, not added
+    /// to, when the library is swapped for another folder.
+    private var librarySink: AnyCancellable?
+
     private func bindLibrary() {
-        library.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
+        librarySink = library.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
 
     private func bootstrapLibrary() {
@@ -504,6 +508,11 @@ final class AppState: ObservableObject {
             // The first page opens on its own, from its heading rather than its end.
             settings.data.lastOpenedDocument = ref.id
             openAtTop = ref.id
+        }
+        // A library folder that could not be made is said so, once the window
+        // is up — it was kept in the library and shown nowhere.
+        if let trouble = library.lastError {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.errorMessage = trouble }
         }
         // A listing is enough to open the last document and show the window; reading every
         // file for previews, tags and search happens right after, off the main thread.
@@ -939,9 +948,12 @@ final class AppState: ObservableObject {
         selection = nil
     }
 
+    /// The caret has been placed on the page. (Its position used to be
+    /// written into the settings here, every 0.8 s of writing, for a restore
+    /// that never came — and a settings write has every view in the window
+    /// redo its body. Documents open at their end; see savedCaret.)
     func caretMoved(to position: Int) {
         guard let doc = document, !doc.isLoose else { return }
-        settings.data.caretPositions[doc.relativePath] = position
         openAtTop = nil
     }
 
@@ -951,7 +963,6 @@ final class AppState: ObservableObject {
     private var openAtTop: String?
 
     /// Documents open with the caret at the end — where the writing continues.
-    /// (Positions are still recorded, in case restoring them becomes an option.)
     /// docs/appstore/screenshots.sh can ask for a particular spot instead:
     ///   open Glassine.app --args -glassine.launchCaret 412
     func savedCaret(for relPath: String) -> Int? {
@@ -1605,6 +1616,9 @@ final class AppState: ObservableObject {
         let id: String
         let title: String
         var keys: String? = nil
+        /// The choice in force now — the style on, the look worn, the sort
+        /// in use — shown with a mark at the end of the row.
+        var current: Bool = false
         let action: () -> Void
     }
 
@@ -1612,13 +1626,12 @@ final class AppState: ObservableObject {
     /// the mosaic, writing modes in the editor. Themes ride along everywhere.
     var availableCommands: [AppCommand] {
         var cmds: [AppCommand] = []
-        func add(_ id: String, _ title: String, keys: String? = nil, _ action: @escaping () -> Void) {
-            cmds.append(AppCommand(id: id, title: title, keys: keys, action: action))
+        func add(_ id: String, _ title: String, keys: String? = nil, current: Bool = false, _ action: @escaping () -> Void) {
+            cmds.append(AppCommand(id: id, title: title, keys: keys, current: current, action: action))
         }
         if inReview {
             for s in ReviewStyle.allCases {
-                let mark = settings.data.reviewStyle == s ? "  ✓" : ""
-                add("style-\(s.rawValue)", "Review style: \(s.label)\(mark)") { [weak self] in self?.settings.data.reviewStyle = s }
+                add("style-\(s.rawValue)", "Review style: \(s.label)", current: settings.data.reviewStyle == s) { [weak self] in self?.settings.data.reviewStyle = s }
             }
             add("leave-review", "Leave Review", keys: "⌘↩  ⌘⇧S") { [weak self] in self?.toggleReview() }
             add("beside", "Review beside the editor", keys: "⌘⇧↩") { [weak self] in self?.toggleReviewBeside() }
@@ -1640,8 +1653,7 @@ final class AppState: ObservableObject {
                 }
             } else {
                 for mode in SortMode.allCases {
-                    let mark = settings.data.sortDocumentsBy == mode ? "  ✓" : ""
-                    add("sort-\(mode.rawValue)", "Sort by \(mode.label.lowercased())\(mark)") { [weak self] in self?.settings.data.sortDocumentsBy = mode }
+                    add("sort-\(mode.rawValue)", "Sort by \(mode.label.lowercased())", current: settings.data.sortDocumentsBy == mode) { [weak self] in self?.settings.data.sortDocumentsBy = mode }
                 }
             }
             add("search", "Search", keys: "⌘F") { [weak self] in self?.focusSearch() }
@@ -1664,6 +1676,12 @@ final class AppState: ObservableObject {
             add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
             add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
             add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
+            if let doc = document, !doc.isLoose {
+                let id = doc.relativePath
+                add("star", settings.isStarred(id) ? "Unstar" : "Star") { [weak self] in self?.toggleStar(id) }
+                add("rename", "Rename…", keys: "⌘R") { [weak self] in self?.promptRename(id, isFolder: false) }
+                add("duplicate", "Duplicate") { [weak self] in self?.duplicate(id) }
+            }
             add("shelve", currentDocumentIsShelved ? "Unshelve" : "Shelve", keys: "⌘⇧⌫") { [weak self] in self?.toggleShelvedCurrentDocument() }
             if keepsPagesOpen {
                 add("close-page", "Close page", keys: "⌘W") { [weak self] in self?.closeCurrentPage() }
@@ -1684,10 +1702,9 @@ final class AppState: ObservableObject {
 
         let wearing = currentLook?.id
         for l in looks.all {
-            let mark = wearing == l.id ? "  ✓" : ""
-            add("look-\(l.id)", "Look: \(l.name)\(mark)") { [weak self] in self?.applyLook(l) }
+            add("look-\(l.id)", "Look: \(l.name)", current: wearing == l.id) { [weak self] in self?.applyLook(l) }
         }
-        add("float", settings.data.floatOnTop ? "Stop floating over other windows" : "Float over other windows", keys: "⌘.") { [weak self] in self?.toggleFloating() }
+        add("float", settings.data.floatOnTop ? "Stop Floating on Top" : "Float on Top", keys: "⌘.") { [weak self] in self?.toggleFloating() }
         if sync.isConnected {
             add("sync", "Sync now") { [weak self] in self?.sync.sync() }
         }
@@ -1738,7 +1755,7 @@ final class AppState: ObservableObject {
 
     func adjustFontSize(by delta: Double) {
         if reviewMode && !showingGallery {
-            settings.data.reviewFontScale = min(2.0, max(0.6, (settings.data.reviewFontScale + delta * 0.08 * 1.0).rounded(toPlaces: 2)))
+            settings.data.reviewFontScale = min(2.0, max(0.6, (settings.data.reviewFontScale + delta * 0.08).rounded(toPlaces: 2)))
         } else {
             settings.data.fontSize = min(40, max(10, settings.data.fontSize + delta))
         }
@@ -1775,7 +1792,7 @@ enum WelcomeDocument {
     - Watch the caret glide as you type. Leave it alone for a few seconds and it may do a trick. Both are tuned under **Settings → Caret**.
     - ⌘S hides the sidebar; ⌘S brings it back. ⌘1 shows every document as a wall of cards, ⌘2 is Timelapse — today's note in front, earlier days receding behind it — ⌘3 is today's note, and ⌘F searches everything you have written.
     - ⌘K opens a command bar with whatever makes sense where you are. ⌘/ shows every shortcut on one card.
-    - ⌘↩ shows this page the way a reader will see it, in any of six styles; Esc comes back. ⌘⇧↩ keeps that page beside the editor, following as you write.
+    - ⌘↩ shows this page the way a reader will see it, in any of fourteen styles; Esc comes back. ⌘⇧↩ keeps that page beside the editor, following as you write.
     - Typewriter scrolling (⌃⌘T) and focus mode (⌃⌘F) are both on. Turn either off and see which you miss.
     - The file's name follows the first line of the document. Change this heading and watch the sidebar.
     - ⌘D opens today's note, like ⌘3. Type @today, @yesterday or @tomorrow and a space anywhere.

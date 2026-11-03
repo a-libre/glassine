@@ -108,7 +108,6 @@ struct StyleConfig: Equatable {
     var bodyFont: NSFont { StyleConfig.baseFont(family: fontFamily, size: fontSize) }
     var boldFont: NSFont { bodyFont.withTraits(.bold) }
     var italicFont: NSFont { bodyFont.withTraits(.italic) }
-    var boldItalicFont: NSFont { bodyFont.withTraits([.bold, .italic]) }
     var monoFont: NSFont { .monospacedSystemFont(ofSize: fontSize * 0.88, weight: .regular) }
 
     func headingFont(level: Int) -> NSFont {

@@ -17,7 +17,14 @@ final class DocumentModel: ObservableObject, Identifiable {
     @Published private(set) var lastSavedAt: Date?
 
     let undoManager = UndoManager()
+    /// The file could not be read when the page opened. The page is shown
+    /// empty and kept read-only, and nothing is ever written over the file
+    /// from here — a keystroke on a page that is not the file would have
+    /// saved a blank page over it.
     let loadError: String?
+    /// Nothing typed on this page may be taken: it is still on its way down
+    /// from iCloud, or it could not be read.
+    var isReadOnly: Bool { isLoading || loadError != nil }
     /// The file is still on its way down from iCloud; the page fills in when
     /// it lands. Nothing typed meanwhile is kept, so nothing is lost under it.
     @Published private(set) var isLoading = false
@@ -188,6 +195,11 @@ final class DocumentModel: ObservableObject, Identifiable {
                     }
                 }
                 textDidChange(lines.joined(separator: "\n"))
+                // The editor is told, as it is of a change from the disk:
+                // with the page beside it, the editor is still up with the
+                // old line, and its next keystroke would have put the old
+                // box back over the tick.
+                onReloaded?()
                 return newLine
             }
             seen += 1
@@ -210,6 +222,7 @@ final class DocumentModel: ObservableObject, Identifiable {
             else { return }
             guard let moved = TaskReorder.afterToggle(lines: lines, at: index) else { return }
             self.textDidChange(moved.lines.joined(separator: "\n"))
+            self.onReloaded?()
         }
         pendingSinks[lineText] = work
         DispatchQueue.main.asyncAfter(deadline: .now() + GlassineTextView.sinkDelay, execute: work)
@@ -223,10 +236,15 @@ final class DocumentModel: ObservableObject, Identifiable {
     }
 
     func textDidChange(_ newText: String) {
-        guard newText != text, !isLoading else { return }
+        guard newText != text, !isReadOnly else { return }
         text = newText
         editGeneration += 1
-        if case .saving = saveState {} else { saveState = .dirty }
+        // Set only when it changes: a published value set to itself still
+        // has every view watching the document redo its body.
+        switch saveState {
+        case .saving, .dirty: break
+        default: saveState = .dirty
+        }
         scheduleAutosave()
         statsDebouncer.call { [weak self] in self?.recomputeStatsInBackground() }
 
@@ -243,18 +261,19 @@ final class DocumentModel: ObservableObject, Identifiable {
         saveDebouncer.call { [weak self] in self?.save() }
         // Guarantee a save at least every 4 seconds while typing continuously.
         if maxIntervalTimer == nil {
-            maxIntervalTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
+            let timer = Timer(timeInterval: 4.0, repeats: false) { [weak self] _ in
                 self?.maxIntervalTimer = nil
                 self?.save()
             }
-            RunLoop.main.add(maxIntervalTimer!, forMode: .common)
+            RunLoop.main.add(timer, forMode: .common)
+            maxIntervalTimer = timer
         }
     }
 
     // MARK: - Saving
 
     func save() {
-        guard isDirty else { return }
+        guard isDirty, loadError == nil else { return }
         if saveInFlight || renameInFlight { saveAgain = true; return }
         saveInFlight = true
         saveState = .saving
@@ -339,7 +358,10 @@ final class DocumentModel: ObservableObject, Identifiable {
     /// going off screen is not one of those — see `close()`.)
     func saveNow() {
         saveDebouncer.cancel()
-        guard isDirty else { return }
+        guard isDirty, loadError == nil else { return }
+        // A write already on its way to the disk lands first, so the text
+        // written here — the newer — is the one the file is left with.
+        if saveInFlight { DocumentModel.saveQueue.sync {} }
         let generation = editGeneration
         do {
             try FileCoordination.write(text, to: url)

@@ -113,11 +113,7 @@ struct SettingsOverlay: View {
 
     var body: some View {
         ZStack {
-            theme.tint.color.opacity(theme.isDark ? 0.35 : 0.25)
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture { state.showingSettings = false }
-
+            Scrim(theme: theme) { state.showingSettings = false }
             card
         }
         .onChange(of: state.settingsQuery) { _, _ in followSearch() }
@@ -147,20 +143,8 @@ struct SettingsOverlay: View {
         }
         .frame(width: 748)
         .frame(maxHeight: 664)
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blendingMode: .withinWindow)
-                theme.tint.color.opacity(theme.isDark ? 0.42 : 0.55)
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(theme.text.color.opacity(theme.isDark ? 0.12 : 0.1), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(theme.isDark ? 0.45 : 0.18), radius: 30, y: 12)
+        .glassCard(theme)
         .padding(.vertical, 30)
-        .foregroundStyle(theme.text.color)
         .environment(\.settingsQuery, state.settingsQuery)
         .onTapGesture { }
     }
@@ -620,7 +604,7 @@ struct SyncPanel: View {
             if let error {
                 Text(error)
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.orange)
+                    .foregroundStyle(Color(nsColor: .systemOrange))
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
@@ -677,7 +661,7 @@ struct SyncPanel: View {
 
     private var statusColour: Color {
         switch sync.status {
-        case .offline, .failed: return .orange
+        case .offline, .failed: return Color(nsColor: .systemOrange)
         default: return theme.text.color.opacity(0.6)
         }
     }

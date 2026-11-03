@@ -78,11 +78,17 @@ final class GlassineLayoutManager: NSLayoutManager {
         let glyphs = glyphRange(forBoundingRect: rect.offsetBy(dx: -origin.x, dy: -origin.y), in: container)
         guard glyphs.length > 0 else { return }
         let chars = characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
-        let full = NSRange(location: 0, length: storage.length)
+        // The runs are read within the stretch on screen — with room either
+        // side for a token that straddles its edge — rather than the whole
+        // document: asked over the whole, a run with no token in it was
+        // walked to the end of the document on every draw.
+        let reach = 64
+        let near = NSRange(location: max(0, chars.location - reach),
+                           length: min(storage.length, chars.upperBoundValue + reach) - max(0, chars.location - reach))
         var index = chars.location
         while index < chars.upperBoundValue {
             var tokenRange = NSRange(location: 0, length: 0)
-            let isToken = storage.attribute(DateToken.attributeKey, at: index, longestEffectiveRange: &tokenRange, in: full) != nil
+            let isToken = storage.attribute(DateToken.attributeKey, at: index, longestEffectiveRange: &tokenRange, in: near) != nil
             guard tokenRange.length > 0 else { break }
             if isToken, let color = storage.attribute(.backgroundColor, at: tokenRange.location, effectiveRange: nil) as? NSColor {
                 for piece in capsulePieces(for: tokenRange, in: container) {
@@ -277,7 +283,7 @@ final class GlassineLayoutManager: NSLayoutManager {
         // would be. A row with a cell too long for its column has the cells
         // after that one follow it on its last line, so in that row the
         // lines stop at that cell's opening pipe.
-        let ns = storage.string as NSString
+        let ns = storage.ns
         var columns: [CGFloat] = []
         var merged: [Int: CGFloat] = [:]   // row index → x beyond which it has no column lines
         for box in boxes where box.index != 1 {

@@ -60,13 +60,13 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 
 ## What it does
 
-- **Glass.** The window is a blur of whatever is behind it, tinted by the theme. Nine built-in themes, dark by default; make your own in Settings with live preview, and export them as JSON. No wallpaper worth looking through? A **backdrop** puts deep, slowly moving folds of colour inside the window instead — the theme's own colours, or one of six palettes — with drift and frost to taste.
+- **Glass.** The window is a blur of whatever is behind it, tinted by the page's colours — or, behind the glass, deep, slowly moving folds of colour of the app's own, with drift, frost and grain to taste. The page and what lies behind it are one setting, a **look**: eight built in, Soft Sky first; duplicate one and change any colour, with live preview, and export it as one file.
 - **Smooth caret.** The insertion point glides between positions instead of jumping. Speed, blink style, width and shape are adjustable — eight shapes, from a plain bar to a pin, a proofreader's wedge, a ghost block and a comet.
 - **A library, not a file picker.** Documents live in `iCloud Drive/Glassine` as plain `.md` files and folders. New document is ⌘N; the file takes its name from the first line as you write.
 - **Autosave** half a second after you stop typing, and at least every few seconds while you type.
 - **Sidebar** with recents, starred, folders and tags, hidden and shown with ⌘S — and a Shelf at the bottom for what isn't current, out of the way without being archived.
 - **All Documents** (⌘P): a mosaic of every document with rendered previews, navigable with the arrow keys.
-- **Review** (⌘↩ or ⌘⇧S): the document rendered as HTML in one of six styles — Glass, GitHub, Book, Book Dark, Editorial, Mono. Or beside the editor (⌘⇧↩), live, following the caret.
+- **Review** (⌘↩ or ⌘⇧S): the document rendered as HTML in one of fourteen styles — Glass, GitHub, Book, Book Dark, Editorial, Mono, Reader, Gallery, Newspaper, Typewriter, Notebook, Thesis, Verse, Blueprint. Or beside the editor (⌘⇧↩), live, following the caret.
 - **Typewriter scrolling, focus mode, word count and reading time.**
 - **Markdown, lightly styled.** Syntax stays visible but steps back: headings, emphasis, code, quotes, lists, tasks, links, tags. Or hide it (⌃⌘M): the marks leave the page except in the sentence you're writing.
 - **Formatting as you go.** A bar over whatever you select; a menu under a `/` for headings, lists, tasks, quotes, code blocks, dividers and dates; chips (⌘⇧H) that put a word in a capsule like a date's.
@@ -101,7 +101,6 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘N / ⌘⇧N | New document / new folder |
 | ⌘1 ⌘2 ⌘3 | The three rows at the top of the sidebar — All Documents, Timelapse, New Document — for the left hand alone while the right is on the mouse |
 | ⌘D | Today's note; ⌘2 is Timelapse — today in front, earlier days receding behind it; there, ↑ ↓ walk the days, ↩ opens the one in front, ⇥ switches to everything written each day |
-| ⌥⌘D | Today's note (in a Daily folder, created on first use) |
 | ⌘⇧E | Export the document as a PDF in the current Review style |
 | ⌘/ | The shortcut sheet |
 | ⌘K | The command bar — what makes sense where you are: Review styles in Review, sorting in the mosaic, modes in the editor |
@@ -159,7 +158,7 @@ The mosaic view (⌘P, the grid row at the top of the sidebar, Esc from the edit
 
 ## Review
 
-⌘↩ swaps the editor for a read-only rendering of the document — real HTML in a web view, so tables, nested lists, task lists, code blocks and images all appear the way another Markdown app would show them. Six styles, under View → Review Style or the pill at the top-right: **Glass** (your theme's colors, transparent over the blur), **GitHub** (github.com's rendering, light or dark with the theme), **Book** (a cream page with drop caps and small-cap headings), **Book Dark** (the same page on warm charcoal, with a terracotta drop cap), **Editorial** (magazine typography: heavy headlines, pull-quotes) and **Mono** (a terminal). ⇥ and ⇧⇥ walk the styles. ⌘+ / ⌘− scale the text in Review independently of the editor. Links open in your browser. Esc or ⌘↩ returns to editing at roughly the same place.
+⌘↩ swaps the editor for a read-only rendering of the document — real HTML in a web view, so tables, nested lists, task lists, code blocks and images all appear the way another Markdown app would show them. Fourteen styles, under View → Review Style or the pill at the top-right: **Glass** (your look's colors, transparent over the blur), **GitHub** (github.com's rendering, light or dark with the look), **Book** (a cream page with drop caps and small-cap headings), **Book Dark** (the same page on warm charcoal, with a terracotta drop cap), **Editorial** (magazine typography: heavy headlines, pull-quotes), **Mono** (a terminal), **Reader**, **Gallery**, **Newspaper**, **Typewriter**, **Notebook**, **Thesis**, **Verse** and **Blueprint** — [the manual shows each](https://docs.glassine.ink/review/review#styles). ⇥ and ⇧⇥ walk the styles. ⌘+ / ⌘− scale the text in Review independently of the editor. Links open in your browser. Esc or ⌘↩ returns to editing at roughly the same place.
 
 ## Copying a document
 
@@ -247,7 +246,6 @@ Edit anything under `Sources/Glassine/`, then `./build.sh --run`. Incremental bu
 
 - One window. Glassine is a single-library app by design.
 - Export is PDF only (File → Export as PDF…); the files are plain Markdown, so any converter works on them directly for other formats.
-- Drag-and-drop between folders isn't wired up; use the context menu's "Move To".
 - Tested on macOS 26/27 with Xcode 26. Minimum deployment target is macOS 14.
 
 ## Credits

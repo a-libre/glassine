@@ -275,11 +275,6 @@ struct SettingsData: Codable, Equatable {
         return p
     }
 
-    /// "Essays" for "Essays/On Writing.md"; "" at the top level.
-    static func parentFolder(of relPath: String) -> String {
-        guard let slash = relPath.lastIndex(of: "/") else { return "" }
-        return String(relPath[..<slash])
-    }
 
     // Tolerant decoding so new fields can be added without invalidating saved settings.
     init(from decoder: Decoder) throws {

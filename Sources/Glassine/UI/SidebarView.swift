@@ -11,6 +11,9 @@ struct SidebarView: View {
     /// The seam between rows of the tree; the carry's arithmetic uses it.
     static let rowSpacing: CGFloat = 1
     @State private var drag = SidebarDrag()
+    /// How tall the tree's viewport is, so the ground under the rows reaches
+    /// the footer and a press anywhere on it carries the window.
+    @State private var groundHeight: CGFloat = 0
     @State private var recentsExpanded = true
     @State private var starredExpanded = true
     @State private var tagsExpanded = true
@@ -134,9 +137,12 @@ struct SidebarView: View {
                 // finished search — slide rather than blink.
                 .animation(.easeOut(duration: 0.22), value: state.library.generation)
                 .animation(.easeOut(duration: 0.18), value: state.searchText.isEmpty && state.tagFilter == nil)
+                .frame(maxWidth: .infinity, minHeight: groundHeight, alignment: .topLeading)
+                // The ground under the rows carries the window.
+                .background(Color.clear.dragsWindowByGround())
                 .background(ScrollHostFinder { drag.scrollView = $0 })
             }
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { drag.viewport = $0 }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { drag.viewport = $0; groundHeight = $0.height }
             footer
         }
         .coordinateSpace(name: Self.space)
@@ -244,100 +250,30 @@ struct SidebarView: View {
         .animation(.easeOut(duration: 0.15), value: searchFocused)
     }
 
+    // The four rows at the top: the two views, today's note and a new page,
+    // each a key away, drawn alike.
     private var allDocumentsRow: some View {
-        Button {
-            state.showGallery()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "square.grid.2x2")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(theme.accent.color)
-                    .frame(width: 18)
-                Text("All Documents")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                Text("⌘1")
-                    .font(.system(size: 11))
-                    .opacity(0.35)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(HoverRowStyle(theme: theme, selected: state.galleryOnScreen))
+        SidebarActionRow(symbol: "square.grid.2x2", title: "All Documents", keys: "⌘1",
+                         selected: state.galleryOnScreen) { state.showGallery() }
     }
 
     private var timelapseRow: some View {
-        Button {
-            state.showDaily()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(theme.accent.color)
-                    .frame(width: 18)
-                Text("Timelapse")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                Text("⌘2")
-                    .font(.system(size: 11))
-                    .opacity(0.35)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(HoverRowStyle(theme: theme, selected: state.showingDaily))
-        .help("Timelapse — today's note in front, earlier days receding behind it (⌘2).")
+        SidebarActionRow(symbol: "calendar", title: "Timelapse", keys: "⌘2",
+                         selected: state.showingDaily) { state.showDaily() }
+            .help("Timelapse — today's note in front, earlier days receding behind it (⌘2).")
     }
 
     /// Today's note, made on first use: the third numbered row, so the day's
     /// page is one key away like the two views above it.
     private var todayRow: some View {
-        Button {
-            state.openTodaysNote()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "sun.max")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(theme.accent.color)
-                    .frame(width: 18)
-                Text("Today")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                Text("⌘3")
-                    .font(.system(size: 11))
-                    .opacity(0.35)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(HoverRowStyle(theme: theme, selected: state.todaysNoteOnScreen))
-        .help("Today's note — in the Daily folder, started for you if the day has none yet (⌘3 or ⌘D).")
+        SidebarActionRow(symbol: "sun.max", title: "Today", keys: "⌘3",
+                         selected: state.todaysNoteOnScreen) { state.openTodaysNote() }
+            .help("Today's note — in the Daily folder, started for you if the day has none yet (⌘3 or ⌘D).")
     }
 
     private var newDocumentRow: some View {
-        Button {
-            state.newDocument()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(theme.accent.color)
-                    .frame(width: 18)
-                Text("New Document")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                Text("⌘N")
-                    .font(.system(size: 11))
-                    .opacity(0.35)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(HoverRowStyle(theme: theme, selected: false))
+        SidebarActionRow(symbol: "square.and.pencil", title: "New Document", keys: "⌘N",
+                         selected: false) { state.newDocument() }
     }
 
     private var filterHeader: some View {
@@ -435,6 +371,39 @@ struct SidebarView: View {
 }
 
 // MARK: - Rows
+
+/// One of the rows at the top of the sidebar: a symbol in the accent, a
+/// name, and the key that opens it from anywhere.
+struct SidebarActionRow: View {
+    @EnvironmentObject var state: AppState
+    let symbol: String
+    let title: String
+    let keys: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(state.theme.accent.color)
+                    .frame(width: 18)
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Text(keys)
+                    .font(.system(size: 11))
+                    .opacity(0.35)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverRowStyle(theme: state.theme, selected: selected))
+    }
+}
+
 
 /// The same document can appear in several sidebar sections; SwiftUI needs
 /// distinct identities for each appearance.
@@ -706,7 +675,7 @@ struct DocumentRow: View {
                     .transition(.scale(scale: 0.3).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.32, dampingFraction: 0.55), value: starred)
+        .animation(Motion.quiet(.spring(response: 0.32, dampingFraction: 0.55)), value: starred)
         .padding(.leading, CGFloat(depth) * 14 + (depth > 0 ? 22 : 8))
         .padding(.trailing, 8)
         .frame(height: showsFolder && !doc.folder.isEmpty ? 34 : Self.treeHeight)
@@ -728,7 +697,7 @@ struct DocumentRow: View {
             )
             .modifier(HoverRowChrome(theme: state.theme, selected: selected || carrying, pressed: pressed))
             .offset(y: shift)
-            .animation(.spring(response: 0.3, dampingFraction: 0.78), value: shift)
+            .animation(Motion.quiet(.spring(response: 0.3, dampingFraction: 0.78)), value: shift)
             .offset(y: carrying ? (drag?.lift ?? 0) : 0)
             .scaleEffect(carrying ? 1.025 : 1)
             .shadow(color: .black.opacity(carrying ? (dark ? 0.45 : 0.18) : 0), radius: carrying ? 9 : 0, y: carrying ? 4 : 0)
@@ -902,7 +871,7 @@ struct SyncGlyph: View {
         } label: {
             Image(systemName: troubled ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(troubled ? Color.orange.opacity(0.85) : theme.text.color.opacity(syncing ? 0.8 : 0.35))
+                .foregroundStyle(troubled ? Color(nsColor: .systemOrange).opacity(0.85) : theme.text.color.opacity(syncing ? 0.8 : 0.35))
                 .rotationEffect(.degrees(turning ? 360 : 0))
                 .frame(width: 18, height: 18)
                 .contentShape(Rectangle())

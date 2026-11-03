@@ -49,7 +49,7 @@ extension GlassineTextView {
     /// be used again; a caret keeps its place in its line.
     func setBlock(_ kind: BlockKind) {
         guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         var span = ns.paragraphRange(for: sel)
         if span.length > 0, ns.character(at: span.upperBoundValue - 1) == 10 { span.length -= 1 }
@@ -105,7 +105,7 @@ extension GlassineTextView {
     /// characters into the block.
     func insertOwnLine(_ block: String, caretOffset: Int) {
         guard let storage = textStorage else { return }
-        let ns = storage.string as NSString
+        let ns = storage.ns
         let sel = selectedRange()
         var para = ns.paragraphRange(for: NSRange(location: sel.location, length: 0))
         if para.length > 0, ns.character(at: para.upperBoundValue - 1) == 10 { para.length -= 1 }

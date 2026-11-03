@@ -58,6 +58,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 default: break
                 }
             }
+            // A prompt on the glass: Esc keeps things as they were. (Return is
+            // the card's own — its field, or its default capsule.)
+            if event.keyCode == 53, state.errorMessage != nil {
+                state.errorMessage = nil
+                return nil
+            }
+            if event.keyCode == 53, state.pendingPrompt != nil {
+                state.pendingPrompt = nil
+                return nil
+            }
             if state.showingSearch, event.keyCode == 53 {
                 state.searchText = ""
                 state.hideSearch()
@@ -289,6 +299,10 @@ struct GlassineCommands: Commands {
             .disabled(state.document == nil || state.looseDocument != nil)
             Button("Duplicate") {
                 if let rel = state.document?.relativePath { state.duplicate(rel) }
+            }
+            .disabled(state.document == nil || state.looseDocument != nil)
+            Button(state.document.map { state.settings.isStarred($0.relativePath) } == true ? "Unstar" : "Star") {
+                if let rel = state.document?.relativePath { state.toggleStar(rel) }
             }
             .disabled(state.document == nil || state.looseDocument != nil)
             Button("Add to Library") { state.addLooseDocumentToLibrary() }

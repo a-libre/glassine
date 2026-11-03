@@ -251,14 +251,19 @@ struct PillPicker<T: Hashable>: View {
 struct GlassButtonStyle: ButtonStyle {
     let theme: Theme
     var prominent: Bool = false
+    /// A prominent capsule for something that takes a thing away: the same
+    /// shape in a muted red, so the one button that cannot be undone by Esc
+    /// is told apart from the rest.
+    var destructive: Bool = false
 
     func makeBody(configuration: Configuration) -> some View {
-        Styled(theme: theme, prominent: prominent, pressed: configuration.isPressed) { configuration.label }
+        Styled(theme: theme, prominent: prominent, destructive: destructive, pressed: configuration.isPressed) { configuration.label }
     }
 
     private struct Styled<Label: View>: View {
         let theme: Theme
         let prominent: Bool
+        let destructive: Bool
         let pressed: Bool
         @ViewBuilder let label: () -> Label
         @State private var hovering = false
@@ -276,6 +281,9 @@ struct GlassButtonStyle: ButtonStyle {
         }
 
         private var fill: Color {
+            if destructive {
+                return Color(nsColor: .systemRed).opacity(pressed ? 0.5 : (hovering ? 0.42 : 0.32))
+            }
             if prominent {
                 return theme.accent.color.opacity(pressed ? 0.4 : (hovering ? 0.32 : 0.24))
             }

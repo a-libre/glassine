@@ -39,7 +39,9 @@ import ImageIO
 /// Every setting arrives with the launch and is never saved (see AppSettings),
 /// so a run leaves the real preferences alone.
 enum ScreenshotMode {
-    static var isActive: Bool { UserDefaults.standard.string(forKey: "glassine.shoot") != nil }
+    /// Read once: it is asked on every note, some of them from the caret's
+    /// own path through a keystroke.
+    static let isActive: Bool = UserDefaults.standard.string(forKey: "glassine.shoot") != nil
     private static var backdrop: NSWindow?
 
     /// Where the pictures go: the app's own temporary folder, which is inside
@@ -557,8 +559,11 @@ enum ScreenshotMode {
     }
 
     /// A line in the run's log, for the script to show when a picture fails.
-    static func note(_ line: String) {
+    /// The line is built only in a run that keeps a log: outside one, the
+    /// notes along the keystroke's path cost nothing.
+    static func note(_ line: @autoclosure () -> String) {
         guard isActive else { return }
+        let line = line()
         let url = outputFolder.appendingPathComponent("log.txt")
         try? FileManager.default.createDirectory(at: outputFolder, withIntermediateDirectories: true)
         let text = "\(Date()) \(line)\n"

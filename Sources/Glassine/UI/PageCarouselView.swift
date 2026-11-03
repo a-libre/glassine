@@ -54,9 +54,9 @@ struct PageCarouselView: View {
                     }
                 }
                 .offset(x: offset, y: rowY)
-                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: carousel.index)
-                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: carousel.anchor)
-                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: carousel.order)
+                .animation(Motion.quiet(.spring(response: 0.32, dampingFraction: 0.82)), value: carousel.index)
+                .animation(Motion.quiet(.spring(response: 0.32, dampingFraction: 0.82)), value: carousel.anchor)
+                .animation(Motion.quiet(.spring(response: 0.32, dampingFraction: 0.82)), value: carousel.order)
 
                 // The highlighted page's name, where it stands, and the keys.
                 VStack(spacing: 7) {

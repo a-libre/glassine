@@ -2,12 +2,17 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var state: AppState
-    @State private var promptText = ""
     @State private var dragStartWidth: CGFloat?
+    /// The sidebar's width while its handle is being dragged. It lives here,
+    /// not in the settings, until the drag ends: a setting changed on every
+    /// frame of a drag had every view in the window redo its body on every
+    /// frame, when all that changes is where one edge sits.
+    @State private var liveSidebarWidth: CGFloat?
     @State private var handleHovered = false
 
     private var theme: Theme { state.theme }
     private var sidebarVisible: Bool { state.settings.data.sidebarVisible }
+    private var sidebarWidth: CGFloat { liveSidebarWidth ?? CGFloat(state.settings.data.sidebarWidth) }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -18,8 +23,12 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 if sidebarVisible {
                     SidebarView()
-                        .frame(width: CGFloat(state.settings.data.sidebarWidth))
+                        .frame(width: sidebarWidth)
                         .overlay(alignment: .trailing) { resizeHandle }
+                        // While the pages are fanned out the sidebar steps
+                        // back with the page, so the fan is the one thing lit.
+                        .opacity(state.carousel == nil ? 1 : 0.45)
+                        .animation(Motion.quiet(.easeOut(duration: 0.2)), value: state.carousel == nil)
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 }
                 EditorContainerView()
@@ -36,7 +45,11 @@ struct ContentView: View {
             }
 
             if let carousel = state.carousel {
+                // The pages belong to the page's side of the window: the fan
+                // is centred over the editor, never over the sidebar.
                 PageCarouselView(carousel: carousel)
+                    .clipped()
+                    .padding(.leading, sidebarVisible ? sidebarWidth : 0)
                     .transition(.opacity.combined(with: .scale(scale: 1.03)))
                     .zIndex(8)
             }
@@ -70,35 +83,48 @@ struct ContentView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.97)))
                     .zIndex(12)
             }
+
+            // A prompt — a name, or "Move to the Trash?" — and anything that
+            // went wrong are asked and said on the glass, over the page.
+            if let prompt = state.pendingPrompt {
+                PromptOverlay(prompt: prompt)
+                    .id(prompt.id)
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    .zIndex(13)
+            }
+            if let message = state.errorMessage {
+                ErrorOverlay(message: message)
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                    .zIndex(14)
+            }
         }
-        .animation(.easeOut(duration: 0.16), value: state.showingShortcuts)
-        .animation(.easeOut(duration: 0.16), value: state.showingSettings)
-        .animation(.easeOut(duration: 0.22), value: state.showingTour)
-        .animation(.easeOut(duration: 0.14), value: state.showingSearch)
-        .animation(.easeOut(duration: 0.16), value: state.showingCommandBar)
-        .animation(.easeOut(duration: 0.18), value: state.carousel == nil)
+        .animation(Motion.quiet(.easeOut(duration: 0.16)), value: state.showingShortcuts)
+        .animation(Motion.quiet(.easeOut(duration: 0.16)), value: state.showingSettings)
+        .animation(Motion.quiet(.easeOut(duration: 0.22)), value: state.showingTour)
+        .animation(Motion.quiet(.easeOut(duration: 0.14)), value: state.showingSearch)
+        .animation(Motion.quiet(.easeOut(duration: 0.16)), value: state.showingCommandBar)
+        .animation(Motion.quiet(.easeOut(duration: 0.18)), value: state.carousel == nil)
+        .animation(Motion.quiet(.easeOut(duration: 0.16)), value: state.pendingPrompt?.id)
+        .animation(Motion.quiet(.easeOut(duration: 0.16)), value: state.errorMessage)
         .coordinateSpace(name: "glassineRoot")
         .frame(minWidth: 620, minHeight: 400)
         .background(WindowConfigurator(theme: theme, floats: state.settings.data.floatOnTop))
         .preferredColorScheme(theme.colorScheme)
         .ignoresSafeArea()
-        .sheet(item: $state.pendingPrompt) { prompt in
-            Group {
-                if case .trash(let path, let isFolder) = prompt {
-                    TrashPromptSheet(path: path, isFolder: isFolder)
-                } else {
-                    NamePromptSheet(prompt: prompt)
-                }
-            }
-            .environmentObject(state)
-        }
-        .alert("Something went wrong", isPresented: Binding(
-            get: { state.errorMessage != nil },
-            set: { if !$0 { state.errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { state.errorMessage = nil }
-        } message: {
-            Text(state.errorMessage ?? "")
+        .onChange(of: state.pendingPrompt?.id) { _, id in handOverKeyboard(toPrompt: id != nil) }
+        .onChange(of: state.errorMessage) { _, message in handOverKeyboard(toPrompt: message != nil) }
+    }
+
+    /// While a prompt is up the page's editor gives up the keyboard, so
+    /// Return answers the prompt rather than starting a new line, and a
+    /// stray word does not land on the page behind. The editor takes it back
+    /// when the prompt goes.
+    private func handOverKeyboard(toPrompt up: Bool) {
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow else { return }
+        if up {
+            if window.firstResponder is GlassineTextView { window.makeFirstResponder(nil) }
+        } else if state.pendingPrompt == nil, state.errorMessage == nil, let editor = GlassineTextView.current, editor.window === window {
+            window.makeFirstResponder(editor)
         }
     }
 
@@ -119,10 +145,15 @@ struct ContentView: View {
                     .onChanged { value in
                         if dragStartWidth == nil { dragStartWidth = CGFloat(state.settings.data.sidebarWidth) }
                         let w = (dragStartWidth ?? 250) + value.translation.width
-                        let width = Double(min(420, max(190, w)).rounded())
-                        if width != state.settings.data.sidebarWidth { state.settings.data.sidebarWidth = width }
+                        let width = min(420, max(190, w)).rounded()
+                        if width != liveSidebarWidth { liveSidebarWidth = width }
                     }
                     .onEnded { _ in
+                        // Written down once, as the drag ends.
+                        if let width = liveSidebarWidth, Double(width) != state.settings.data.sidebarWidth {
+                            state.settings.data.sidebarWidth = Double(width)
+                        }
+                        liveSidebarWidth = nil
                         dragStartWidth = nil
                         if !handleHovered { NSCursor.pop() }
                     }
@@ -154,115 +185,5 @@ struct FloatingSidebarToggle: View {
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.15), value: hovering)
         .help("Show Sidebar (⌘S)")
-    }
-}
-
-/// Small sheet used for "New Folder" and "Rename".
-struct NamePromptSheet: View {
-    @EnvironmentObject var state: AppState
-    let prompt: AppState.Prompt
-    @State private var text: String = ""
-    @FocusState private var focused: Bool
-
-    private var title: String {
-        switch prompt {
-        case .newFolder: return "New Folder"
-        case .rename(_, let isFolder): return isFolder ? "Rename Folder" : "Rename Document"
-        case .trash: return ""
-        }
-    }
-
-    private var confirmLabel: String {
-        if case .newFolder = prompt { return "Create" }
-        return "Rename"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.headline)
-            TextField("Name", text: $text)
-                .textFieldStyle(.roundedBorder)
-                .focused($focused)
-                .onSubmit(confirm)
-            HStack {
-                Spacer()
-                Button("Cancel") { state.pendingPrompt = nil }
-                    .keyboardShortcut(.cancelAction)
-                Button(confirmLabel, action: confirm)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-        }
-        .padding(20)
-        .frame(width: 340)
-        .onAppear {
-            if case .rename(let path, _) = prompt {
-                text = (path as NSString).lastPathComponent
-                if !state.library.url(forRelativePath: path).isDirectoryURL {
-                    text = (text as NSString).deletingPathExtension
-                }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { focused = true }
-        }
-    }
-
-    private func confirm() {
-        let name = text.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        switch prompt {
-        case .newFolder(let parent):
-            state.pendingPrompt = nil
-            state.createFolder(named: name, in: parent)
-        case .rename(let path, let isFolder):
-            state.pendingPrompt = nil
-            state.rename(path, to: name, isFolder: isFolder)
-        case .trash:
-            break
-        }
-    }
-}
-
-/// "Move to the Trash?" — asked before every trip there, since ⌘⌫ sits a
-/// finger away from ⌘⇧⌫ and the Delete key. Return moves it, Esc keeps it.
-struct TrashPromptSheet: View {
-    @EnvironmentObject var state: AppState
-    let path: String
-    let isFolder: Bool
-
-    private var name: String {
-        let last = (path as NSString).lastPathComponent
-        if isFolder { return last }
-        if let title = state.library.document(withID: path)?.title, !title.isEmpty { return title }
-        return (last as NSString).deletingPathExtension
-    }
-
-    private var question: String {
-        isFolder
-            ? "Move the folder “\(name)” and everything in it to the Trash?"
-            : "Move “\(name)” to the Trash?"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(question)
-                .font(.headline)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("It can be put back with ⌘Z, or from the Trash.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            HStack {
-                Spacer()
-                Button("Cancel") { state.pendingPrompt = nil }
-                    .keyboardShortcut(.cancelAction)
-                Button("Move to Trash", role: .destructive) {
-                    state.pendingPrompt = nil
-                    state.trashNow(path)
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(.top, 8)
-        }
-        .padding(20)
-        .frame(width: 360)
     }
 }

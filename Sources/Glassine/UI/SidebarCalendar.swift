@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// The month, under the sidebar's top three rows: a cell for every day, shaded
@@ -217,11 +218,19 @@ struct SidebarCalendar: View {
     }
 }
 
-/// Re-renders its content with the note's word count as it is typed.
+/// Re-renders its content with the note's word count as it is typed — and
+/// only then: watching the whole document had the month's grid built again
+/// on every keystroke, for a count that changes a few times a second at most.
 private struct LiveWords<Content: View>: View {
-    @ObservedObject var doc: DocumentModel
+    let doc: DocumentModel
     @ViewBuilder let content: (Int) -> Content
-    var body: some View { content(doc.wordCount) }
+    @State private var words = 0
+
+    var body: some View {
+        content(words)
+            .onAppear { words = doc.wordCount }
+            .onReceive(doc.$wordCount.removeDuplicates()) { words = $0 }
+    }
 }
 
 /// One day: shaded by its note, a dot under the number when other documents

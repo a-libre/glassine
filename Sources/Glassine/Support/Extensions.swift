@@ -1,6 +1,15 @@
 import AppKit
 import SwiftUI
 
+extension NSTextStorage {
+    /// The text as an NSString, without a copy. `storage.string` bridges the
+    /// storage's mutable string to a Swift String, and a mutable string is
+    /// copied on the way — the whole document, on every read; the caret's
+    /// own bookkeeping read it several times a keystroke. The mutable string
+    /// is the live text itself, read in place.
+    var ns: NSString { mutableString }
+}
+
 extension NSRange {
     var upperBoundValue: Int { location + length }
     func clamped(to length: Int) -> NSRange {
@@ -28,21 +37,43 @@ extension String {
     }
 
     /// Derives a human title from Markdown text: first non-empty line, with
-    /// heading marks, list markers and emphasis stripped.
+    /// heading marks, list markers and emphasis stripped. Asked after every
+    /// keystroke (the file is named from it), so it reads the text line by
+    /// line and stops at the first that counts, rather than splitting the
+    /// whole document into lines first.
     var derivedMarkdownTitle: String {
-        for rawLine in self.split(separator: "\n", omittingEmptySubsequences: false) {
-            var line = rawLine.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty { continue }
-            if line.hasPrefix("```") || line.hasPrefix("---") { continue }
-            line = line.replacingOccurrences(of: "^#{1,6}\\s*", with: "", options: .regularExpression)
-            line = line.replacingOccurrences(of: "^>\\s*", with: "", options: .regularExpression)
-            line = line.replacingOccurrences(of: "^([-*+]|\\d+[.)])\\s+(\\[[ xX]\\]\\s+)?", with: "", options: .regularExpression)
-            line = line.replacingOccurrences(of: "!?\\[([^\\]]*)\\]\\([^)]*\\)", with: "$1", options: .regularExpression)
-            line = line.replacingOccurrences(of: "[*_~`]", with: "", options: .regularExpression)
-            line = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !line.isEmpty { return line }
+        let ns = self as NSString
+        let length = ns.length
+        var start = 0
+        while start < length {
+            var lineStart = 0, lineEnd = 0, contentsEnd = 0
+            ns.getLineStart(&lineStart, end: &lineEnd, contentsEnd: &contentsEnd, for: NSRange(location: start, length: 0))
+            start = lineEnd
+            if let title = String.title(ofLine: ns.substring(with: NSRange(location: lineStart, length: contentsEnd - lineStart))) {
+                return title
+            }
+            if lineEnd == lineStart { break }
         }
         return ""
+    }
+
+    private static let titleStrips: [(NSRegularExpression, String)] = [
+        (try! NSRegularExpression(pattern: "^#{1,6}\\s*"), ""),
+        (try! NSRegularExpression(pattern: "^>\\s*"), ""),
+        (try! NSRegularExpression(pattern: "^([-*+]|\\d+[.)])\\s+(\\[[ xX]\\]\\s+)?"), ""),
+        (try! NSRegularExpression(pattern: "!?\\[([^\\]]*)\\]\\([^)]*\\)"), "$1"),
+        (try! NSRegularExpression(pattern: "[*_~`]"), ""),
+    ]
+
+    /// One line as a title, or nil when it is blank, a fence or a rule.
+    private static func title(ofLine raw: String) -> String? {
+        var line = raw.trimmingCharacters(in: .whitespaces)
+        if line.isEmpty || line.hasPrefix("```") || line.hasPrefix("---") { return nil }
+        for (rx, template) in titleStrips {
+            line = rx.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: line.nsLength), withTemplate: template)
+        }
+        line = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        return line.isEmpty ? nil : line
     }
 }
 
@@ -79,11 +110,15 @@ extension Double {
 }
 
 extension Date {
-    var shortRelative: String {
+    /// "3 min. ago", "yesterday": the formatter is made once, since every
+    /// row of the sidebar and every lit card asks for this as it is drawn.
+    private static let relative: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .short
-        return f.localizedString(for: self, relativeTo: Date())
-    }
+        return f
+    }()
+
+    var shortRelative: String { Date.relative.localizedString(for: self, relativeTo: Date()) }
 }
 
 extension NSFont {
@@ -102,9 +137,6 @@ extension NSFont {
 
 extension View {
     @ViewBuilder
-    func `if`<T: View>(_ condition: Bool, transform: (Self) -> T) -> some View {
-        if condition { transform(self) } else { self }
-    }
 }
 
 /// A tiny debouncer for main-thread work.

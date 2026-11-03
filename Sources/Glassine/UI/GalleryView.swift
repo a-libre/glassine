@@ -104,6 +104,9 @@ struct GalleryView: View {
                 .padding(.horizontal, GalleryView.sideInset)
                 .padding(.top, 52)
                 .padding(.bottom, 48)
+                .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .topLeading)
+                // The ground between and below the cards carries the window.
+                .background(Color.clear.dragsWindowByGround())
                 .background(ScrollHostFinder { nav.scrollView = $0; drag.scrollView = $0 })
             }
             .coordinateSpace(name: GalleryNavigator.coordinateSpace)
@@ -151,8 +154,8 @@ struct GalleryView: View {
         )
         .onAppear {
             arrived = Date()
-            nav.install { [weak state] event in
-                guard let state else { return false }
+            nav.install { [weak state, weak nav] event in
+                guard let state, let nav else { return false }
                 return GalleryView.handle(event, nav: nav, state: state)
             }
             // Whatever text field had focus (the sidebar search, say) gives it up so the
@@ -351,9 +354,9 @@ struct GalleryView: View {
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .opacity(0.6)
             if state.filteredDocuments == nil {
-                Button("New Document") { state.newDocument() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
+                Button("New Document  ⌘N") { state.newDocument() }
+                    .buttonStyle(GlassButtonStyle(theme: theme, prominent: true))
+                    .padding(.top, 4)
             }
         }
         .frame(maxWidth: .infinity)
@@ -1034,11 +1037,11 @@ struct GalleryCard: View {
         }
         .matchedGeometryEffect(id: doc.id, in: zoom, isSource: zoomSource)
         .onHover { hovering = $0 }
-        .animation(.spring(response: 0.28, dampingFraction: 0.72), value: lit)
-        .animation(.easeOut(duration: 0.12), value: pressed)
-        .animation(.easeOut(duration: 0.12), value: isSelected)
-        .animation(.easeOut(duration: 0.2), value: state.zoomingCard)
-        .animation(.easeOut(duration: 0.16), value: carried)
+        .animation(Motion.quiet(.spring(response: 0.28, dampingFraction: 0.72)), value: lit)
+        .animation(Motion.quiet(.easeOut(duration: 0.12)), value: pressed)
+        .animation(Motion.quiet(.easeOut(duration: 0.12)), value: isSelected)
+        .animation(Motion.quiet(.easeOut(duration: 0.2)), value: state.zoomingCard)
+        .animation(Motion.quiet(.easeOut(duration: 0.16)), value: carried)
         .animation(.spring(response: 0.32, dampingFraction: 0.55), value: starred)
         .contextMenu {
             Button("Open") { state.open(doc, fromCard: true) }
@@ -1058,7 +1061,12 @@ struct GalleryCard: View {
                 }
             }
             Button(Shelf.holds(doc.id) ? "Unshelve" : "Shelve") { state.toggleShelved(doc.id) }
+            Divider()
             Button("Reveal in Finder") { state.library.revealInFinder(doc.id) }
+            Button("Copy Path") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(doc.url.path, forType: .string)
+            }
             Divider()
             Button("Move to Trash", role: .destructive) { state.trash(doc.id) }
         }
@@ -1443,10 +1451,14 @@ enum MarkdownPreview {
                 lastWasBlank = true
                 continue
             }
-            // The first real line usually is the title (Glassine names files from it); don't repeat it.
+            // The first real line usually is the title (Glassine names files
+            // from it); don't repeat it. The file's name is the line with
+            // what a name cannot hold taken out — a `?`, a `/`, a `:` — so
+            // the line is compared as the name it would have made.
             if !skippedTitle {
                 skippedTitle = true
-                if line.derivedMarkdownTitle.lowercased() == normalizedTitle { continue }
+                let first = line.derivedMarkdownTitle
+                if first.lowercased() == normalizedTitle || first.sanitizedFileStem.lowercased() == normalizedTitle { continue }
             }
             lastWasBlank = false
             let ns = line as NSString

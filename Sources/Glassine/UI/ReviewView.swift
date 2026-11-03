@@ -45,16 +45,25 @@ struct ReviewView: View {
     @ObservedObject var document: DocumentModel
     let initialScrollFraction: Double
     var beside: Bool = false
+    /// Beside the editor the page is rendered off the main thread, a beat
+    /// after typing pauses; in Review proper the text only changes when a
+    /// box is ticked, and the page is rendered as the view is drawn.
+    @StateObject private var live = LiveReview()
 
     private var theme: Theme { state.pageTheme }
     private var style: ReviewStyle { state.settings.data.reviewStyle }
 
+    /// Everything the page is made from.
+    private var inputs: ReviewHTML.Inputs {
+        ReviewHTML.Inputs(markdown: document.text, title: document.title, style: style, theme: theme,
+                          scale: state.settings.data.reviewFontScale, centerHeadings: state.settings.data.centerHeadings)
+    }
+
     var body: some View {
+        let inputs = inputs
         ZStack(alignment: .topTrailing) {
             ReviewWebView(
-                html: ReviewHTML.document(markdown: document.text, title: document.title, style: style,
-                                          theme: theme, scale: state.settings.data.reviewFontScale,
-                                          centerHeadings: state.settings.data.centerHeadings),
+                html: beside ? live.html : ReviewHTML.document(inputs),
                 scale: state.settings.data.reviewFontScale,
                 initialScrollFraction: initialScrollFraction,
                 baseURL: document.url.deletingLastPathComponent(),
@@ -68,6 +77,11 @@ struct ReviewView: View {
                 .padding(.top, 10)
                 .padding(.trailing, 14)
         }
+        .onAppear { if beside { live.request(inputs, settled: true) } }
+        // A change to the text waits for typing to pause; a change of style,
+        // look or scale is taken at once.
+        .onChange(of: inputs.markdown) { _, _ in if beside { live.request(inputs, settled: false) } }
+        .onChange(of: inputs.page) { _, _ in if beside { live.request(inputs, settled: true) } }
         .background(
             Group {
                 if !beside {
@@ -215,7 +229,9 @@ struct ReviewWebView: NSViewRepresentable {
         web.allowsMagnification = true
         context.coordinator.pendingScrollFraction = initialScrollFraction
         context.coordinator.followLine = followLine
-        context.coordinator.load(html, into: web, baseURL: baseURL)
+        // Beside the editor the first page is still being rendered when the
+        // view is made; it is loaded when it arrives (updateNSView).
+        if !html.isEmpty { context.coordinator.load(html, into: web, baseURL: baseURL) }
         return web
     }
 
@@ -357,22 +373,67 @@ struct ReviewWebView: NSViewRepresentable {
 
 // MARK: - HTML + CSS
 
-enum ReviewHTML {
-    private struct RenderKey: Equatable {
-        let markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double, centerHeadings: Bool
+/// The page beside the editor, rendered off the main thread. A render is
+/// asked for with every change; one that follows typing waits for a pause,
+/// and only the newest answer is kept, so a slow render of an old text
+/// never lands over a newer one.
+final class LiveReview: ObservableObject {
+    @Published private(set) var html = ""
+    private var pending: ReviewHTML.Inputs?
+    private var generation = 0
+    private let debouncer = Debouncer(delay: 0.12)
+    private static let queue = DispatchQueue(label: "glassine.review.live", qos: .userInitiated)
+
+    func request(_ inputs: ReviewHTML.Inputs, settled: Bool) {
+        pending = inputs
+        if settled { debouncer.cancel(); render() } else { debouncer.call { [weak self] in self?.render() } }
     }
-    private static var lastRender: (key: RenderKey, html: String)?
+
+    private func render() {
+        guard let inputs = pending else { return }
+        pending = nil
+        generation += 1
+        let mine = generation
+        LiveReview.queue.async { [weak self] in
+            let html = ReviewHTML.build(inputs)
+            DispatchQueue.main.async {
+                guard let self, mine == self.generation else { return }
+                self.html = html
+            }
+        }
+    }
+}
+
+enum ReviewHTML {
+    /// Everything a page is made from. `page` is all of it but the text —
+    /// what, changed, means the page itself is new rather than its words.
+    struct Inputs: Equatable {
+        let markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double, centerHeadings: Bool
+        struct Page: Equatable { let style: ReviewStyle, theme: Theme, scale: Double, centerHeadings: Bool }
+        var page: Page { Page(style: style, theme: theme, scale: scale, centerHeadings: centerHeadings) }
+    }
+    private static var lastRender: (key: Inputs, html: String)?
 
     /// The page for a document. SwiftUI asks for this on every state change while Review
     /// is up, so the last result is kept; comparing the inputs is far cheaper than rendering.
     static func document(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,
                          centerHeadings: Bool = true, forExport: Bool = false) -> String {
-        if forExport { return build(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings, export: true) }
-        let key = RenderKey(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings)
-        if let last = lastRender, last.key == key { return last.html }
-        let html = build(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings)
-        lastRender = (key, html)
+        let inputs = Inputs(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings)
+        if forExport { return build(inputs, export: true) }
+        return document(inputs)
+    }
+
+    /// The same, from the inputs as one; the last result is kept.
+    static func document(_ inputs: Inputs) -> String {
+        if let last = lastRender, last.key == inputs { return last.html }
+        let html = build(inputs)
+        lastRender = (inputs, html)
         return html
+    }
+
+    /// A render with nothing kept: safe off the main thread.
+    static func build(_ i: Inputs, export: Bool = false) -> String {
+        build(markdown: i.markdown, title: i.title, style: i.style, theme: i.theme, scale: i.scale, centerHeadings: i.centerHeadings, export: export)
     }
 
     private static func build(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,

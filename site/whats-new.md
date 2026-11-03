@@ -6,6 +6,14 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.30 — November 2, 2026
+
+- **Every question on the glass.** Rename, New Folder, the Trash question and any error are cards on the page now, in the look's colours — no more grey system sheets. Return answers, Esc keeps things as they were.
+- **A page on its way from iCloud says so.** It reads *Coming down from iCloud…* until the file lands, and nothing typed on it is lost; a file that cannot be read stays read-only and is never written over. [Files.](https://docs.glassine.ink/library/files#saving)
+- **The fanned pages keep to the page.** [[⌥⇥]] lays the open pages out over the page, not across the sidebar, which steps back with it.
+- **The glass is a handle again.** The margin beside the column and the empty ground of the wall, the Timelapse and the sidebar drag the window — at no cost until a press lands. [Small delights.](https://docs.glassine.ink/reference/small-delights)
+- **Lighter keystrokes.** The editor stopped copying the whole document several times per keystroke, the page beside the editor renders off the main thread once typing pauses, and the settings are no longer rewritten while you write or drag an edge.
+
 ## 0.2.29 — October 19, 2026
 
 - **Tables are tables.** A pipe table is drawn as a grid now — a border, a line under every row and at every column, the header on a faint fill — never wider than the page, with a long cell wrapping under its own column. `/table 3x4` starts one at any size. [Tables.](https://docs.glassine.ink/editor/tables)

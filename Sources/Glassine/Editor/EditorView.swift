@@ -59,6 +59,15 @@ struct EditorView: NSViewRepresentable {
             textView.config = config
             scrollView.scrollerKnobStyle = config.theme.isDark ? .light : .dark
         }
+        // A page whose file is still coming down from iCloud, or could not
+        // be read, is for looking at: nothing typed on it could be kept, so
+        // nothing is taken, and it does not ask to be written on.
+        let editable = !document.isReadOnly
+        if textView.isEditable != editable {
+            textView.isEditable = editable
+            textView.placeholder = editable ? "Start writing" : ""
+            textView.needsDisplay = true
+        }
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {

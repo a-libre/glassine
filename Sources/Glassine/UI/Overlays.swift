@@ -129,16 +129,15 @@ struct SearchOverlay: View {
 struct CommandBar: View {
     @EnvironmentObject var state: AppState
     @FocusState private var focused: Bool
+    /// The highlight is one plate that glides from row to row, the way the
+    /// Settings rail's does.
+    @Namespace private var highlight
 
     private var theme: Theme { state.theme }
 
     var body: some View {
         ZStack(alignment: .top) {
-            theme.tint.color.opacity(theme.isDark ? 0.25 : 0.18)
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture { state.showingCommandBar = false }
-
+            Scrim(theme: theme, light: true) { state.showingCommandBar = false }
             card
                 .padding(.top, 110)
         }
@@ -180,12 +179,14 @@ struct CommandBar: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .frame(height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                        .fill(i == state.commandSelection ? theme.accent.color.opacity(0.24) : Color.clear)
-                                )
+                                .background {
+                                    if i == state.commandSelection {
+                                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                            .fill(theme.accent.color.opacity(0.24))
+                                            .matchedGeometryEffect(id: "highlight", in: highlight)
+                                    }
+                                }
                                 .contentShape(Rectangle())
-                                .animation(.easeOut(duration: 0.12), value: state.commandSelection)
                             }
                             .buttonStyle(.plain)
                             .id(cmd.id)
@@ -198,6 +199,7 @@ struct CommandBar: View {
                         }
                     }
                     .padding(8)
+                    .animation(GlassineTextView.reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.85), value: state.commandSelection)
                 }
                 .frame(maxHeight: 322)
                 .onChange(of: state.commandSelection) { _, i in
@@ -207,19 +209,7 @@ struct CommandBar: View {
             }
         }
         .frame(width: 520)
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blendingMode: .withinWindow)
-                theme.tint.color.opacity(theme.isDark ? 0.38 : 0.5)
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(theme.text.color.opacity(theme.isDark ? 0.12 : 0.1), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(theme.isDark ? 0.45 : 0.18), radius: 28, y: 10)
-        .foregroundStyle(theme.text.color)
+        .glassCard(theme, radius: 14, shadowRadius: 28, shadowY: 10)
         .onAppear { DispatchQueue.main.async { focused = true } }
         .onChange(of: state.commandQuery) { _, _ in state.commandSelection = 0 }
         .onTapGesture { }

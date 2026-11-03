@@ -55,7 +55,6 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var allDocuments: [DocumentRef] = []
     @Published private(set) var tags: [TagInfo] = []
     @Published private(set) var lastError: String? = nil
-    @Published private(set) var isScanning = false
 
     let rootURL: URL
     let isInICloud: Bool
@@ -116,7 +115,6 @@ final class LibraryStore: ObservableObject {
     private let chosen: ChosenFolder?
 
     /// True when the user picked the folder rather than taking the default.
-    var isCustomLocation: Bool { chosen != nil }
 
     /// The bookmark as it should be saved (refreshed if the stored one went stale).
     var chosenBookmark: Data? { chosen?.bookmark }
