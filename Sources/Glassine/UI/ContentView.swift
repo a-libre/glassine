@@ -48,7 +48,18 @@ struct ContentView: View {
                 // The pages belong to the page's side of the window: the fan
                 // is centred over the editor, never over the sidebar.
                 PageCarouselView(carousel: carousel)
-                    .clipped()
+                    // A card that runs past the page's edge dissolves there
+                    // rather than being cut off against the sidebar.
+                    .mask(
+                        HStack(spacing: 0) {
+                            if sidebarVisible {
+                                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: 72)
+                            }
+                            Color.black
+                        }
+                        .ignoresSafeArea()
+                    )
                     .padding(.leading, sidebarVisible ? sidebarWidth : 0)
                     .transition(.opacity.combined(with: .scale(scale: 1.03)))
                     .zIndex(8)

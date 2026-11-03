@@ -135,10 +135,6 @@ extension NSFont {
     }
 }
 
-extension View {
-    @ViewBuilder
-}
-
 /// A tiny debouncer for main-thread work.
 final class Debouncer {
     private var workItem: DispatchWorkItem?

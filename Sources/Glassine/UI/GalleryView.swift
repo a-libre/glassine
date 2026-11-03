@@ -1458,7 +1458,11 @@ enum MarkdownPreview {
             if !skippedTitle {
                 skippedTitle = true
                 let first = line.derivedMarkdownTitle
-                if first.lowercased() == normalizedTitle || first.sanitizedFileStem.lowercased() == normalizedTitle { continue }
+                func bare(_ s: String) -> String {
+                    s.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".?!:;, "))
+                }
+                if first.lowercased() == normalizedTitle || first.sanitizedFileStem.lowercased() == normalizedTitle
+                    || bare(first) == bare(normalizedTitle) { continue }
             }
             lastWasBlank = false
             let ns = line as NSString
