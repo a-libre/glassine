@@ -56,7 +56,8 @@ struct ReviewView: View {
     /// Everything the page is made from.
     private var inputs: ReviewHTML.Inputs {
         ReviewHTML.Inputs(markdown: document.text, title: document.title, style: style, theme: theme,
-                          scale: state.settings.data.reviewFontScale, centerHeadings: state.settings.data.centerHeadings)
+                          scale: state.settings.data.reviewFontScale, centerHeadings: state.settings.data.centerHeadings,
+                          documentURL: document.url, libraryRoot: document.isLoose ? nil : state.library.rootURL)
     }
 
     var body: some View {
@@ -409,6 +410,9 @@ enum ReviewHTML {
     /// what, changed, means the page itself is new rather than its words.
     struct Inputs: Equatable {
         let markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double, centerHeadings: Bool
+        /// Where the document is, so its pictures can be put inside the page.
+        var documentURL: URL? = nil
+        var libraryRoot: URL? = nil
         struct Page: Equatable { let style: ReviewStyle, theme: Theme, scale: Double, centerHeadings: Bool }
         var page: Page { Page(style: style, theme: theme, scale: scale, centerHeadings: centerHeadings) }
     }
@@ -417,8 +421,10 @@ enum ReviewHTML {
     /// The page for a document. SwiftUI asks for this on every state change while Review
     /// is up, so the last result is kept; comparing the inputs is far cheaper than rendering.
     static func document(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,
-                         centerHeadings: Bool = true, forExport: Bool = false) -> String {
-        let inputs = Inputs(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings)
+                         centerHeadings: Bool = true, forExport: Bool = false,
+                         documentURL: URL? = nil, libraryRoot: URL? = nil) -> String {
+        let inputs = Inputs(markdown: markdown, title: title, style: style, theme: theme, scale: scale, centerHeadings: centerHeadings,
+                            documentURL: documentURL, libraryRoot: libraryRoot)
         if forExport { return build(inputs, export: true) }
         return document(inputs)
     }
@@ -433,12 +439,15 @@ enum ReviewHTML {
 
     /// A render with nothing kept: safe off the main thread.
     static func build(_ i: Inputs, export: Bool = false) -> String {
-        build(markdown: i.markdown, title: i.title, style: i.style, theme: i.theme, scale: i.scale, centerHeadings: i.centerHeadings, export: export)
+        build(markdown: i.markdown, title: i.title, style: i.style, theme: i.theme, scale: i.scale, centerHeadings: i.centerHeadings, export: export,
+              documentURL: i.documentURL, libraryRoot: i.libraryRoot)
     }
 
     private static func build(markdown: String, title: String, style: ReviewStyle, theme: Theme, scale: Double,
-                              centerHeadings: Bool, export: Bool = false) -> String {
-        let body = MarkdownHTML.render(markdown)
+                              centerHeadings: Bool, export: Bool = false, documentURL: URL? = nil, libraryRoot: URL? = nil) -> String {
+        // The page's pictures go inside it: a web view given a string has no
+        // folder to find files in, and the store's data URLs serve the PDF too.
+        let body = MarkdownHTML.render(markdown, resolveImage: ImageStore.shared.resolver(documentURL: documentURL, libraryRoot: libraryRoot))
         // On paper the page needs a colour of its own (styles with their own background
         // override it), less room at the top, and no lingering edge fades.
         let exportCSS = export ? "body { background: \(theme.tint.hex); } article { padding: 1rem 0 2rem; max-width: none; }" : ""

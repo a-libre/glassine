@@ -45,6 +45,7 @@
           "editor/markdown",
           "editor/formatting",
           "editor/tables",
+          "editor/images",
           "editor/tasks",
           "editor/dates",
           "editor/links-and-tags",

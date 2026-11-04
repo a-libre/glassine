@@ -1220,7 +1220,8 @@ final class AppState: ObservableObject {
         panel.nameFieldStringValue = doc.title.sanitizedFileStem + ".pdf"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let html = ReviewHTML.document(markdown: doc.text, title: doc.title, style: settings.data.reviewStyle,
-                                       theme: theme, scale: 1.0, centerHeadings: settings.data.centerHeadings, forExport: true)
+                                       theme: theme, scale: 1.0, centerHeadings: settings.data.centerHeadings, forExport: true,
+                                       documentURL: doc.url, libraryRoot: doc.isLoose ? nil : library.rootURL)
         PDFExporter.export(html: html, baseURL: doc.url.deletingLastPathComponent(), to: url) { [weak self] error in
             if let error {
                 self?.errorMessage = "Couldn't export the PDF: \(error.localizedDescription)"
@@ -1303,6 +1304,7 @@ final class AppState: ObservableObject {
                 selectedFolder = folder
                 settings.data.lastOpenedDocument = newRel
             }
+            repointLinks(movedFrom: rel, to: newRel)
             if !folder.isEmpty { settings.setExpanded(folder, true) }
             if newRel != rel {
                 let box = track(newRel)
@@ -1315,6 +1317,39 @@ final class AppState: ObservableObject {
             if Shelf.holds(oldFolder), !Shelf.holds(folder) { library.pruneEmptyFolders(under: Shelf.folder) }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// A document that changed folder has its relative links re-pointed —
+    /// its pictures first of all — so they keep reading right from the new
+    /// place, here and in any other app (RelativeLinks). A folder moved
+    /// takes every document under it, each by the same step. The open page
+    /// is changed in hand; a closed file on the disk, off the main thread.
+    private func repointLinks(movedFrom oldRel: String, to newRel: String) {
+        let newURL = library.url(forRelativePath: newRel)
+        var pairs: [(old: String, new: String)] = []
+        if newURL.isDirectoryURL {
+            let fm = FileManager.default
+            if let walker = fm.enumerator(at: newURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
+                for case let file as URL in walker where LibraryStore.extensions.contains(file.pathExtension.lowercased()) {
+                    let inside = String(file.standardizedFileURL.path.dropFirst(newURL.standardizedFileURL.path.count + 1))
+                    pairs.append((oldRel + "/" + inside, newRel + "/" + inside))
+                }
+            }
+        } else {
+            pairs.append((oldRel, newRel))
+        }
+        for pair in pairs {
+            if let doc = document, doc.relativePath == pair.new {
+                doc.repointLinks(from: pair.old, to: pair.new)
+                continue
+            }
+            let url = library.url(forRelativePath: pair.new)
+            FileCoordination.read(url) { result in
+                guard case .success(let text) = result,
+                      let moved = RelativeLinks.rewrite(text, from: pair.old, to: pair.new) else { return }
+                FileCoordination.write(moved, to: url) { _ in }
+            }
         }
     }
 
@@ -1547,22 +1582,22 @@ final class AppState: ObservableObject {
 
     func copyCurrentDocument(asMarkdown: Bool) {
         guard let doc = document else { return }
-        copy(text: doc.text, title: doc.title, asMarkdown: asMarkdown)
+        copy(text: doc.text, title: doc.title, documentURL: doc.url, asMarkdown: asMarkdown)
     }
 
     func copyDocument(_ ref: DocumentRef, asMarkdown: Bool) {
         if let doc = document, doc.relativePath == ref.id {
-            copy(text: doc.text, title: doc.title, asMarkdown: asMarkdown)
+            copy(text: doc.text, title: doc.title, documentURL: doc.url, asMarkdown: asMarkdown)
             return
         }
         guard let text = try? FileCoordination.read(ref.url) else {
             errorMessage = "Couldn't read \(ref.title)."
             return
         }
-        copy(text: text, title: ref.title, asMarkdown: asMarkdown)
+        copy(text: text, title: ref.title, documentURL: ref.url, asMarkdown: asMarkdown)
     }
 
-    private func copy(text: String, title: String, asMarkdown: Bool) {
+    private func copy(text: String, title: String, documentURL: URL, asMarkdown: Bool) {
         let pb = NSPasteboard.general
         pb.clearContents()
         if asMarkdown {
@@ -1570,7 +1605,8 @@ final class AppState: ObservableObject {
             showNotice("Copied as Markdown")
             return
         }
-        let html = MarkdownHTML.neutralDocument(title: title, body: MarkdownHTML.render(text))
+        // The pictures go along as part of the page, so Mail and Notes keep them.
+        let html = MarkdownHTML.neutralDocument(title: title, body: MarkdownHTML.render(text, resolveImage: ImageStore.shared.resolver(documentURL: documentURL, libraryRoot: library.rootURL)))
         guard let data = html.data(using: .utf8),
               let attributed = NSAttributedString(html: data, options: [
                   .documentType: NSAttributedString.DocumentType.html,
@@ -1676,6 +1712,7 @@ final class AppState: ObservableObject {
             add("copy-md", "Copy as Markdown", keys: "⌘⇧C") { [weak self] in self?.copyCurrentDocument(asMarkdown: true) }
             add("copy-rtf", "Copy as Rich Text", keys: "⌥⌘C") { [weak self] in self?.copyCurrentDocument(asMarkdown: false) }
             add("export-pdf", "Export as PDF…", keys: "⌘⇧E") { [weak self] in self?.exportPDF() }
+            add("insert-image", "Insert image…", keys: "⌘⇧I") { GlassineTextView.current?.insertImage(nil) }
             if let doc = document, !doc.isLoose {
                 let id = doc.relativePath
                 add("star", settings.isStarred(id) ? "Unstar" : "Star") { [weak self] in self?.toggleStar(id) }

@@ -14,6 +14,26 @@ import Foundation
 /// is a paragraph of its own, as the editor draws it, not a lazy continuation.
 enum MarkdownHTML {
 
+    /// The page with its pictures inside it: every `<img>` whose source
+    /// `resolveImage` can turn into something else — a local file as a
+    /// `data:` URL (ImageStore) — is rewritten; the rest are left as written.
+    static func render(_ markdown: String, resolveImage: (String) -> String) -> String {
+        let html = render(markdown)
+        guard html.contains("<img ") else { return html }
+        return replaceAll(imgTagRx, in: html) { m in
+            let src = unescape(m.group(1))
+            let resolved = resolveImage(src)
+            return resolved == src ? m.group(0) : "<img src=\"\(resolved.replacingOccurrences(of: "\"", with: "&quot;"))\""
+        }
+    }
+
+    private static let imgTagRx = rx("<img src=\"([^\"]*)\"")
+
+    private static func unescape(_ s: String) -> String {
+        s.replacingOccurrences(of: "&quot;", with: "\"").replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">").replacingOccurrences(of: "&amp;", with: "&")
+    }
+
     static func render(_ markdown: String) -> String {
         var lines = markdown.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
         // Hide YAML front matter.

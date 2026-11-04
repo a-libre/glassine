@@ -71,6 +71,7 @@ You can also open `Package.swift` in Xcode and press Run, which is handy for deb
 - **Markdown, lightly styled.** Syntax stays visible but steps back: headings, emphasis, code, quotes, lists, tasks, links, tags. Or hide it (⌃⌘M): the marks leave the page except in the sentence you're writing.
 - **Formatting as you go.** A bar over whatever you select; a menu under a `/` for headings, lists, tasks, quotes, code blocks, dividers and dates; chips (⌘⇧H) that put a word in a capsule like a date's.
 - **Copy the whole document** as Markdown (⌘⇧C) or rich text (⌥⌘C).
+- **Pictures.** Paste a screenshot, drop an image file, or `/image`: the picture goes into an `Images` folder in the library as a file of its own, the document gets a plain `![](../Images/name.png)` line, and the editor draws the picture in place, scaled to the column. Review, the PDF and a rich-text copy carry it inside the page.
 
 ## Where your writing lives
 
@@ -102,6 +103,7 @@ New documents start as "Untitled" and take their file name from the first line a
 | ⌘1 ⌘2 ⌘3 | The three rows at the top of the sidebar — All Documents, Timelapse, New Document — for the left hand alone while the right is on the mouse |
 | ⌘D | Today's note; ⌘2 is Timelapse — today in front, earlier days receding behind it; there, ↑ ↓ walk the days, ↩ opens the one in front, ⇥ switches to everything written each day |
 | ⌘⇧E | Export the document as a PDF in the current Review style |
+| ⌘⇧I | Insert an image from a file (⌘V with a picture on the clipboard, or a drop, does the same) |
 | ⌘/ | The shortcut sheet |
 | ⌘K | The command bar — what makes sense where you are: Review styles in Review, sorting in the mosaic, modes in the editor |
 | ⌘S (or ⌘\) | Show or hide the sidebar |
@@ -172,6 +174,10 @@ The first launch opens the tour: not cards to read but a small prompt at the foo
 
 A document stays open as a page until you close it (⌘W), and the pages sit in a stack with the one you are writing on top — no row of tabs. The pips in the footer are the pages; rest the pointer on one for a small picture of it. Hold ⌥ (or ⌃, if that is where your thumb goes) and press Tab: the page steps back and the open pages fan out across it as cards, each the page in little, in the order they were last used, the page before this one already highlighted. Tab steps, ⇧Tab steps back, ⌫ closes one, Esc leaves things, and letting go of the modifier opens the highlighted page, sliding in as the other slides aside — so a tap of ⌥Tab flips to the page you were on before. A row of pips in the footer shows the open pages; the ⌘K command bar lists them by name. The stack is kept between launches. Settings → Library → Keep pages open, off, gives one document at a time.
 
+## Images
+
+⌘V with a picture on the clipboard — a screenshot, a copy out of Preview or a browser — writes it as a PNG into `Images/` at the top of the library and puts `![](../Images/…)` in the document, where the editor draws the picture scaled to the column, its line under it as a caption. Dropping image files on the page copies them in as they are; `/image` and File → Insert Image… (⌘⇧I) open a panel. The `Images` folder shows in Finder and syncs (iCloud and GitHub both), but not in the sidebar — it holds no documents. Moving a document to another folder rewrites its links to match. [The manual page](https://docs.glassine.ink/editor/images).
+
 ## Tables
 
 A pipe table shows as a table in the editor: each column as wide as its widest cell (the narrower cells are padded, in any font), hairlines where the pipes are, a rule under the header, the header in bold — and the file keeps every pipe and dash. Tab moves to the next cell and selects it; ⇧Tab goes back; Tab from the last cell adds a row. `/table` starts one.
@@ -233,7 +239,7 @@ Resources/    Info.plist, icon (make_icon.py draws it), entitlements for each bu
 docs/appstore/  the store listing, a showcase library, and the script that takes the screenshots
 docs/site/    the documentation site (Mintlify): docs.json plus one .mdx per page
 site/         glassine.ink, the one-page site (static HTML, served by Vercel; vercel.json holds the redirects; api/appcast.js serves feed/appcast.xml and counts the update checks; screenshots.sh takes its pictures, the README's and the manual's)
-tests/        synctest.sh (the merge, with no network), shot-views.sh (the Timelapse in both scopes, a day's wall, the fanned pages, Settings → Look, the tour's steps), compare-shots.sh (the same pictures from two builds, compared), shot-sidebar.sh (the calendar and a row carried through the tree, on a temp library), shot-toggle.sh (the sidebar shown and hidden in quick succession over a long document), shot-review.sh (one document in every Review style, both themes, and contact sheets of them), ioscheck.sh (does the shared code still compile for iOS?)
+tests/        synctest.sh (the merge, with no network), shot-views.sh (the Timelapse in both scopes, a day's wall, the fanned pages, Settings → Look, the tour's steps), compare-shots.sh (the same pictures from two builds, compared), shot-sidebar.sh (the calendar and a row carried through the tree, on a temp library), shot-toggle.sh (the sidebar shown and hidden in quick succession over a long document), shot-review.sh (one document in every Review style, both themes, and contact sheets of them), shot-images.sh (a picture on the page, pasted, hidden-syntax, on a card and in Review; pasteboard-image.swift puts one on the clipboard), ioscheck.sh (does the shared code still compile for iOS?)
 build.sh      assembles and signs Glassine.app (--appstore for the sandboxed flavor, --demo for Glassine Demo.app: sample pages for a library, for pictures and recordings)
 release.sh    notarized .dmg for direct download;  appstore.sh  signed .pkg for the Mac App Store
 ```
@@ -246,6 +252,7 @@ Edit anything under `Sources/Glassine/`, then `./build.sh --run`. Incremental bu
 
 - One window. Glassine is a single-library app by design.
 - Export is PDF only (File → Export as PDF…); the files are plain Markdown, so any converter works on them directly for other formats.
+- A picture that is a web address is not drawn in the editor (Review shows it); pictures are not resized by dragging; a picture whose line is deleted stays in the Images folder.
 - Tested on macOS 26/27 with Xcode 26. Minimum deployment target is macOS 14.
 
 ## Credits

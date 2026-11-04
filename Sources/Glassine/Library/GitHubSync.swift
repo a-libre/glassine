@@ -571,12 +571,12 @@ final class SyncRun {
 
     var cache: [String: (modified: Date, size: Int, sha: String)] { hashCache }
 
-    /// Paths the sync carries: the library's documents, nothing hidden.
+    /// Paths the sync carries: the library's documents and their pictures, nothing hidden.
     static func carries(_ path: String) -> Bool {
         let parts = path.split(separator: "/")
         guard let last = parts.last, !parts.contains(where: { $0.hasPrefix(".") }) else { return false }
         let ext = (last as NSString).pathExtension.lowercased()
-        return LibraryStore.extensions.contains(ext)
+        return LibraryStore.extensions.contains(ext) || ImageEmbed.extensions.contains(ext)
     }
 
     private struct LocalFile {

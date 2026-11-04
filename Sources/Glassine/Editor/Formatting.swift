@@ -243,7 +243,7 @@ private struct FormatButton: View {
 // MARK: - The slash menu
 
 enum SlashAction {
-    case block(BlockKind), codeBlock, divider, table, link, chip, date(Int)
+    case block(BlockKind), codeBlock, divider, table, link, chip, image, date(Int)
 }
 
 struct SlashItem: Identifiable {
@@ -270,6 +270,7 @@ struct SlashItem: Identifiable {
         SlashItem("task", "Task", hint: "- [ ]", symbol: "checklist", keywords: ["todo", "check", "checkbox"], .block(.task)),
         SlashItem("quote", "Quote", hint: ">", symbol: "text.quote", keywords: ["blockquote"], .block(.quote)),
         SlashItem("table", "Table", hint: "| 3x4", symbol: "tablecells", keywords: ["grid", "columns", "rows", "cells"], .table),
+        SlashItem("image", "Image", hint: "![ ]( )", symbol: "photo", keywords: ["picture", "photo", "screenshot", "png", "jpg", "figure"], .image),
         SlashItem("code", "Code block", hint: "```", symbol: "chevron.left.forwardslash.chevron.right", keywords: ["fence", "pre"], .codeBlock),
         SlashItem("divider", "Divider", hint: "---", symbol: "minus", keywords: ["rule", "hr", "line", "separator"], .divider),
         SlashItem("link", "Link", hint: "[ ]( )", symbol: "link", keywords: ["url"], .link),

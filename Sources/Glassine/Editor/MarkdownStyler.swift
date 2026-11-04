@@ -25,6 +25,10 @@ final class MarkdownStyler {
     var config: StyleConfig {
         didSet { rebuildCaches() }
     }
+    /// The document being styled and the library it is in, for a picture's
+    /// path to be found from: `![](../Images/a.png)` is relative to the file.
+    var documentURL: URL?
+    var libraryRoot: URL?
 
     private var bodyFont: NSFont!
     private var boldFont: NSFont!
@@ -211,6 +215,46 @@ final class MarkdownStyler {
         }
     }
 
+    // MARK: - Pictures
+
+    /// Where an image line's picture goes, sized to the column: as wide as
+    /// the picture or the column, whichever is less, and never taller than
+    /// `ImageEmbed.maxHeight`. Nil when the file is not on this Mac.
+    private func imagePlacement(for m: NSTextCheckingResult, in textNS: NSString, storage: NSTextStorage) -> ImageEmbed.Placement? {
+        let path = textNS.substring(with: m.range(at: 2))
+        guard let url = ImageEmbed.resolve(path, documentURL: documentURL, libraryRoot: libraryRoot),
+              let natural = ImageStore.shared.pointSize(of: url), natural.width > 0, natural.height > 0 else { return nil }
+        var available = config.columnWidth
+        if let container = storage.layoutManagers.first?.textContainers.first,
+           container.size.width > 20, container.size.width < 50_000 {
+            available = container.size.width - 2 * container.lineFragmentPadding
+        }
+        var width = min(natural.width, available)
+        var height = width * natural.height / natural.width
+        if height > ImageEmbed.maxHeight {
+            height = ImageEmbed.maxHeight
+            width = height * natural.width / natural.height
+        }
+        return ImageEmbed.Placement(url: url, size: CGSize(width: width.rounded(), height: height.rounded()),
+                                    alt: textNS.substring(with: m.range(at: 1)))
+    }
+
+    /// Restyles every image line — for a column that changed width, or a
+    /// picture that has just been read — since a picture is sized to the column.
+    func restyleImages(_ storage: NSTextStorage) {
+        let ns = storage.ns
+        guard ns.range(of: "![").location != NSNotFound else { return }
+        var ranges: [NSRange] = []
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byParagraphs, .substringNotRequired]) { _, range, _, _ in
+            guard range.length > 3, ns.range(of: "![", options: [], range: range).location != NSNotFound else { return }
+            let text = ns.substring(with: range)
+            if ImageEmbed.paragraphRx.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.nsLength)) != nil {
+                ranges.append(range)
+            }
+        }
+        for r in ranges { restyle(storage, range: r) }
+    }
+
     // MARK: - Fences
 
     /// Where every fence line starts. Run after each keystroke in a document
@@ -256,7 +300,28 @@ final class MarkdownStyler {
 
         var inlineAllowed = true
 
-        if let m = MarkdownStyler.heading.firstMatch(in: text, options: [], range: full) {
+        if let m = ImageEmbed.paragraphRx.firstMatch(in: text, options: [], range: full),
+           let placement = imagePlacement(for: m, in: textNS, storage: storage) {
+            // A picture on a line of its own: the line is the caption under
+            // it — the alt text, or the whole mark when the syntax shows —
+            // and the paragraph keeps room above for the picture, which the
+            // layout manager draws there. A picture that is not on this Mac
+            // (a web address, a file that is gone) is a link like any other.
+            let p = config.baseParagraphStyle()
+            p.paragraphSpacingBefore = placement.size.height + ImageEmbed.gap
+            p.alignment = .center
+            p.firstLineHeadIndent = 0
+            storage.addAttribute(.paragraphStyle, value: p, range: enclosing)
+            storage.addAttribute(.foregroundColor, value: syntaxColor, range: paraRange)
+            storage.addAttribute(.foregroundColor, value: theme.text.withAlpha(theme.isDark ? 0.55 : 0.6), range: absRange(m.range(at: 1)))
+            let alt = m.range(at: 1)
+            let before = NSRange(location: m.range.location, length: alt.location - m.range.location)
+            let after = NSRange(location: alt.upperBoundValue, length: m.range.upperBoundValue - alt.upperBoundValue)
+            storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(before))
+            storage.addAttribute(Syntax.hiddenKey, value: true, range: absRange(after))
+            storage.addAttribute(ImageEmbed.key, value: placement, range: paraRange)
+            inlineAllowed = false
+        } else if let m = MarkdownStyler.heading.firstMatch(in: text, options: [], range: full) {
             let level = m.range(at: 1).length
             storage.addAttribute(.paragraphStyle, value: config.headingParagraphStyle(level: level), range: enclosing)
             storage.addAttribute(.font, value: headingFonts[level - 1], range: paraRange)

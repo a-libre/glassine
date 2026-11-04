@@ -282,6 +282,8 @@ final class LibraryStore: ObservableObject {
                 if name.hasPrefix(".") { continue }
                 let childRel = rel.isEmpty ? name : rel + "/" + name
                 if values?.isDirectory == true {
+                    // The pictures' folder holds no documents; it stays out of the tree.
+                    if rel.isEmpty, name == ImageEmbed.folder { continue }
                     folders.append(buildFolder(at: item, rel: childRel))
                 } else if extensions.contains(item.pathExtension.lowercased()) {
                     let modified = values?.contentModificationDate ?? Date.distantPast

@@ -77,6 +77,7 @@ final class GlassineTextView: NSTextView {
     private var focusLifted = false
     private var clipObserver: NSObjectProtocol?
     private var windowObservers: [NSObjectProtocol] = []
+    private var imageObserver: NSObjectProtocol?
 
     // Formatting over the text: a bar above a selection, a menu under a slash
     private var formatBar: QuietHostingView<FormatBar>?
@@ -107,6 +108,7 @@ final class GlassineTextView: NSTextView {
         let layoutManager = GlassineLayoutManager()
         ownedStorage = storage
         ownedLayoutManager = layoutManager
+        layoutManager.typesetter = GlassineTypesetter()
         layoutManager.allowsNonContiguousLayout = false
         storage.addLayoutManager(layoutManager)
         let container = NSTextContainer(size: NSSize(width: 600, height: CGFloat.greatestFiniteMagnitude))
@@ -183,6 +185,12 @@ final class GlassineTextView: NSTextView {
         dropBar.cornerRadius = 1.5
 
         applyConfig(previous: nil)
+        updateDragTypeRegistration()
+        // A picture decoded off the main thread: its paragraph is drawn again.
+        imageObserver = NotificationCenter.default.addObserver(forName: ImageStore.loaded, object: nil, queue: .main) { [weak self] note in
+            guard let self, let url = note.object as? URL else { return }
+            self.pictureArrived(url)
+        }
     }
 
     override func viewDidMoveToWindow() {
@@ -220,6 +228,7 @@ final class GlassineTextView: NSTextView {
 
     deinit {
         if let o = clipObserver { NotificationCenter.default.removeObserver(o) }
+        if let o = imageObserver { NotificationCenter.default.removeObserver(o) }
         for o in windowObservers { NotificationCenter.default.removeObserver(o) }
         motionTimer?.invalidate()
     }
@@ -364,8 +373,8 @@ final class GlassineTextView: NSTextView {
         textContainerInset = newInset
         if oldColumn != column {
             textContainer?.containerSize = NSSize(width: column, height: CGFloat.greatestFiniteMagnitude)
-            // A table is laid out to the width it has.
-            if let storage = textStorage { styler.restyleTables(storage) }
+            // A table is laid out to the width it has, and a picture sized to it.
+            if let storage = textStorage { styler.restyleTables(storage); styler.restyleImages(storage) }
         }
         if let anchor { hold(anchor) }
         needsDisplay = true
@@ -549,6 +558,7 @@ final class GlassineTextView: NSTextView {
     /// copied out of Glassine goes in as it is.
     override func paste(_ sender: Any?) {
         if linkSelectionFromClipboard() { return }
+        if insertPictures(from: .general) { return }
         guard let text = PasteMarkdown.text(from: .general) else { pasteAsPlainText(sender); return }
         insertVerbatim(text)
     }
@@ -586,6 +596,13 @@ final class GlassineTextView: NSTextView {
     /// the same reading as a paste: the rich flavour read for its shape,
     /// the plain one tidied. Files and pictures take NSTextView's own road.
     override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        if Self.pictureFlavours.contains(type) {
+            // A picture, or image files, dropped on the page: written into
+            // the library and set on lines of their own. Any other file is
+            // not the page's business.
+            if insertPictures(from: pboard) { return true }
+            if type == .fileURL { return false }
+        }
         if Self.textFlavours.contains(type), let text = PasteMarkdown.text(from: pboard) {
             insertVerbatim(text)
             return true
@@ -593,8 +610,29 @@ final class GlassineTextView: NSTextView {
         return super.readSelection(from: pboard, type: type)
     }
 
+    /// Pictures and files come first, so a drop of an image file is read as
+    /// one rather than as the path's text.
+    override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
+        ImageEmbed.pasteboardTypes + super.readablePasteboardTypes.filter { !ImageEmbed.pasteboardTypes.contains($0) }
+    }
+
+    override var acceptableDragTypes: [NSPasteboard.PasteboardType] {
+        ImageEmbed.pasteboardTypes + super.acceptableDragTypes.filter { !ImageEmbed.pasteboardTypes.contains($0) }
+    }
+
+    /// A picture or an image file over the page is copied in, so the
+    /// pointer says so.
+    override func dragOperation(for dragInfo: NSDraggingInfo, type: NSPasteboard.PasteboardType) -> NSDragOperation {
+        if Self.pictureFlavours.contains(type) {
+            if type == .fileURL, ImageEmbed.imageFileURLs(on: dragInfo.draggingPasteboard).isEmpty { return [] }
+            return .copy
+        }
+        return super.dragOperation(for: dragInfo, type: type)
+    }
+
     private static let textFlavours: Set<NSPasteboard.PasteboardType> = [.string, .rtf, .rtfd, .html,
                                                                           NSPasteboard.PasteboardType("public.utf8-plain-text")]
+    private static let pictureFlavours = Set(ImageEmbed.pasteboardTypes)
 
     /// Edit → Paste as Plain Text (⌥⇧⌘V): the clipboard's plain string,
     /// nothing read into it, for the time the conversion is not what was wanted.
@@ -1424,6 +1462,7 @@ final class GlassineTextView: NSTextView {
             setSelectedRange(NSRange(location: selectedRange().location, length: 6))   // the first heading, ready to be typed over
         case .link: markdownLink(nil)
         case .chip: markdownChip(nil)
+        case .image: insertImage(nil)
         case .date(let days): insertDate(daysFromToday: days)
         }
         window?.makeFirstResponder(self)
@@ -2314,6 +2353,116 @@ final class GlassineTextView: NSTextView {
         case .marker:
             let index = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
             setSelectedRange(NSRange(location: index, length: 0))
+        }
+    }
+
+    // MARK: - Pictures
+
+    /// The pictures a pasteboard holds — image files, or a picture as data
+    /// — written into the library and set on lines of their own. False when
+    /// it holds none, so the paste goes on as text.
+    @discardableResult
+    func insertPictures(from pb: NSPasteboard) -> Bool {
+        let files = ImageEmbed.imageFileURLs(on: pb)
+        if !files.isEmpty { return insertPictures(fileURLs: files) }
+        guard let picture = ImageEmbed.imageData(on: pb) else { return false }
+        return insertPicture(data: picture.data, ext: picture.ext)
+    }
+
+    /// File → Insert Image… and `/image`: the pictures chosen in a panel.
+    @objc func insertImage(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.message = "The picture is copied into the library's Images folder and set on its own line."
+        panel.prompt = "Insert"
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+        insertPictures(fileURLs: panel.urls)
+        window?.makeFirstResponder(self)
+    }
+
+    /// Where a picture pasted into this page is written, and the page's
+    /// own file to write the link relative to. A page from outside the
+    /// library keeps its pictures beside it.
+    private var pictureHome: (document: URL, folder: URL)? {
+        guard let document = styler.documentURL else { return nil }
+        let folder = ImageEmbed.targetFolder(for: document, libraryRoot: styler.libraryRoot, isLoose: styler.libraryRoot == nil)
+        return (document, folder)
+    }
+
+    /// Image files, copied into the library — one already inside it is
+    /// linked where it is — and set on lines of their own, in order.
+    @discardableResult
+    func insertPictures(fileURLs: [URL]) -> Bool {
+        guard let home = pictureHome else { return false }
+        let fm = FileManager.default
+        let root = styler.libraryRoot?.standardizedFileURL.path
+        var lines: [String] = []
+        for source in fileURLs {
+            let inside = root.map { source.standardizedFileURL.path.hasPrefix($0 + "/") } ?? false
+            var target = source
+            if !inside {
+                try? fm.createDirectory(at: home.folder, withIntermediateDirectories: true)
+                let stem = source.deletingPathExtension().lastPathComponent.sanitizedFileStem
+                    .lowercased().replacingOccurrences(of: " ", with: "-")
+                target = ImageEmbed.newFileURL(in: home.folder, documentTitle: "", ext: source.pathExtension.lowercased(), preferredStem: stem)
+                do { try fm.copyItem(at: source, to: target) } catch { continue }
+            }
+            lines.append("![](\(ImageEmbed.relativePath(to: target, fromDocumentAt: home.document)))")
+        }
+        guard !lines.isEmpty else { return false }
+        setPictureLines(lines)
+        return true
+    }
+
+    /// A picture as data — a screenshot, a copy out of another app — written
+    /// as a file of its own, named for the page and the moment, and shown
+    /// at once: the store holds it while the write lands.
+    @discardableResult
+    func insertPicture(data: Data, ext: String) -> Bool {
+        guard let home = pictureHome else { return false }
+        try? FileManager.default.createDirectory(at: home.folder, withIntermediateDirectories: true)
+        let title = home.document.deletingPathExtension().lastPathComponent
+        let target = ImageEmbed.newFileURL(in: home.folder, documentTitle: title, ext: ext)
+        ImageStore.shared.prime(target, data: data)
+        DispatchQueue.global(qos: .userInitiated).async {
+            try? data.write(to: target, options: .atomic)
+            DispatchQueue.main.async {
+                ImageStore.shared.settle(target)
+                NotificationCenter.default.post(name: ImageStore.loaded, object: target)
+            }
+        }
+        setPictureLines(["![](\(ImageEmbed.relativePath(to: target, fromDocumentAt: home.document)))"])
+        return true
+    }
+
+    /// Image lines on lines of their own, the caret on a fresh line under
+    /// the last, as one step for ⌘Z.
+    private func setPictureLines(_ lines: [String]) {
+        let block = lines.joined(separator: "\n")
+        insertOwnLine(block, caretOffset: block.nsLength + 1)
+        undoManager?.setActionName(lines.count == 1 ? "Insert Image" : "Insert Images")
+        scrollRangeToVisible(selectedRange())
+    }
+
+    /// A picture has been decoded (or has landed on the disk): its lines are
+    /// styled again, so one that was a link while the file was on its way
+    /// becomes a picture, and drawn.
+    private func pictureArrived(_ url: URL) {
+        guard let storage = textStorage, let lm = layoutManager, storage.length > 0 else { return }
+        var touched = false
+        storage.enumerateAttribute(ImageEmbed.key, in: NSRange(location: 0, length: storage.length), options: []) { value, range, _ in
+            guard let p = value as? ImageEmbed.Placement, p.url == url else { return }
+            lm.invalidateDisplay(forCharacterRange: range)
+            touched = true
+        }
+        if !touched {
+            // Not placed yet — the file was not there when the line was styled.
+            let sel = selectedRange()
+            styler.restyleImages(storage)
+            setSelectedRange(sel.clamped(to: storage.length))
+            updateCaret(animated: false)
         }
     }
 

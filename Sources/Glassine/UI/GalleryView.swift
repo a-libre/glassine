@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// Craft-style mosaic of the whole library: one card per document with its
@@ -1113,6 +1114,8 @@ struct GalleryCard: View {
                             Text(run).lineSpacing(2)
                         case .table(let table):
                             PreviewTableView(table: table, theme: theme)
+                        case .image(let url):
+                            PreviewImageView(url: url, theme: theme)
                         }
                     }
                 }
@@ -1216,6 +1219,8 @@ struct PreviewTable {
 struct PreviewLine: Identifiable {
     enum Kind {
         case heading(Int), body, bullet, numbered(String), quote, code, rule, blank, table(PreviewTable)
+        /// A picture on a line of its own: its path as written, and its alt text.
+        case image(path: String, alt: String)
     }
     let id: Int
     let kind: Kind
@@ -1228,6 +1233,7 @@ struct PreviewLine: Identifiable {
         case .heading: return 20
         case .code: return 14
         case .table(let t): return t.estimatedHeight
+        case .image: return PreviewImageView.height + 4
         default:
             // Roughly 46 characters per line at the preview size, capped at three lines.
             let chars = text.characters.count
@@ -1281,6 +1287,17 @@ enum MarkdownPreview {
             if case .table(let table) = line.kind {
                 flush()
                 result.append(.table(table))
+            } else if case .image(let path, let alt) = line.kind {
+                // A picture on this Mac is a thumbnail; one elsewhere, its caption.
+                if let url = ImageEmbed.resolve(path, documentURL: doc.url, libraryRoot: AppState.shared.library.rootURL) {
+                    flush()
+                    result.append(.image(url))
+                } else {
+                    var t = AttributedString(alt.isEmpty ? "Image" : alt)
+                    t.font = .system(size: 10.5).italic()
+                    t.foregroundColor = theme.text.color.opacity(0.45)
+                    run.append(PreviewLine(id: line.id, kind: .body, text: t))
+                }
             } else {
                 run.append(line)
             }
@@ -1360,7 +1377,7 @@ enum MarkdownPreview {
                 var t = clipped(line.text, lines: 3)
                 t.font = body
                 out.append(t)
-            case .table:
+            case .table, .image:
                 // Drawn as a block of its own (segments); never in a run.
                 break
             }
@@ -1467,7 +1484,10 @@ enum MarkdownPreview {
             lastWasBlank = false
             let ns = line as NSString
 
-            if let m = match(heading, line) {
+            if let m = ImageEmbed.paragraphRx.firstMatch(in: line, options: [], range: NSRange(location: 0, length: ns.length)) {
+                out.append(PreviewLine(id: out.count, kind: .image(path: ns.substring(with: m.range(at: 2)), alt: ns.substring(with: m.range(at: 1))),
+                                       text: AttributedString()))
+            } else if let m = match(heading, line) {
                 let level = m.range(at: 1).length
                 out.append(PreviewLine(id: out.count, kind: .heading(min(level, 3)), text: inline(ns.substring(with: m.range(at: 2)))))
             } else if match(rule, line) != nil {
@@ -1510,6 +1530,37 @@ private struct PreviewFade: ViewModifier {
 enum PreviewSegment {
     case text(AttributedString)
     case table(PreviewTable)
+    case image(URL)
+}
+
+/// A picture on a card: the store's decoding of it, no taller than a few
+/// lines, in a rounded frame; a faint plate until it has been read.
+struct PreviewImageView: View {
+    let url: URL
+    let theme: Theme
+    static let height: CGFloat = 92
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: Self.height, alignment: .leading)
+            } else {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(theme.text.color.opacity(0.06))
+                    .frame(height: Self.height * 0.6)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .onAppear { image = ImageStore.shared.image(for: url) }
+        .onReceive(NotificationCenter.default.publisher(for: ImageStore.loaded)) { note in
+            if (note.object as? URL) == url { image = ImageStore.shared.image(for: url) }
+        }
+    }
 }
 
 /// A pipe table in little: a grid of small type, a line under the header
@@ -1631,6 +1682,12 @@ struct PreviewLineView: View {
             Text(line.text)
                 .font(.system(size: 10.5))
                 .lineLimit(3)
+        case .image(_, let alt):
+            Text(alt.isEmpty ? "Image" : alt)
+                .font(.system(size: 10.5))
+                .italic()
+                .opacity(0.45)
+                .lineLimit(1)
         }
     }
 }

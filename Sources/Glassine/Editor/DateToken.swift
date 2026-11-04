@@ -200,6 +200,15 @@ final class GlassineLayoutManager: NSLayoutManager {
             color.setFill()
             NSRect(x: x, y: y, width: width, height: 1).fill()
         }
+        // A picture: drawn in the room its paragraph keeps above its line.
+        var pictured: [Int] = []
+        storage.enumerateAttribute(ImageEmbed.key, in: chars, options: []) { value, range, _ in
+            guard let placement = value as? ImageEmbed.Placement else { return }
+            let para = storage.ns.paragraphRange(for: range)
+            guard !pictured.contains(para.location) else { return }
+            pictured.append(para.location)
+            self.drawPicture(placement, paragraph: para, storage: storage, origin: origin)
+        }
         // A table: its grid, drawn once per table in view.
         var drawn: [Int] = []
         storage.enumerateAttribute(MarkdownTable.gridKey, in: chars, options: []) { value, range, _ in
@@ -218,6 +227,39 @@ final class GlassineLayoutManager: NSLayoutManager {
     /// Rows sit flush, each with its air above and below its words, so the
     /// row's box is the union of its line fragments — less, for the last
     /// row, the page's spacing after the table.
+    /// The picture of an image line, centred in the room above its caption,
+    /// with rounded corners — and as dim as its paragraph when focus mode has
+    /// dimmed it. Before the file has been decoded, a faint plate its size.
+    private func drawPicture(_ placement: ImageEmbed.Placement, paragraph: NSRange, storage: NSTextStorage, origin: NSPoint) {
+        let glyphs = glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
+        guard glyphs.length > 0, let container = textContainer(forGlyphAt: glyphs.location, effectiveRange: nil) else { return }
+        let fragment = lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+        let used = lineFragmentUsedRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+        let room = used.minY - fragment.minY
+        guard room > 4 else { return }
+        let size = placement.size
+        let x = origin.x + fragment.minX + ((container.size.width - size.width) / 2).rounded()
+        let y = origin.y + fragment.minY + ((room - size.height) / 2).rounded()
+        let rect = NSRect(x: x, y: y, width: size.width, height: size.height)
+        // The paragraph's dimming, read off the colour focus mode has set on its text.
+        var fraction: CGFloat = 1
+        if let dim = temporaryAttribute(.foregroundColor, atCharacterIndex: paragraph.location, effectiveRange: nil) as? NSColor,
+           let base = storage.attribute(.foregroundColor, at: paragraph.location, effectiveRange: nil) as? NSColor, base.alphaComponent > 0 {
+            fraction = max(0.12, min(1, dim.alphaComponent / base.alphaComponent))
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(roundedRect: rect, xRadius: ImageEmbed.cornerRadius, yRadius: ImageEmbed.cornerRadius).addClip()
+        if let url = placement.url, let image = ImageStore.shared.image(for: url) {
+            image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: fraction, respectFlipped: true,
+                       hints: [.interpolation: NSImageInterpolation.high])
+        } else {
+            let plate = (storage.attribute(.foregroundColor, at: paragraph.location, effectiveRange: nil) as? NSColor) ?? .gray
+            plate.withAlphaComponent(0.08 * fraction).setFill()
+            rect.fill()
+        }
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
     private func drawTable(_ tableRange: NSRange, grid: MarkdownTable.Grid, storage: NSTextStorage, origin: NSPoint) {
         struct Box { let index: Int; let range: NSRange; let top: CGFloat; let bottom: CGFloat; let firstLine: NSRect }
         var boxes: [Box] = []

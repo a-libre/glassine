@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// The open pages fanned across the window while ⌥ or ⌃ is held (see
@@ -170,7 +171,12 @@ struct PageCard: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(lines) { line in
-                    PreviewLineView(line: line, theme: theme)
+                    if case .image(let path, _) = line.kind,
+                       let url = ImageEmbed.resolve(path, documentURL: doc.url, libraryRoot: state.library.rootURL) {
+                        PreviewImageView(url: url, theme: theme)
+                    } else {
+                        PreviewLineView(line: line, theme: theme)
+                    }
                 }
             }
             .foregroundStyle(theme.text.color.opacity(0.72))

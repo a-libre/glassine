@@ -562,6 +562,14 @@ final class DocumentModel: ObservableObject, Identifiable {
         onRenamed?(oldRel, newRel)
     }
 
+    /// The page's relative links as they read from its new folder (see
+    /// AppState.repointLinks); the editor is told, as of a change from the disk.
+    func repointLinks(from oldRel: String, to newRel: String) {
+        guard !isReadOnly, let moved = RelativeLinks.rewrite(text, from: oldRel, to: newRel) else { return }
+        textDidChange(moved)
+        onReloaded?()
+    }
+
     func didMove(to newRel: String) {
         url = library.url(forRelativePath: newRel)
         relativePath = newRel

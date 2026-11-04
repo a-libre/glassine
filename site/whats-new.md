@@ -6,6 +6,11 @@ every release. Newest version first. Three to five lines a version, each
 `- **Title.** One or two plain sentences.` — links as `[text](url)`, keys as
 `[[⌘K]]`. Older blocks stay as a record; only the top one is shown.
 
+## 0.2.31 — November 3, 2026
+
+- **Pictures on the page.** Paste a screenshot, drop an image file, or type `/image`: the picture is drawn in place, scaled to the column, and the document stays a plain Markdown file — the picture is a file of its own in an `Images` folder in the library, linked with an ordinary `![](…)` line. [Images.](https://docs.glassine.ink/editor/images)
+- **They travel.** Review, the PDF and Copy as Rich Text carry the picture inside the page; the cards show a small one; iCloud and GitHub sync carry the files; moving a document rewrites its links to match.
+
 ## 0.2.30 — November 2, 2026
 
 - **Every question on the glass.** Rename, New Folder, the Trash question and any error are cards on the page now, in the look's colours — no more grey system sheets. Return answers, Esc keeps things as they were.

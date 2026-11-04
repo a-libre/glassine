@@ -1,0 +1,43 @@
+---
+title: "Images"
+description: "Paste a picture and it is on the page — a file of its own in the library's Images folder, an ordinary Markdown line in the document, and drawn in place as you write."
+icon: "image"
+---
+
+A picture pasted into a page becomes two plain things: a file in an **Images** folder at the top of the library, and a line in the document that any Markdown app reads:
+
+```
+![](../Images/on-writing-less-20261103-193211.png)
+```
+
+The editor draws the picture where that line is, scaled to the column, with the line itself under it as a caption. The document is still a text file that says exactly what the file says.
+
+## Ways in
+
+- **⌘V** with a picture on the clipboard — a screenshot taken with ⌃⇧⌘4, a picture copied out of Preview, Photos or a browser. The picture is written as a PNG, named for the page and the moment, and shown at once.
+- **Drop** an image file on the page, from Finder or the desktop. It is copied into the Images folder as it is — a JPEG stays a JPEG — and set where it was dropped. Several at once go in as several lines.
+- **`/image`** in the [slash menu](/editor/formatting#the-slash-menu), or **File → Insert Image…** (⌘⇧I), opens a panel to choose files.
+
+A paste that is text with a picture somewhere in it — a stretch of a web page, say — is still a paste of text: the words arrive as Markdown and the picture does not. Only a paste that *is* a picture is taken as one.
+
+## On the page
+
+The picture is as wide as the column or as wide as it is, whichever is less, and never taller than about two-thirds of a tall window; a tall screenshot is scaled down to fit. It sits centred, with rounded corners, and its line under it. With the Markdown syntax [hidden](/editor/formatting#hiding-the-markdown) the line shows only the alt text — the words between the brackets — as a caption, or nothing when there are none; put the caret on the line and the whole mark shows, as it does for any line. In focus mode the picture dims with its paragraph.
+
+A line whose picture is a web address, or a file that is not on this Mac, reads as a link and nothing more; Review's web view shows a picture from the web. Narrow the window and the picture narrows with the column.
+
+## Where the files go
+
+`Images`, at the top of the library, beside `Daily` and `Shelf`. It shows in Finder and syncs with the rest — through iCloud Drive, and through [GitHub sync](/library/sync), which carries pictures as it carries documents. It does not show in the sidebar or in All Documents: there are no documents in it. A page from outside the library, opened with File → Open, keeps its pictures beside itself instead.
+
+A picture pasted into the page is named for the page and the moment — `on-writing-less-20261103-193211.png` — so a folder of them sorts by when they were pasted. A dropped file keeps its own name, made unique if need be.
+
+The link is written relative to the document — `../Images/…` from a page in a folder, `Images/…` from one at the top — the way other apps expect it. Move the document to another folder, or onto the Shelf, and Glassine rewrites the link to match, so the picture still shows here and anywhere else. A document moved by hand in Finder finds its pictures by name all the same.
+
+Delete the line and the file stays in the Images folder; Glassine never removes a picture on its own. Settings → Library → Reveal in Finder opens the library when there is tidying to do.
+
+## In Review, the PDF and a copy
+
+[Review](/review/review), the page beside the editor and the PDF carry the picture inside the page, scaled to no more than 1600 pixels across, so the export stands on its own. **Copy as Rich Text** (⌥⌘C) carries it too: paste into Mail, Notes or Pages and the picture comes with the words. Copy as Markdown copies the line as it is.
+
+The cards in All Documents, the Timelapse and the fanned pages show a small picture where the page has one.

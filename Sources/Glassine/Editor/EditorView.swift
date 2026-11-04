@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// Hosts the AppKit text view inside SwiftUI and bridges it to the open document.
@@ -78,6 +79,7 @@ struct EditorView: NSViewRepresentable {
         private var isLoading = false
         private var caretSaveDebouncer = Debouncer(delay: 0.8)
         private var caretLineDebouncer = Debouncer(delay: 0.12)
+        private var urlSink: AnyCancellable?
 
         init(_ parent: EditorView) {
             self.parent = parent
@@ -87,6 +89,15 @@ struct EditorView: NSViewRepresentable {
             self.document = document
             documentID = document.id
             guard let textView else { return }
+            // Where the page's file is, so a picture's relative path is found
+            // from it; followed when the file is renamed or moved.
+            textView.styler.libraryRoot = document.isLoose ? nil : AppState.shared.library.rootURL
+            textView.styler.documentURL = document.url
+            urlSink = document.$url.dropFirst().removeDuplicates().sink { [weak self, weak document] url in
+                guard let self, let textView = self.textView, let document, document.id == self.documentID else { return }
+                textView.styler.documentURL = url
+                if let storage = textView.textStorage { textView.styler.restyleImages(storage) }
+            }
             isLoading = true
             textView.load(text: document.text, caretAt: caret)
             isLoading = false

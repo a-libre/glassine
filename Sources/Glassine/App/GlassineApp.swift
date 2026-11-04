@@ -317,6 +317,9 @@ struct GlassineCommands: Commands {
             Button("Export as PDF…") { state.exportPDF() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(state.document == nil)
+            Button("Insert Image…") { GlassineTextView.current?.insertImage(nil) }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .disabled(state.document == nil || state.galleryOnScreen || state.showingDaily || state.reviewMode)
             Divider()
             Button("Reveal Document in Finder") { state.revealCurrentDocument() }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
