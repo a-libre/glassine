@@ -468,7 +468,31 @@ enum ScreenshotMode {
         NSApp.sendEvent(e)
     }
 
+    /// With the screen locked the window server hands back black. The view
+    /// hierarchy can still draw itself into a bitmap — without the glass, which
+    /// is the window server's, but with everything the views draw. That is the
+    /// fallback when the session is locked, and the whole method with
+    /// `-glassine.shootOffscreen 1`.
+    private static var screenIsLocked: Bool {
+        guard let d = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        return (d["CGSSessionScreenIsLocked"] as? Bool) ?? false
+    }
+
+    private static func offscreen(_ window: NSWindow) -> CGImage? {
+        guard let view = window.contentView else { return nil }
+        let bounds = view.bounds
+        guard let rep = view.bitmapImageRepForCachingDisplay(in: bounds) else { return nil }
+        view.cacheDisplay(in: bounds, to: rep)
+        return rep.cgImage
+    }
+
     private static func capture(_ window: NSWindow, name: String, composite: Bool, andQuit: Bool) {
+        if UserDefaults.standard.bool(forKey: "glassine.shootOffscreen") || screenIsLocked {
+            guard let image = offscreen(window) else { finish(name: name, error: "the view drew no image"); return }
+            note("offscreen: the views drew themselves; the screen was locked or -glassine.shootOffscreen was set")
+            write(image, name: name, andQuit: andQuit)
+            return
+        }
         do {
                 // The window alone, asked for by its number: the one window of ours,
                 // and nothing else. The backdrop beneath it is still on screen, so the

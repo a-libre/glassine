@@ -1616,8 +1616,13 @@ final class AppState: ObservableObject {
             showNotice("Copied as Markdown (rich text failed)")
             return
         }
-        pb.declareTypes([.rtf, .html, .string], owner: nil)
+        // RTF cannot hold a picture; RTFD can, so TextEdit and Pages get one too.
         let range = NSRange(location: 0, length: attributed.length)
+        let hasPicture = attributed.containsAttachments(in: range)
+        pb.declareTypes((hasPicture ? [.rtfd] : []) + [.rtf, .html, .string], owner: nil)
+        if hasPicture, let rtfd = attributed.rtfd(from: range, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtfd]) {
+            pb.setData(rtfd, forType: .rtfd)
+        }
         if let rtf = attributed.rtf(from: range, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) {
             pb.setData(rtf, forType: .rtf)
         }

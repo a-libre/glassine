@@ -232,6 +232,10 @@ final class ImageStore {
         var image: NSImage?
         var dataURI: String?
         var loading = false
+        /// The date the decode in flight was started under. A pasted picture
+        /// is settled — its date moved to the file's own — while its decode
+        /// may still be out, and the decode must still be taken when it lands.
+        var decodeKey: Date?
         /// Pasted and not yet written: kept whatever the disk says, until settled.
         var primed = false
         /// When the picture was last drawn; the least recent lets go of its
@@ -302,6 +306,7 @@ final class ImageStore {
         }
         if !e.loading {
             e.loading = true
+            e.decodeKey = e.modified
             entries[url] = e
             lock.unlock()
             let mod = e.modified
@@ -322,6 +327,7 @@ final class ImageStore {
         var e = Entry(modified: Date(), pointSize: size)
         e.primed = true
         e.loading = true
+        e.decodeKey = e.modified
         entries[url] = e
         let mod = e.modified
         lock.unlock()
@@ -360,9 +366,10 @@ final class ImageStore {
 
     private func finishDecode(_ url: URL, modified: Date, image: NSImage?) {
         lock.lock()
-        if var e = entries[url], e.modified == modified {
+        if var e = entries[url], e.modified == modified || e.decodeKey == modified {
             e.image = image
             e.loading = false
+            e.decodeKey = nil
             e.used = CACurrentMediaTime()
             entries[url] = e
         }

@@ -176,7 +176,7 @@ A document stays open as a page until you close it (⌘W), and the pages sit in 
 
 ## Images
 
-⌘V with a picture on the clipboard — a screenshot, a copy out of Preview or a browser — writes it as a PNG into `Images/` at the top of the library and puts `![](../Images/…)` in the document, where the editor draws the picture scaled to the column, its line under it as a caption. Dropping image files on the page copies them in as they are; `/image` and File → Insert Image… (⌘⇧I) open a panel. The `Images` folder shows in Finder and syncs (iCloud and GitHub both), but not in the sidebar — it holds no documents. Moving a document to another folder rewrites its links to match. [The manual page](https://docs.glassine.ink/editor/images).
+⌘V with a picture on the clipboard — a screenshot, a copy out of Preview or a browser — writes it as a PNG into `Images/` at the top of the library and puts `![](../Images/…)` in the document as a paragraph of its own, where the editor draws the picture scaled to the column, its line under it as a caption. Dropping image files on the page copies them in as they are; `/image` and File → Insert Image… (⌘⇧I) open a panel. The `Images` folder shows in Finder and syncs (iCloud and GitHub both), but not in the sidebar — it holds no documents. Moving a document to another folder rewrites its links to match. [The manual page](https://docs.glassine.ink/editor/images).
 
 ## Tables
 

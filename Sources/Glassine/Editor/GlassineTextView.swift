@@ -2437,11 +2437,34 @@ final class GlassineTextView: NSTextView {
         return true
     }
 
-    /// Image lines on lines of their own, the caret on a fresh line under
-    /// the last, as one step for ⌘Z.
+    /// Image lines set as paragraphs of their own — a blank line on each side
+    /// where there is not one already, so that in any Markdown app the picture
+    /// is a block and not the tail of the line above — in place of an empty
+    /// line or after the line the caret is in, the caret on a fresh line a
+    /// blank line under the last. One step for ⌘Z.
     private func setPictureLines(_ lines: [String]) {
-        let block = lines.joined(separator: "\n")
-        insertOwnLine(block, caretOffset: block.nsLength + 1)
+        guard let storage = textStorage else { return }
+        let ns = storage.ns
+        let block = lines.joined(separator: "\n\n")
+        func ch(_ i: Int) -> unichar? { i >= 0 && i < ns.length ? ns.character(at: i) : nil }
+        var para = ns.paragraphRange(for: NSRange(location: selectedRange().location, length: 0))
+        let hasNewline = para.length > 0 && ch(para.upperBoundValue - 1) == 10
+        if hasNewline { para.length -= 1 }
+        let empty = ns.substring(with: para).trimmingCharacters(in: .whitespaces).isEmpty
+        var range = empty ? NSRange(location: para.location, length: para.length + (hasNewline ? 1 : 0))
+                          : NSRange(location: para.upperBoundValue, length: 0)
+        let at = range.location
+        let prefix = at == 0 ? "" : ch(at - 1) == 10 ? (at == 1 || ch(at - 2) == 10 ? "" : "\n") : "\n\n"
+        // One blank line after the caret's line is enough; a second is taken up.
+        if ch(range.upperBoundValue) == 10, ch(range.upperBoundValue + 1) == 10 { range.length += 1 }
+        let end = range.upperBoundValue
+        let after = end >= ns.length || ch(end) == 10 ? "" : "\n"
+        let lead = prefix + block + "\n\n"
+        let text = lead + after
+        guard shouldChangeText(in: range, replacementString: text) else { return }
+        storage.replaceCharacters(in: range, with: text)
+        didChangeText()
+        setSelectedRange(NSRange(location: range.location + lead.nsLength, length: 0))
         undoManager?.setActionName(lines.count == 1 ? "Insert Image" : "Insert Images")
         scrollRangeToVisible(selectedRange())
     }
